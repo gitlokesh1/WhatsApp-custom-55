@@ -139,6 +139,7 @@ func handleInboundConversationEvent(accountKey string, client *whatsmeow.Client,
     if !ok { return }
     reply, duplicate, err := recordInboundConversation(accountKey, target, event.Info.ID, body)
     if err != nil || duplicate || reply == "" { return }
+    if getAdminSetting("conversation_auto_reply_enabled", "true") != "true" { return }
     if err := enqueueConversationReply(accountKey, target, event.Info.ID, reply); err != nil { return }
     _ = client
 }
