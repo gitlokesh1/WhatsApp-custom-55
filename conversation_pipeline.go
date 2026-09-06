@@ -177,9 +177,15 @@ func conversationWorkerLoop() { for userDB==nil { time.Sleep(2*time.Second) }; f
 
 func handleConversationReceipt(accountKey string, receipt *events.Receipt) {
     if receipt == nil || userDB == nil { return }
-    t := strings.ToLower(string(receipt.Type)); status := ""
-    if strings.Contains(t,"read") || strings.Contains(t,"played") { status="read" } else if strings.Contains(t,"deliver") { status="delivered" }
-    if status=="" { return }
+    status := ""
+    switch receipt.Type {
+    case types.ReceiptTypeRead, types.ReceiptTypeReadSelf, types.ReceiptTypePlayed:
+        status = "read"
+    case types.ReceiptTypeDelivered, types.ReceiptTypeSender:
+        status = "delivered"
+    default:
+        return
+    }
     for _, id := range receipt.MessageIDs { _,_=userDB.Exec(`UPDATE public.conversation_messages SET status=CASE WHEN $1='read' OR status NOT IN ('read') THEN $1 ELSE status END WHERE account_key=$2 AND provider_message_id=$3 AND direction='outbound'`,status,accountKey,id) }
 }
 
