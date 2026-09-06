@@ -12,8 +12,6 @@ import (
  "go.mau.fi/whatsmeow"
  "go.mau.fi/whatsmeow/appstate"
  "go.mau.fi/whatsmeow/types"
- waProto "go.mau.fi/whatsmeow/proto/waE2E"
- "google.golang.org/protobuf/proto"
 )
 
 var recipientRateLimitMu sync.Mutex
