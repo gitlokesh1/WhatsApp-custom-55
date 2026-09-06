@@ -62,46 +62,60 @@ func recipientRateLimited(userID string) bool {
 }
 func setRecipientRateLimit(userID string,d time.Duration){recipientRateLimitMu.Lock();recipientRateLimitUntil[userID]=time.Now().Add(d);recipientRateLimitMu.Unlock()}
 
+func normalizeRecipientPhone(raw string) (string,error){
+  phone:=strings.TrimSpace(raw)
+  if strings.HasPrefix(phone,"00"){phone=phone[2:]}else{phone=strings.TrimPrefix(phone,"+")}
+  phone=strings.NewReplacer(" ","","-","","(","",")","").Replace(phone)
+  if phone==""{return "",fmt.Errorf("phone number is required")}
+  for _,r:=range phone{if r<'0'||r>'9'{return "",fmt.Errorf("invalid phone number: use international digits")}}
+  return phone,nil
+}
+
 func resolveCachedRecipient(client *whatsmeow.Client,pn types.JID)(types.JID,bool){
- if client==nil||client.Store==nil||client.Store.LIDs==nil{return types.JID{},false}
- lid,err:=client.Store.LIDs.GetLIDForPN(context.Background(),pn)
- if err!=nil||lid.IsEmpty(){return types.JID{},false}
- return lid,true
+  if client==nil||client.Store==nil||client.Store.LIDs==nil{return types.JID{},false}
+  lid,err:=client.Store.LIDs.GetLIDForPN(context.Background(),pn)
+  if err!=nil||lid.IsEmpty(){return types.JID{},false}
+  return lid,true
 }
 
 // refreshRecipientLID asks WhatsApp for the recipient's real LID and lets the
 // whatsmeow store persist the mapping. It never fabricates a LID.
 func refreshRecipientLID(ctx context.Context,client *whatsmeow.Client,pn types.JID)(types.JID,bool,error){
- if client==nil||client.Store==nil||client.Store.LIDs==nil{return types.JID{},false,fmt.Errorf("WhatsApp LID store is unavailable")}
- info,err:=client.GetUserInfo(ctx,[]types.JID{pn})
- if err!=nil{return types.JID{},false,err}
- if user,ok:=info[pn];ok&&!user.LID.IsEmpty(){
-  return user.LID,true,nil
- }
- if lid,ok:=resolveCachedRecipient(client,pn);ok{return lid,true,nil}
- return types.JID{},false,nil
+  if client==nil||client.Store==nil||client.Store.LIDs==nil{return types.JID{},false,fmt.Errorf("WhatsApp LID store is unavailable")}
+  info,err:=client.GetUserInfo(ctx,[]types.JID{pn})
+  if err!=nil{return types.JID{},false,err}
+  if user,ok:=info[pn];ok&&!user.LID.IsEmpty(){return user.LID,true,nil}
+  for jid,user:=range info{if jid.User==pn.User&&!user.LID.IsEmpty(){return user.LID,true,nil}}
+  if lid,ok:=resolveCachedRecipient(client,pn);ok{return lid,true,nil}
+  return types.JID{},false,nil
 }
 
 func resolveRecipientWithLIDFallback(ctx context.Context,client *whatsmeow.Client,pn types.JID)(types.JID,bool,error){
- if resolved,cached:=resolveCachedRecipient(client,pn);cached{return resolved,true,nil}
- phone:="+"+strings.TrimPrefix(strings.TrimSpace(pn.User),"+")
- results,err:=client.IsOnWhatsApp(ctx,[]string{phone})
- if err!=nil{return types.JID{},false,err}
- for _,info:=range results{
-  if info.PhoneNumber.User!=""&&info.PhoneNumber.User!=pn.User{continue}
-  if info.JID.Server==types.HiddenUserServer&&!info.JID.IsEmpty(){
-   if lid,lookupErr:=client.Store.LIDs.GetLIDForPN(ctx,pn);lookupErr==nil&&!lid.IsEmpty(){return lid,true,nil}
-   return info.JID,true,nil
+  phone,normalizeErr:=normalizeRecipientPhone(pn.User)
+  if normalizeErr!=nil{return types.JID{},false,normalizeErr}
+  normalizedPN:=pn
+  normalizedPN.User=phone
+  if resolved,cached:=resolveCachedRecipient(client,normalizedPN);cached{return resolved,true,nil}
+  results,err:=client.IsOnWhatsApp(ctx,[]string{"+"+phone})
+  if err!=nil{return types.JID{},false,err}
+  for _,info:=range results{
+   if info.PhoneNumber.User!=""&&info.PhoneNumber.User!=phone{continue}
+   if info.JID.Server==types.HiddenUserServer&&!info.JID.IsEmpty(){
+    if lid,lookupErr:=client.Store.LIDs.GetLIDForPN(ctx,normalizedPN);lookupErr==nil&&!lid.IsEmpty(){return lid,true,nil}
+    return info.JID,true,nil
+   }
   }
- }
- // Some accounts (including numbers whose addressing-mode response is sparse)
- // do not return the LID through the initial interactive query. A full user-info
- // lookup is the supported fallback and persists the real mapping in whatsmeow.
- if lid,ok,refreshErr:=refreshRecipientLID(ctx,client,pn);refreshErr!=nil{return types.JID{},false,refreshErr}else if ok{return lid,true,nil}
- return types.JID{},false,nil
+  // Some accounts (including numbers whose addressing-mode response is sparse)
+  // do not return the LID through the initial interactive query. A full user-info
+  // lookup is the supported fallback and persists the real mapping in whatsmeow.
+  if lid,ok,refreshErr:=refreshRecipientLID(ctx,client,normalizedPN);refreshErr!=nil{return types.JID{},false,refreshErr}else if ok{return lid,true,nil}
+  return types.JID{},false,nil
 }
 
 func safeSendMessage(userID string,client *whatsmeow.Client,targetJID types.JID,text string)error{
+  normalizedPhone,normalizeErr:=normalizeRecipientPhone(targetJID.User)
+  if normalizeErr!=nil{recordSendTelemetry(userID,targetJID.User,"precheck_failed",normalizeErr);return normalizeErr}
+  targetJID.User=normalizedPhone
  if client==nil||!client.IsLoggedIn()||!client.IsConnected(){recordSendTelemetry(userID,targetJID.User,"precheck_failed",fmt.Errorf("WhatsApp is not connected"));return fmt.Errorf("WhatsApp is not connected")};text=strings.TrimSpace(text);if text==""{recordSendTelemetry(userID,targetJID.User,"precheck_failed",fmt.Errorf("message text is required"));return fmt.Errorf("message text is required")};if targetJID.Server!=types.DefaultUserServer||strings.TrimSpace(targetJID.User)==""{recordSendTelemetry(userID,targetJID.User,"precheck_failed",fmt.Errorf("invalid WhatsApp recipient: %s",targetJID));return fmt.Errorf("invalid WhatsApp recipient: %s",targetJID)}
  recordSendTelemetry(userID,targetJID.User,"attempt",nil)
  if recipientRateLimited(userID){err:=fmt.Errorf("WhatsApp recipient lookup temporarily rate-limited (429); waiting before retry");recordSendTelemetry(userID,targetJID.User,"rate_limited",err);return err}
