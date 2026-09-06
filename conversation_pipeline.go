@@ -14,6 +14,7 @@ import (
 
 var conversationSchemaMu sync.Mutex
 var conversationSchemaReady bool
+var conversationHandlers sync.Map
 
 func ensureConversationPipelineTables() error {
     conversationSchemaMu.Lock()
@@ -119,6 +120,7 @@ func enqueueConversationReply(accountKey string, target types.JID, inboundID, bo
 
 func registerConversationPipeline(accountKey string, client *whatsmeow.Client) {
     if client == nil || strings.TrimSpace(accountKey) == "" { return }
+    if _, loaded := conversationHandlers.LoadOrStore(client, struct{}{}); loaded { return }
     client.AddEventHandler(func(raw any) {
         switch event := raw.(type) {
         case *events.Message:
