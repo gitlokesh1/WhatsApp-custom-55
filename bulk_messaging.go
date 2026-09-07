@@ -5,6 +5,7 @@ import (
     "encoding/csv"
     "encoding/hex"
     "encoding/json"
+    "errors"
     "fmt"
     "io"
     "net/http"
@@ -26,6 +27,7 @@ func ensureBulkMessageTable() error {
         `ALTER TABLE public.bulk_messages ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'queued'`,
         `ALTER TABLE public.bulk_messages ADD COLUMN IF NOT EXISTS attempts INTEGER DEFAULT 0`,
         `ALTER TABLE public.bulk_messages ADD COLUMN IF NOT EXISTS last_error TEXT`,
+        `ALTER TABLE public.bulk_messages ADD COLUMN IF NOT EXISTS next_attempt_at TIMESTAMPTZ`,
         `ALTER TABLE public.bulk_messages ADD COLUMN IF NOT EXISTS assigned_sender TEXT`,
         `ALTER TABLE public.bulk_messages ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now()`,
         `ALTER TABLE public.bulk_messages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now()`,
@@ -39,7 +41,7 @@ func ensureBulkMessageTable() error {
         `UPDATE public.bulk_messages SET created_at=now() WHERE created_at IS NULL`,
         `UPDATE public.bulk_messages SET updated_at=now() WHERE updated_at IS NULL`,
         `DELETE FROM public.bulk_messages a USING public.bulk_messages b WHERE a.dedupe_key IS NOT NULL AND a.dedupe_key=b.dedupe_key AND a.id>b.id`,
-        `CREATE INDEX IF NOT EXISTS bulk_messages_queue_idx ON public.bulk_messages(status,id)`,
+        `CREATE INDEX IF NOT EXISTS bulk_messages_queue_ready_idx ON public.bulk_messages(status,next_attempt_at,id)`,
         `CREATE INDEX IF NOT EXISTS bulk_messages_sender_idx ON public.bulk_messages(assigned_sender,status)`,
         `DROP INDEX IF EXISTS public.bulk_messages_dedupe_idx`,
         `CREATE UNIQUE INDEX IF NOT EXISTS bulk_messages_dedupe_idx ON public.bulk_messages(dedupe_key)`,
@@ -84,14 +86,16 @@ func claimBulkRow(uid string) (int64, string, string, bool) {
     tx, err := userDB.Begin(); if err != nil { return 0,"","",false }
     defer tx.Rollback()
     var id int64; var target, text string
-    if err = tx.QueryRow(`SELECT id,target,message FROM public.bulk_messages WHERE user_id IS NULL AND status='queued' AND target IS NOT NULL AND target<>'' ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1`).Scan(&id,&target,&text); err != nil { return 0,"","",false }
+    if err = tx.QueryRow(`SELECT id,target,message FROM public.bulk_messages WHERE user_id IS NULL AND status='queued' AND (next_attempt_at IS NULL OR next_attempt_at<=now()) AND target IS NOT NULL AND target<>'' ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1`).Scan(&id,&target,&text); err != nil { return 0,"","",false }
     if _,err=tx.Exec(`UPDATE public.bulk_messages SET status='sending',attempts=attempts+1,assigned_sender=$1,updated_at=now() WHERE id=$2`,uid,id); err != nil { return 0,"","",false }
     if err=tx.Commit(); err != nil { return 0,"","",false }
     return id,target,text,true
 }
 
 func markBulkFailed(id int64,msg string) { _,_=userDB.Exec(`UPDATE public.bulk_messages SET status='failed',last_error=$1,updated_at=now() WHERE id=$2`,msg,id) }
+func markBulkTemporaryFailure(id int64,msg string) { _,_=userDB.Exec(`UPDATE public.bulk_messages SET status=CASE WHEN attempts<3 THEN 'queued' ELSE 'failed' END,last_error=$1,assigned_sender=NULL,next_attempt_at=CASE WHEN attempts<3 THEN now()+interval '30 seconds' ELSE NULL END,updated_at=now() WHERE id=$2`,msg,id) }
 func markBulkSent(id int64) { _,_=userDB.Exec(`UPDATE public.bulk_messages SET status='sent',sent_at=now(),last_error=NULL,updated_at=now() WHERE id=$1`,id) }
+func markBulkSendError(id int64,err error){if errors.Is(err,errTemporaryRecipientLookupFailure){markBulkTemporaryFailure(id,err.Error())}else{markBulkFailed(id,err.Error())}}
 
 func bulkSenderForIndex(ids []string,i int) string { if len(ids)==0{return ""}; return ids[i%len(ids)] }
 
@@ -103,7 +107,7 @@ func processBulkMessagesGlobal() {
         uid:=bulkSenderForIndex(ids,i); id,target,text,ok:=claimBulkRow(uid); if !ok{return}
         s:=getSession(uid); if s==nil||s.client==nil {markBulkFailed(id,"WhatsApp account disconnected");continue}
         s.mu.Lock(); err:=safeSendMessage(uid,s.client,types.JID{User:target,Server:types.DefaultUserServer},text); s.mu.Unlock()
-        if err!=nil {markBulkFailed(id,err.Error())} else {markBulkSent(id)}
+        if err!=nil {markBulkSendError(id,err)} else {markBulkSent(id)}
     }
 }
 
@@ -133,7 +137,7 @@ func bulkMessageImportHandler(w http.ResponseWriter,r *http.Request) {
         a:=strings.ToLower(strings.TrimSpace(in.Action))
         if a!="send" { q:=map[string]string{"pause":"UPDATE public.bulk_messages SET status='paused',updated_at=now() WHERE user_id IS NULL AND status='queued'","resume":"UPDATE public.bulk_messages SET status='queued',updated_at=now() WHERE user_id IS NULL AND status='paused'","cancel":"UPDATE public.bulk_messages SET status='cancelled',updated_at=now() WHERE user_id IS NULL AND status IN ('queued','paused','failed')","retry_failed":"UPDATE public.bulk_messages SET status='queued',attempts=0,last_error=NULL,assigned_sender=NULL,updated_at=now() WHERE user_id IS NULL AND status='failed'","clear_queue":"DELETE FROM public.bulk_messages WHERE user_id IS NULL AND status IN ('queued','paused','cancelled','failed')"};sql,ok:=q[a];if !ok{bulkJSON(w,400,APIResponse{Status:"error",Message:"Unknown action"});return};res,err:=userDB.Exec(sql);if err!=nil{bulkJSON(w,500,APIResponse{Status:"error",Message:err.Error()});return};n,_:=res.RowsAffected();bulkJSON(w,200,map[string]any{"status":"success","action":a,"affected":n});return }
         limit:=in.Limit;if limit<1{limit=20};if limit>200{limit=200};ids:=in.UserIDs;if len(ids)==0{ids=bulkConnectedDevices()};valid:=map[string]bool{};for _,id:=range bulkConnectedDevices(){valid[id]=true};selected:=[]string{};for _,id:=range ids{if valid[id]{selected=append(selected,id)}};if len(selected)==0{bulkJSON(w,400,APIResponse{Status:"error",Message:"No connected WhatsApp accounts selected"});return}
-        sent,attempted:=0,0;for attempted<limit{uid:=bulkSenderForIndex(selected,attempted);id,target,text,ok:=claimBulkRow(uid);if !ok{break};attempted++;s:=getSession(uid);if s==nil||s.client==nil{markBulkFailed(id,"WhatsApp account disconnected");continue};s.mu.Lock();err:=safeSendMessage(uid,s.client,types.JID{User:target,Server:types.DefaultUserServer},text);s.mu.Unlock();if err!=nil{markBulkFailed(id,err.Error())}else{markBulkSent(id);sent++}}
+        sent,attempted:=0,0;for attempted<limit{uid:=bulkSenderForIndex(selected,attempted);id,target,text,ok:=claimBulkRow(uid);if !ok{break};attempted++;s:=getSession(uid);if s==nil||s.client==nil{markBulkFailed(id,"WhatsApp account disconnected");continue};s.mu.Lock();err:=safeSendMessage(uid,s.client,types.JID{User:target,Server:types.DefaultUserServer},text);s.mu.Unlock();if err!=nil{markBulkSendError(id,err)}else{markBulkSent(id);sent++}}
         bulkJSON(w,200,map[string]any{"status":"success","attempted":attempted,"sent":sent,"remaining_queue":bulkQueuedCount()});return
     }
     r.Body=http.MaxBytesReader(w,r.Body,512<<20);mr,err:=r.MultipartReader();if err!=nil{bulkJSON(w,400,APIResponse{Status:"error",Message:"Invalid multipart upload: "+err.Error()});return}
