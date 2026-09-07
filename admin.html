@@ -1,1 +1,213 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>88Task • Admin</title><style>body{margin:0;background:#fff;color:#111;font:14px Inter,system-ui,sans-serif}.wrap{max-width:1100px;margin:auto;padding:28px 20px}.top{display:flex;justify-content:space-between;align-items:center}.brand{font-size:26px;font-weight:850}.muted{color:#777;font-size:13px}.dots{width:40px;height:40px;border:1px solid #ddd;background:#fff;border-radius:9px;font-size:23px}.menu{position:relative}.panel{display:none;position:absolute;right:0;top:46px;background:#fff;border:1px solid #ddd;border-radius:11px;padding:6px;min-width:230px;z-index:5;box-shadow:0 12px 30px #0002}.menu.open .panel{display:block}.panel a,.panel button{display:block;width:100%;box-sizing:border-box;padding:10px;border:0;background:#fff;color:#111;text-decoration:none;text-align:left;border-radius:8px;font-weight:650}.panel a:hover,.panel button:hover{background:#f4f4f4}.hero{margin:35px 0 20px}.hero h1{font-size:32px;margin:0 0 6px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.stat{border:1px solid #e5e5e5;border-radius:14px;padding:20px}.stat b{font-size:30px;display:block}.stat span{color:#777;font-size:12px}.card{margin-top:18px;border:1px solid #e5e5e5;border-radius:14px;padding:20px}.btn{display:inline-block;margin-top:12px;padding:10px 14px;background:#111;color:#fff;border-radius:9px;text-decoration:none;font-weight:750}.login{max-width:420px;margin:100px auto;border:1px solid #e5e5e5;border-radius:14px;padding:24px;box-sizing:border-box}.login h1{margin:0 0 8px}.login input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ddd;border-radius:9px;margin-top:14px}.login button{width:100%;padding:12px;margin-top:12px;border:0;border-radius:9px;background:#111;color:#fff;font-weight:750}.err{color:#b00020;margin-top:10px;display:none}@media(max-width:600px){.stats{grid-template-columns:1fr}.hero h1{font-size:27px}}</style></head><body><main id="app" class="wrap" hidden><header class="top"><div><div class="brand">88Task</div><div class="muted">WhatsApp SaaS Control Center</div></div><div class="menu"><button class="dots" onclick="toggle(event)">⋮</button><div class="panel"><a href="/admin">Dashboard</a><a href="/admin/devices">Devices</a><a href="/admin/pair">Pair WhatsApp</a><a href="/admin/bulk">Bulk Messages</a><a href="/admin/account-health">Account Health</a><a href="/admin/telemetry">Send Telemetry</a><a href="/admin/send-logs">Send Logs</a><a href="/admin/schema">Public Schema</a><a href="/admin/settings">Settings</a><button onclick="logout()">Logout</button></div></div></header><section class="hero"><h1>Dashboard</h1><div class="muted">Overview of your WhatsApp infrastructure</div></section><section class="stats"><div class="stat"><b id="total">—</b><span>Total devices</span></div><div class="stat"><b id="online">—</b><span>Connected</span></div><div class="stat"><b id="offline">—</b><span>Offline</span></div></section><section class="card"><b>WhatsApp Devices</b><p class="muted">View and manage all connected WhatsApp sessions from the Devices page.</p><a class="btn" href="/admin/devices">Open Devices</a></section></main><section id="login" class="login"><h1>Admin Login</h1><div class="muted">Enter your admin token to continue.</div><input id="token" type="password" placeholder="Admin token" autocomplete="off"><button onclick="login()">Login</button><div id="err" class="err">Invalid admin token.</div></section><script>const key='admin_token';async function login(){let t=document.getElementById('token').value.trim();if(!t)return;let r=await fetch('/admin/auth',{headers:{'X-Admin-Token':t}});if(!r.ok){document.getElementById('err').style.display='block';return}sessionStorage.setItem(key,t);showApp();load()}function showApp(){document.getElementById('login').hidden=true;document.getElementById('app').hidden=false}async function load(){let t=sessionStorage.getItem(key);if(!t)return;let r=await fetch('/admin/devices/data',{headers:{'X-Admin-Token':t}});if(r.status===401)return logout();if(!r.ok)return;let d=await r.json(),x=d.devices||[];document.getElementById('total').textContent=x.length;document.getElementById('online').textContent=x.filter(a=>a.connected).length;document.getElementById('offline').textContent=x.filter(a=>!a.connected).length}function toggle(e){e.stopPropagation();document.querySelector('.menu').classList.toggle('open')}document.addEventListener('click',()=>document.querySelector('.menu').classList.remove('open'));function logout(){sessionStorage.removeItem(key);document.getElementById('app').hidden=true;document.getElementById('login').hidden=false}if(sessionStorage.getItem(key)){showApp();load()}</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>88Task • Admin</title>
+  <link rel="stylesheet" href="/admin-ui.css?v=20260907.5">
+</head>
+<body>
+  <div id="app" hidden>
+    <main data-admin-page="dashboard">
+      <header class="admin-page-head">
+        <div>
+          <div class="admin-eyebrow" data-i18n="dashboard.eyebrow">Operations overview</div>
+          <h1 data-i18n="dashboard.title">Dashboard</h1>
+          <p data-i18n="dashboard.subtitle">Monitor WhatsApp accounts, messaging queues, conversations, and delivery health from one workspace.</p>
+        </div>
+        <div class="admin-head-actions">
+          <span class="admin-help"><span data-i18n="common.updated">Updated</span>: <span id="lastRefresh">—</span></span>
+          <button id="refreshButton" class="admin-btn" type="button" onclick="loadDashboard()" data-i18n="common.refresh">Refresh</button>
+          <a class="admin-btn primary" href="/admin/pair" data-i18n="dashboard.pair_device">Pair a device</a>
+        </div>
+      </header>
+
+      <section class="admin-stats" aria-label="Operational statistics">
+        <article class="admin-stat"><div class="admin-stat-label" data-i18n="dashboard.connected_accounts">Connected accounts</div><div id="connected" class="admin-stat-value">—</div><div id="connectedMeta" class="admin-stat-meta">—</div></article>
+        <article class="admin-stat warning"><div class="admin-stat-label" data-i18n="dashboard.offline_accounts">Offline accounts</div><div id="offline" class="admin-stat-value">—</div><div class="admin-stat-meta" data-i18n="dashboard.needs_attention">Needs attention</div></article>
+        <article class="admin-stat"><div class="admin-stat-label" data-i18n="dashboard.queued_messages">Queued messages</div><div id="queued" class="admin-stat-value">—</div><div class="admin-stat-meta" data-i18n="dashboard.all_queues">Across all queues</div></article>
+        <article class="admin-stat danger"><div class="admin-stat-label" data-i18n="dashboard.failed_messages">Failed messages</div><div id="failed" class="admin-stat-value">—</div><div class="admin-stat-meta" data-i18n="dashboard.review_retry">Review and retry</div></article>
+        <article class="admin-stat warning"><div class="admin-stat-label" data-i18n="dashboard.handoffs">Human handoffs</div><div id="handoffs" class="admin-stat-value">—</div><div class="admin-stat-meta" data-i18n="dashboard.awaiting_team">Awaiting your team</div></article>
+        <article class="admin-stat"><div class="admin-stat-label" data-i18n="dashboard.send_success">7-day send success</div><div id="sendRate" class="admin-stat-value">—</div><div id="sendMeta" class="admin-stat-meta">—</div></article>
+      </section>
+
+      <section class="admin-grid sidebar-main">
+        <div>
+          <article class="admin-card">
+            <div class="admin-card-head"><div><h2 data-i18n="dashboard.attention">Needs attention</h2><p data-i18n="dashboard.attention_help">Live operational issues and recommended follow-up.</p></div></div>
+            <div id="alerts"><div class="admin-skeleton"></div></div>
+          </article>
+          <article class="admin-card">
+            <div class="admin-card-head"><div><h2 data-i18n="dashboard.quick_actions">Quick actions</h2><p data-i18n="dashboard.quick_help">Jump directly to common management workflows.</p></div></div>
+            <div class="admin-actions">
+              <a class="admin-btn primary" href="/admin/pair" data-i18n="dashboard.create_pairing">Create pairing link</a>
+              <a class="admin-btn" href="/admin/control" data-i18n="dashboard.open_inbox">Open conversations</a>
+              <a class="admin-btn" href="/admin/bulk" data-i18n="dashboard.manage_queue">Manage bulk queue</a>
+              <a class="admin-btn" href="/admin/account-health" data-i18n="dashboard.check_health">Check account health</a>
+            </div>
+          </article>
+        </div>
+
+        <div>
+          <article class="admin-card flush">
+            <div class="admin-card-head" style="padding:20px 20px 0"><div><h2 data-i18n="dashboard.account_status">Account status</h2><p data-i18n="dashboard.account_help">Current state of linked WhatsApp sessions.</p></div><a class="admin-btn small" href="/admin/devices" data-i18n="common.view_all">View all</a></div>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead><tr><th data-i18n="common.account">Account</th><th data-i18n="common.phone">Phone</th><th data-i18n="common.status">Status</th><th data-i18n="common.updated">Updated</th><th data-i18n="common.actions">Actions</th></tr></thead>
+                <tbody id="accountsBody"><tr><td colspan="5"><div class="admin-empty" data-i18n="common.loading">Loading…</div></td></tr></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="admin-card">
+            <div class="admin-card-head"><div><h2 data-i18n="dashboard.queue_health">Queue health</h2><p data-i18n="dashboard.queue_help">Conversation and bulk messaging workload.</p></div><a class="admin-btn small" href="/admin/send-logs" data-i18n="dashboard.open_logs">Open logs</a></div>
+            <div id="queueSummary" class="admin-kv"><div class="admin-skeleton"></div><div class="admin-skeleton"></div></div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <section id="loginPage" class="admin-login-page">
+    <div class="admin-login">
+      <div class="admin-login-brand"><span class="admin-brand-mark" aria-hidden="true">88</span><div><strong>88Task</strong><div class="admin-help" data-i18n="shell.console">Operations Console</div></div><select class="admin-language" data-admin-language aria-label="Language" style="margin-inline-start:auto"></select></div>
+      <h1 data-i18n="login.title">Admin sign in</h1>
+      <p data-i18n="login.subtitle">Enter your secure admin token to access WhatsApp operations.</p>
+      <form id="loginForm">
+        <div class="admin-field"><label for="token" data-i18n="login.token">Admin token</label><input id="token" class="admin-input" type="password" autocomplete="current-password" data-i18n-placeholder="login.placeholder" placeholder="Enter admin token"></div>
+        <button id="loginButton" class="admin-btn primary" type="submit" data-i18n="login.action">Sign in</button>
+        <div id="loginError" class="admin-login-error" role="alert" data-i18n="login.invalid">The admin token is invalid.</div>
+      </form>
+    </div>
+  </section>
+
+  <script src="/admin-ui.js?v=20260907.5"></script>
+  <script src="/admin-i18n.js?v=20260907.5"></script>
+  <script>
+    const byId = id => document.getElementById(id);
+    const settledValue = result => result.status === 'fulfilled' ? result.value : null;
+    let dashboardTimer, dashboardLoading = false;
+
+    function showApplication() {
+      byId('loginPage').hidden = true;
+      byId('app').hidden = false;
+    }
+
+    async function login(event) {
+      event.preventDefault();
+      const token = byId('token').value.trim();
+      if (!token) return;
+      const button = byId('loginButton');
+      adminSetBusy(button, true, adminT('login.signing_in'));
+      byId('loginError').style.display = 'none';
+      try {
+        const response = await fetch('/admin/auth', { headers: { 'X-Admin-Token': token } });
+        if (!response.ok) throw new Error('Unauthorized');
+        sessionStorage.setItem('admin_token', token);
+        showApplication();
+        await loadDashboard();
+        startDashboardRefresh();
+      } catch (_) {
+        byId('loginError').style.display = 'block';
+      } finally {
+        adminSetBusy(button, false);
+      }
+    }
+
+    function alertMarkup(type, title, message, href, action) {
+      return `<div class="admin-alert ${type}"><div><strong>${adminEscape(title)}</strong><span>${adminEscape(message)}</span>${href ? `<div style="margin-top:8px"><a class="admin-btn small" href="${href}">${adminEscape(action)}</a></div>` : ''}</div></div>`;
+    }
+
+    async function settledMapLimited(items, worker, concurrency = 5) {
+      const results = new Array(items.length);
+      let next = 0;
+      async function run() {
+        while (next < items.length) {
+          const index = next++;
+          try { results[index] = { status: 'fulfilled', value: await worker(items[index]) }; }
+          catch (reason) { results[index] = { status: 'rejected', reason }; }
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, run));
+      return results;
+    }
+
+    async function loadDashboard() {
+      if (dashboardLoading) return;
+      dashboardLoading = true;
+      const button = byId('refreshButton');
+      adminSetBusy(button, true, adminT('common.refreshing'));
+      try {
+        const results = await Promise.allSettled([
+        adminApi('/admin/devices/data'),
+        adminApi('/admin/control/data'),
+        adminApi('/admin/bulk/status'),
+        adminApi('/admin/telemetry/data')
+      ]);
+      const devicesData = settledValue(results[0]);
+      const controlData = settledValue(results[1]);
+      const bulkData = settledValue(results[2]);
+      const telemetryData = settledValue(results[3]);
+      const devices = devicesData?.devices || [];
+      const connectedCount = devices.filter(device => device.connected).length;
+      const offlineCount = devices.length - connectedCount;
+      const controlStats = controlData?.stats || {};
+      const queuedCount = Number(controlStats.queued || 0) + Number(bulkData?.queued || 0);
+      const failedCount = Number(controlStats.failed || 0) + Number(bulkData?.failed || 0);
+      const queueTotalsComplete = Boolean(controlData && bulkData);
+      const countries = telemetryData?.countries || [];
+      const attempts = countries.reduce((sum, item) => sum + Number(item.attempts || 0), 0);
+      const successes = countries.reduce((sum, item) => sum + Number(item.send_success || 0), 0);
+      const rate = attempts ? `${((successes / attempts) * 100).toFixed(1)}%` : '—';
+
+      byId('connected').textContent = devicesData ? connectedCount : '—';
+      byId('connectedMeta').textContent = devicesData ? adminT('dashboard.of_total', { connected: connectedCount, total: devices.length }) : adminT('common.unavailable');
+      byId('offline').textContent = devicesData ? offlineCount : '—';
+      byId('queued').textContent = queueTotalsComplete ? queuedCount : '—';
+      byId('failed').textContent = queueTotalsComplete ? failedCount : '—';
+      byId('handoffs').textContent = controlData ? Number(controlStats.handoffs || 0) : '—';
+      byId('sendRate').textContent = rate;
+      byId('sendMeta').textContent = telemetryData ? adminT('dashboard.sent_attempts', { sent: successes, attempts }) : adminT('common.unavailable');
+      byId('lastRefresh').textContent = new Date().toLocaleTimeString();
+
+      const healthResults = devicesData ? await settledMapLimited(devices, device => adminApi(`/admin/account-health/data?user_id=${encodeURIComponent(device.user_id)}`)) : [];
+      const restricted = healthResults.filter(result => result.status === 'fulfilled' && (result.value.timelock_active || String(result.value.cap_status).toLowerCase() === 'capped')).length;
+      const alerts = [];
+      if (offlineCount) alerts.push(alertMarkup('warning', adminT('dashboard.offline_alert_title'), adminT('dashboard.offline_alert', { count: offlineCount }), '/admin/devices', adminT('dashboard.review_devices')));
+      if (failedCount) alerts.push(alertMarkup('danger', adminT('dashboard.failed_alert_title'), adminT('dashboard.failed_alert', { count: failedCount }), '/admin/send-logs', adminT('dashboard.review_failures')));
+      if (restricted) alerts.push(alertMarkup('danger', adminT('dashboard.health_alert_title'), adminT('dashboard.health_alert', { count: restricted }), '/admin/account-health', adminT('dashboard.review_health')));
+      if (controlData && controlData.automation_enabled === false) alerts.push(alertMarkup('warning', adminT('dashboard.automation_alert_title'), adminT('dashboard.automation_alert'), '/admin/control', adminT('dashboard.open_control')));
+      const failedSources = results.filter(result => result.status === 'rejected').length + healthResults.filter(result => result.status === 'rejected').length;
+      if (failedSources) alerts.push(alertMarkup('info', adminT('dashboard.partial_title'), adminT('dashboard.partial_alert', { count: failedSources }), '', ''));
+      if (!alerts.length) alerts.push(alertMarkup('success', adminT('dashboard.healthy_title'), adminT('dashboard.healthy_alert'), '', ''));
+      byId('alerts').innerHTML = alerts.join('');
+
+      byId('accountsBody').innerHTML = devices.length ? devices.slice(0, 8).map(device => `<tr><td><div class="admin-cell-main">${adminEscape(device.user_id)}</div></td><td>${adminEscape(device.phone || '—')}</td><td>${adminStatusBadge(device.state || (device.connected ? 'connected' : 'offline'))}</td><td>${adminEscape(adminFormatDate(device.updated_at))}</td><td><a class="admin-btn small" href="/admin/device?user_id=${encodeURIComponent(device.user_id)}">${adminEscape(adminT('common.manage'))}</a></td></tr>`).join('') : `<tr><td colspan="5"><div class="admin-empty"><strong>${adminEscape(adminT('dashboard.no_accounts'))}</strong>${adminEscape(adminT('dashboard.no_accounts_help'))}</div></td></tr>`;
+
+      byId('queueSummary').innerHTML = [
+        [adminT('dashboard.conversation_queue'), controlData ? Number(controlStats.queued || 0) : '—', controlData ? adminT('dashboard.failed_count', { count: Number(controlStats.failed || 0) }) : adminT('common.unavailable')],
+        [adminT('dashboard.bulk_queue'), bulkData ? Number(bulkData.queued || 0) : '—', bulkData ? adminT('dashboard.failed_count', { count: Number(bulkData.failed || 0) }) : adminT('common.unavailable')],
+        [adminT('dashboard.active_conversations'), controlData ? Number(controlStats.conversations || 0) : '—', controlData ? adminT('dashboard.opted_out_count', { count: Number(controlStats.opted_out || 0) }) : adminT('common.unavailable')],
+        [adminT('dashboard.automation'), controlData ? (controlData.automation_enabled ? adminT('common.enabled') : adminT('common.disabled')) : '—', adminT('dashboard.auto_reply_status')]
+      ].map(item => `<div class="admin-kv-item"><div class="admin-kv-label">${adminEscape(item[0])}</div><div class="admin-kv-value">${adminEscape(item[1])}</div><div class="admin-cell-sub">${adminEscape(item[2])}</div></div>`).join('');
+        if (window.adminTranslate) window.adminTranslate(document);
+      } finally {
+        adminSetBusy(button, false);
+        dashboardLoading = false;
+      }
+    }
+
+    function startDashboardRefresh() {
+      if (!dashboardTimer) dashboardTimer = window.setInterval(loadDashboard, 30000);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      byId('loginForm').addEventListener('submit', login);
+      if (sessionStorage.getItem('admin_token')) {
+        showApplication();
+        loadDashboard();
+        startDashboardRefresh();
+      }
+    });
+  </script>
+</body>
+</html>

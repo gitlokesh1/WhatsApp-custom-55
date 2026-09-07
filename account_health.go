@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -49,5 +48,5 @@ func healthUntilText(kind string,until time.Time)string{parts:="";if kind!=""{pa
 func markAccountTimelock(userID string,client *whatsmeow.Client,err error){now:=time.Now().UTC();s:=getAccountHealth(userID);s.UserID=userID;s.Status="timelocked";s.TimelockActive=true;s.LastCheckedAt=now;s.UpdatedAt=now;s.LastError=err.Error();if client!=nil{ctx,cancel:=context.WithTimeout(context.Background(),5*time.Second);defer cancel();if tl,fetchErr:=client.GetAccountReachoutTimelock(ctx);fetchErr==nil&&tl!=nil{s.TimelockActive=tl.IsActive;s.TimelockType=string(tl.EnforcementType);s.TimelockUntil=reachoutExpiry(tl);if !tl.IsActive{s.Status="healthy"}}};setAccountHealth(s)}
 func adminAccountHealthDataHandler(w http.ResponseWriter,r *http.Request){enableCORS(w);w.Header().Set("Content-Type","application/json");if !requireAdmin(w,r){return};uid:=strings.TrimSpace(r.URL.Query().Get("user_id"));if uid==""{http.Error(w,"user_id is required",400);return};_=json.NewEncoder(w).Encode(getAccountHealth(uid))}
 func adminAccountHealthRefreshHandler(w http.ResponseWriter,r *http.Request){enableCORS(w);w.Header().Set("Content-Type","application/json");if !requireAdmin(w,r){return};uid:=strings.TrimSpace(r.URL.Query().Get("user_id"));s:=getSession(uid);if uid==""||s==nil||s.client==nil{http.Error(w,"connected WhatsApp account not found",404);return};_=json.NewEncoder(w).Encode(accountHealthSnapshot(uid,s.client,true))}
-func adminAccountHealthPageHandler(w http.ResponseWriter,r *http.Request){if r.Method!=http.MethodGet{w.WriteHeader(http.StatusMethodNotAllowed);return};data,err:=os.ReadFile("admin-account-health.html");if err!=nil{http.Error(w,"Page not found",404);return};w.Header().Set("Cache-Control","private, max-age=30, stale-while-revalidate=60");w.Header().Set("Content-Type","text/html; charset=utf-8");_,_=w.Write(data)}
+func adminAccountHealthPageHandler(w http.ResponseWriter,r *http.Request){serveAdminPage(w,r,"admin-account-health.html")}
 func init(){http.HandleFunc("/admin/account-health",adminAccountHealthPageHandler);http.HandleFunc("/admin/account-health/data",adminAccountHealthDataHandler);http.HandleFunc("/admin/account-health/refresh",adminAccountHealthRefreshHandler)}
