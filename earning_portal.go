@@ -92,6 +92,18 @@ func initEarningPortalSchema() error {
 
 func normalizeCountryCode(value string) string { return strings.ToUpper(strings.TrimSpace(value)) }
 
+func isUpperAlphaCode(value string, length int) bool {
+	if len(value) != length {
+		return false
+	}
+	for i := range value {
+		if value[i] < 'A' || value[i] > 'Z' {
+			return false
+		}
+	}
+	return true
+}
+
 func loadCountry(code string, activeOnly bool) (countryConfig, error) {
 	var c countryConfig
 	query := `SELECT code,name,currency_code,timezone,reward_per_message,daily_goal,active,display_order FROM public.earning_countries WHERE code=$1`

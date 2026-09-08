@@ -59,6 +59,10 @@ func adminCountriesHandler(w http.ResponseWriter, r *http.Request) {
 	in.CurrencyCode = strings.ToUpper(strings.TrimSpace(in.CurrencyCode))
 	in.Name = strings.TrimSpace(in.Name)
 	in.Timezone = strings.TrimSpace(in.Timezone)
+	if !isUpperAlphaCode(in.Code, 2) {
+		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Use a valid ISO country code"})
+		return
+	}
 	if in.Action == "delete" {
 		var refs int
 		if err := userDB.QueryRow(`SELECT (SELECT count(*) FROM public.app_users WHERE country_code=$1)+(SELECT count(*) FROM public.task_definitions WHERE country_code=$1)+(SELECT count(*) FROM public.portal_banners WHERE country_code=$1)`, in.Code).Scan(&refs); err != nil {
@@ -82,7 +86,7 @@ func adminCountriesHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, 200, map[string]any{"status": "success"})
 		return
 	}
-	if len(in.Code) != 2 || len(in.CurrencyCode) != 3 || in.Name == "" || !validateTimezone(in.Timezone) || in.Reward < 0 || in.DailyGoal < 1 || in.DailyGoal > 10000 {
+	if !isUpperAlphaCode(in.CurrencyCode, 3) || in.Name == "" || !validateTimezone(in.Timezone) || in.Reward < 0 || in.DailyGoal < 1 || in.DailyGoal > 10000 {
 		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Use valid ISO codes, timezone, reward, and daily goal"})
 		return
 	}

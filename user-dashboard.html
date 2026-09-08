@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0d875a">
   <title>88Task • Dashboard</title>
-  <link rel="stylesheet" href="/user-ui.css?v=20260908.5">
+  <link rel="stylesheet" href="/user-ui.css?v=20260909.1">
 </head>
 <body>
 <main class="u-content u-dashboard" data-user-page="dashboard">
@@ -63,7 +63,7 @@
   </section>
 </main>
 
-<script src="/user-ui.js?v=20260908.5"></script>
+<script src="/user-ui.js?v=20260909.1"></script>
 <script>
 let bannerIndex=0,bannerTimer;
 function renderBanners(items){const root=document.getElementById('banners');if(!items.length){root.innerHTML='<div class="u-banner"><div class="u-banner-copy"><div class="u-eyebrow" style="color:#cfcaff">88Task rewards</div><h2>Small tasks. Real progress.</h2><p>Connect WhatsApp, complete available tasks, and receive a reward for every successful message.</p><a class="u-btn" href="/tasks">Explore tasks</a></div></div>';return}const show=()=>{const b=items[bannerIndex],ctaURL=uSafeURL(b.cta_url);root.innerHTML='<article class="u-banner"><div class="u-banner-copy"><h2>'+uEscape(b.title)+'</h2><p>'+uEscape(b.body)+'</p>'+(b.cta_label&&ctaURL?'<a class="u-btn" href="'+uEscape(ctaURL)+'">'+uEscape(b.cta_label)+'</a>':'')+'</div>'+(b.image_url?'<img src="'+uEscape(b.image_url)+'" alt="'+uEscape(b.alt_text)+'" loading="lazy">':'')+'</article><div class="u-banner-dots">'+items.map((_,i)=>'<button class="'+(i===bannerIndex?'active':'')+'" aria-label="Show banner '+(i+1)+'" data-banner="'+i+'"></button>').join('')+'</div>';root.querySelectorAll('[data-banner]').forEach(x=>x.onclick=()=>{bannerIndex=Number(x.dataset.banner);show()})};show();if(items.length>1)bannerTimer=setInterval(()=>{bannerIndex=(bannerIndex+1)%items.length;show()},6500)}

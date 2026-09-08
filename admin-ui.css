@@ -103,6 +103,11 @@ a { color: inherit; }
 .admin-textarea { min-height: 110px; resize: vertical; }
 .admin-form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 15px; }
 .admin-form-grid .wide { grid-column: 1 / -1; }
+.admin-country-preview { min-height: 78px; display: flex; align-items: center; gap: 14px; padding: 13px; border: 1px solid var(--admin-border); border-radius: 13px; background: #f8fbf9; }
+.admin-country-preview img { width: 64px; height: 48px; flex: 0 0 auto; object-fit: cover; border-radius: 9px; background: #e9efec; box-shadow: 0 3px 10px rgba(17,43,33,.1); }
+.admin-country-preview strong, .admin-country-preview span { display: block; }
+.admin-country-preview strong { font-size: 16px; }
+.admin-country-preview span { margin-top: 3px; color: var(--admin-muted); font-size: 12px; }
 .admin-setting-row { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 14px 0; border-top: 1px solid #edf1ef; }
 .admin-setting-row:first-of-type { border-top: 0; }
 .admin-setting-copy strong { display: block; margin-bottom: 3px; }
