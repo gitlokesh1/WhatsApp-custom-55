@@ -356,7 +356,7 @@ func deleteBannerObject(objectPath string) {
 
 func adminBannersHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		rows, err := userDB.Query(`SELECT b.id,b.title,b.body,b.alt_text,b.image_path,b.image_url,b.cta_label,b.cta_url,b.country_code,c.name,b.display_order,b.starts_at,b.ends_at,b.active,b.created_at FROM public.portal_banners b LEFT JOIN public.earning_countries c ON c.code=b.country_code ORDER BY b.display_order,b.created_at DESC`)
+		rows, err := userDB.Query(`SELECT b.id,b.title,b.body,b.alt_text,b.image_path,b.image_url,b.cta_label,b.cta_url,b.country_code,c.name,b.display_order,b.starts_at,b.ends_at,b.active,b.show_as_popup,b.created_at FROM public.portal_banners b LEFT JOIN public.earning_countries c ON c.code=b.country_code ORDER BY b.display_order,b.created_at DESC`)
 		if err != nil {
 			userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": err.Error()})
 			return
@@ -368,10 +368,10 @@ func adminBannersHandler(w http.ResponseWriter, r *http.Request) {
 			var country, countryName sql.NullString
 			var order int
 			var starts, ends sql.NullTime
-			var active bool
+			var active, showAsPopup bool
 			var created time.Time
-			if rows.Scan(&id, &title, &body, &alt, &imagePath, &imageURL, &label, &cta, &country, &countryName, &order, &starts, &ends, &active, &created) == nil {
-				out = append(out, map[string]any{"id": id, "title": title, "body": body, "alt_text": alt, "image_path": imagePath, "image_url": imageURL, "cta_label": label, "cta_url": cta, "country_code": country.String, "country_name": countryName.String, "display_order": order, "starts_at": nullableTime(starts), "ends_at": nullableTime(ends), "active": active, "created_at": created})
+			if rows.Scan(&id, &title, &body, &alt, &imagePath, &imageURL, &label, &cta, &country, &countryName, &order, &starts, &ends, &active, &showAsPopup, &created) == nil {
+				out = append(out, map[string]any{"id": id, "title": title, "body": body, "alt_text": alt, "image_path": imagePath, "image_url": imageURL, "cta_label": label, "cta_url": cta, "country_code": country.String, "country_name": countryName.String, "display_order": order, "starts_at": nullableTime(starts), "ends_at": nullableTime(ends), "active": active, "show_as_popup": showAsPopup, "created_at": created})
 			}
 		}
 		userFeaturesJSON(w, 200, map[string]any{"status": "success", "banners": out})
@@ -405,6 +405,7 @@ func adminBannersHandler(w http.ResponseWriter, r *http.Request) {
 	country := normalizeCountryCode(r.FormValue("country_code"))
 	order, _ := strconv.Atoi(r.FormValue("display_order"))
 	active := r.FormValue("active") == "true"
+	showAsPopup := r.FormValue("show_as_popup") == "true"
 	if title == "" || alt == "" || len(title) > 160 || len(body) > 600 || len(alt) > 200 || len(label) > 60 || len(cta) > 200 || !validateCTAURL(cta) {
 		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Check the banner text lengths and use a safe internal CTA link"})
 		return
@@ -456,7 +457,7 @@ func adminBannersHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	_, err = userDB.Exec(`INSERT INTO public.portal_banners(id,title,body,alt_text,image_path,image_url,cta_label,cta_url,country_code,display_order,starts_at,ends_at,active,updated_at) VALUES($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now()) ON CONFLICT(id) DO UPDATE SET title=excluded.title,body=excluded.body,alt_text=excluded.alt_text,image_path=excluded.image_path,image_url=excluded.image_url,cta_label=excluded.cta_label,cta_url=excluded.cta_url,country_code=excluded.country_code,display_order=excluded.display_order,starts_at=excluded.starts_at,ends_at=excluded.ends_at,active=excluded.active,updated_at=now()`, id, title, body, alt, imagePath, imageURL, label, cta, countryValue, order, starts, ends, active)
+	_, err = userDB.Exec(`INSERT INTO public.portal_banners(id,title,body,alt_text,image_path,image_url,cta_label,cta_url,country_code,display_order,starts_at,ends_at,active,show_as_popup,updated_at) VALUES($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,now()) ON CONFLICT(id) DO UPDATE SET title=excluded.title,body=excluded.body,alt_text=excluded.alt_text,image_path=excluded.image_path,image_url=excluded.image_url,cta_label=excluded.cta_label,cta_url=excluded.cta_url,country_code=excluded.country_code,display_order=excluded.display_order,starts_at=excluded.starts_at,ends_at=excluded.ends_at,active=excluded.active,show_as_popup=excluded.show_as_popup,updated_at=now()`, id, title, body, alt, imagePath, imageURL, label, cta, countryValue, order, starts, ends, active, showAsPopup)
 	if err != nil {
 		if imagePath != oldPath {
 			deleteBannerObject(imagePath)

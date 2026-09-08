@@ -26,7 +26,11 @@
     share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/>',
     copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
     phone: '<rect x="7" y="2" width="10" height="20" rx="3"/><path d="M10 18h4"/>',
-    send: '<path d="m22 2-7 20-4-9-9-4 20-7Z"/><path d="M22 2 11 13"/>'
+    send: '<path d="m22 2-7 20-4-9-9-4 20-7Z"/><path d="M22 2 11 13"/>',
+    close: '<path d="m6 6 12 12M18 6 6 18"/>',
+    chevronDown: '<path d="m6 9 6 6 6-6"/>',
+    announcement: '<path d="M3 11v2a2 2 0 0 0 2 2h2l2 5h3l-2-5 9-4V5L7 9H5a2 2 0 0 0-2 2Z"/><path d="M19 9c1.3.7 2 1.7 2 3s-.7 2.3-2 3"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>'
   };
 
   const nav = [
@@ -34,9 +38,10 @@
     ['whatsapp', '/whatsapp', 'whatsapp', 'WhatsApp'], ['referrals', '/referrals', 'referrals', 'Referrals'],
     ['profile', '/profile', 'profile', 'Profile'], ['support', '/support', 'support', 'Support']
   ];
-  const icon = (name, label = '') => `<svg class="u-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}>${iconPaths[name] || iconPaths.sparkle}</svg>`;
-  const hydrateIcons = (root = document) => root.querySelectorAll('[data-u-icon]').forEach(node => { node.innerHTML = icon(node.dataset.uIcon); });
   const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+  const icon = (name, label = '') => `<svg class="u-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${label ? `role="img" aria-label="${escapeHTML(label)}"` : 'aria-hidden="true"'}>${iconPaths[name] || iconPaths.sparkle}</svg>`;
+  const hydrateIcons = (root = document) => root.querySelectorAll('[data-u-icon]').forEach(node => { node.innerHTML = icon(node.dataset.uIcon); });
+  const safeInternalURL = value => typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') ? value : '';
   const money = (amount, currency = 'INR') => { try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'INR', maximumFractionDigits: 2 }).format(Number(amount) || 0); } catch (_) { return `${currency || ''} ${(Number(amount) || 0).toFixed(2)}`; } };
   const date = value => value ? new Date(value).toLocaleString() : '—';
   const api = async (url, options = {}) => {
@@ -50,7 +55,59 @@
     const item = document.createElement('div'); item.className = `u-toast ${type}`; item.textContent = message; stack.appendChild(item); setTimeout(() => item.remove(), 4200);
   };
   const empty = (iconName, title, copy = '') => `<div class="u-empty"><div class="u-empty-icon">${icon(iconName)}</div><strong>${escapeHTML(title)}</strong>${copy ? `<div>${escapeHTML(copy)}</div>` : ''}</div>`;
-  const logout = async () => { try { await fetch('/logout', { method: 'POST' }); } finally { location.href = '/login'; } };
+  const countryFlag = (code, name = '') => {
+    const normalized = String(code || '').toLowerCase();
+    return /^[a-z]{2}$/.test(normalized) ? `<img src="https://flagcdn.com/w80/${normalized}.png" alt="" loading="lazy" onerror="this.hidden=true">` : icon('globe', name ? `${name} country` : 'Country');
+  };
+  const mountModal = (markup, options = {}) => {
+    const previousFocus = document.activeElement;
+    const root = document.createElement('div'); root.className = 'u-modal-root show'; root.innerHTML = markup; document.body.appendChild(root); document.body.classList.add('u-modal-open');
+    const close = value => { root.remove(); document.removeEventListener('keydown', onKeyDown); if (!document.querySelector('.u-modal-root.show')) document.body.classList.remove('u-modal-open'); if (previousFocus?.focus) previousFocus.focus(); options.onClose?.(value); };
+    const onKeyDown = event => { if (event.key === 'Escape' && options.dismissible !== false) close(options.cancelValue); if (event.key === 'Tab') { const focusable = [...root.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href]')].filter(node => !node.hidden); if (!focusable.length) return; const first = focusable[0], last = focusable[focusable.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); } } };
+    document.addEventListener('keydown', onKeyDown);
+    if (options.dismissible !== false) root.addEventListener('mousedown', event => { if (event.target === root) close(options.cancelValue); });
+    requestAnimationFrame(() => root.querySelector('[autofocus],button,input,select,textarea,a[href]')?.focus());
+    return { root, close };
+  };
+  const confirmDialog = (title, message, options = {}) => new Promise(resolve => {
+    const actions = `<button class="u-btn" type="button" data-u-cancel>${escapeHTML(options.cancelText || 'Cancel')}</button><button class="u-btn ${options.danger ? 'danger' : 'primary'}" type="button" data-u-confirm>${escapeHTML(options.confirmText || 'Confirm')}</button>`;
+    const modal = mountModal(`<div class="u-modal u-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmCopy"><button class="u-modal-close" type="button" aria-label="Close">${icon('close')}</button><div class="u-dialog-icon ${options.danger ? 'danger' : ''}">${icon(options.icon || (options.danger ? 'alert' : 'check'))}</div><h2 id="confirmTitle">${escapeHTML(title)}</h2><p id="confirmCopy">${escapeHTML(message)}</p><div class="u-dialog-actions">${actions}</div></div>`, { cancelValue: false, onClose: resolve });
+    modal.root.querySelector('[data-u-cancel]').onclick = () => modal.close(false);
+    modal.root.querySelector('.u-modal-close').onclick = () => modal.close(false);
+    modal.root.querySelector('[data-u-confirm]').onclick = () => modal.close(true);
+  });
+  const countryPicker = (countries, selectedCode = '', options = {}) => new Promise(resolve => {
+    const normalized = Array.isArray(countries) ? countries : [];
+    const closeButton = options.required ? '' : `<button class="u-modal-close" type="button" aria-label="Close">${icon('close')}</button>`;
+    const rows = normalized.map(country => `<button class="u-country-option ${country.code === selectedCode ? 'selected' : ''}" type="button" role="option" aria-selected="${country.code === selectedCode}" data-country-code="${escapeHTML(country.code)}"><span class="u-country-flag" role="img" aria-label="${escapeHTML(country.name)} flag">${countryFlag(country.code, country.name)}</span><span class="u-country-option-copy"><strong>${escapeHTML(country.name)}</strong><small>${escapeHTML(country.currency_code)} · ${money(country.reward_per_message, country.currency_code)} per message · Goal ${country.daily_goal}/day</small></span><span class="u-country-check">${icon('check')}</span></button>`).join('');
+    const modal = mountModal(`<div class="u-modal u-country-modal" role="dialog" aria-modal="true" aria-labelledby="countryPickerTitle">${closeButton}<div class="u-dialog-icon">${icon('globe')}</div><div class="u-eyebrow">Local earning setup</div><h2 id="countryPickerTitle">Choose your earning country</h2><p>Your country sets your reward currency, rate, and daily target.</p><div class="u-country-search"><span>${icon('search')}</span><input type="search" autocomplete="off" placeholder="Search country or currency" aria-label="Search countries" autofocus></div><div class="u-country-options" role="listbox" aria-label="Available earning countries">${rows || '<div class="u-empty">No active countries are available.</div>'}</div><div class="u-country-no-results" hidden>No matching countries found.</div></div>`, { dismissible: !options.required, cancelValue: null, onClose: resolve });
+    const search = modal.root.querySelector('input[type="search"]');
+    const optionsList = [...modal.root.querySelectorAll('[data-country-code]')];
+    if (search) search.oninput = () => { const query = search.value.trim().toLowerCase(); let visible = 0; optionsList.forEach(button => { const matches = button.textContent.toLowerCase().includes(query); button.hidden = !matches; if (matches) visible++; }); modal.root.querySelector('.u-country-no-results').hidden = visible !== 0; };
+    optionsList.forEach(button => button.onclick = () => modal.close(normalized.find(country => country.code === button.dataset.countryCode) || null));
+    modal.root.querySelector('.u-modal-close')?.addEventListener('click', () => modal.close(null));
+  });
+  const eventSeenKey = '88task_seen_events';
+  const readSeenEvents = () => {
+    try { const value = JSON.parse(sessionStorage.getItem(eventSeenKey) || '[]'); return new Set(Array.isArray(value) ? value.map(String) : []); } catch (_) { return new Set(); }
+  };
+  const clearSeenEvents = () => { sessionStorage.removeItem(eventSeenKey); sessionStorage.removeItem('88task_seen_event'); };
+  const showEvent = campaigns => {
+    if (document.querySelector('.u-event-modal')) return false;
+    const seen = readSeenEvents();
+    const queue = (Array.isArray(campaigns) ? campaigns : [campaigns]).filter(banner => banner?.show_as_popup && !seen.has(String(banner.id)));
+    if (!queue.length) return false;
+    const showNext = () => {
+      const banner = queue.shift(); if (!banner) return;
+      seen.add(String(banner.id)); sessionStorage.setItem(eventSeenKey, JSON.stringify([...seen]));
+      const artwork = banner.image_url ? `<img class="u-event-art" src="${escapeHTML(banner.image_url)}" alt="${escapeHTML(banner.alt_text || '')}">` : `<div class="u-event-art u-event-fallback">${icon('announcement')}</div>`;
+      const ctaURL = safeInternalURL(banner.cta_url); const cta = banner.cta_label && ctaURL ? `<a class="u-btn primary" href="${escapeHTML(ctaURL)}">${escapeHTML(banner.cta_label)} ${icon('arrowRight')}</a>` : '';
+      const modal = mountModal(`<div class="u-modal u-event-modal" role="dialog" aria-modal="true" aria-labelledby="eventTitle"><button class="u-modal-close" type="button" aria-label="Dismiss announcement">${icon('close')}</button>${artwork}<div class="u-event-copy"><div class="u-eyebrow">Latest from 88Task</div><h2 id="eventTitle">${escapeHTML(banner.title)}</h2><p>${escapeHTML(banner.body || '')}</p><div class="u-dialog-actions">${cta}<button class="u-btn" type="button" data-u-dismiss>Maybe later</button></div></div></div>`, { cancelValue: null, onClose: showNext });
+      modal.root.querySelector('.u-modal-close').onclick = () => modal.close(); modal.root.querySelector('[data-u-dismiss]').onclick = () => modal.close();
+    };
+    showNext(); return true;
+  };
+  const logout = async () => { clearSeenEvents(); try { await fetch('/logout', { method: 'POST' }); } finally { location.href = '/login'; } };
 
   function shell(page) {
     const main = document.querySelector('main[data-user-page]'); if (!main || main.closest('.u-shell')) return;
@@ -58,12 +115,12 @@
     const shellRoot = document.createElement('div'); shellRoot.className = 'u-shell';
     shellRoot.innerHTML = `<aside class="u-sidebar"><a class="u-brand" href="/dashboard"><span class="u-brand-mark">88</span><span><strong>88Task</strong><small>Earn with every task</small></span></a><nav class="u-nav" aria-label="Primary navigation">${links}</nav><div class="u-sidebar-foot"><p>Complete verified tasks, grow your streak, and build your rewards.</p><button class="u-logout" type="button">${icon('logout')}<span>Sign out</span></button></div></aside><section class="u-workspace"><header class="u-topbar" role="banner"><div class="u-topbar-copy"><strong id="uTopGreeting">88Task workspace</strong><span>Secure WhatsApp task rewards</span></div><div class="u-wallet-pill">${icon('wallet')}<span id="uTopBalance">—</span></div></header></section><nav class="u-mobile-nav" aria-label="Mobile navigation">${links}</nav>`;
     main.parentNode.insertBefore(shellRoot, main); shellRoot.querySelector('.u-workspace').appendChild(main); shellRoot.querySelector('.u-logout').addEventListener('click', logout);
+    const footer = document.createElement('footer'); footer.className = 'u-user-footer'; footer.innerHTML = `<span><strong>88Task</strong> · Verified task rewards</span><button class="u-btn u-footer-logout" type="button">${icon('logout')}Sign out</button>`; main.appendChild(footer); footer.querySelector('button').addEventListener('click', logout);
   }
 
   async function chooseCountry() {
-    const data = await api('/api/public/countries'); const root = document.createElement('div'); root.className = 'u-modal-root show';
-    root.innerHTML = `<div class="u-modal" role="dialog" aria-modal="true" aria-labelledby="countryTitle"><div class="u-eyebrow">One-time setup</div><h2 id="countryTitle">Choose your earning country</h2><p>Your country sets your currency, message reward, and daily goal. It locks after your first earning.</p><div class="u-field"><label for="countryChoice">Country</label><select class="u-select" id="countryChoice"><option value="">Select country</option>${data.countries.map(country => `<option value="${escapeHTML(country.code)}">${escapeHTML(country.name)} · ${escapeHTML(country.currency_code)} · ${money(country.reward_per_message, country.currency_code)}/message</option>`).join('')}</select></div><button class="u-btn primary block" id="saveCountry" style="margin-top:16px">Confirm country</button><p class="u-help" id="countryError" style="margin-top:10px"></p></div>`; document.body.appendChild(root);
-    return new Promise(resolve => root.querySelector('#saveCountry').addEventListener('click', async () => { const code = root.querySelector('#countryChoice').value; if (!code) { root.querySelector('#countryError').textContent = 'Please choose a country.'; return; } try { await api('/api/user/country', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ country_code: code }) }); root.remove(); resolve(); } catch (error) { root.querySelector('#countryError').textContent = error.message; } }));
+    const data = await api('/api/public/countries'); if (!data.countries?.length) throw new Error('No earning countries are currently available'); const country = await countryPicker(data.countries, '', { required: true });
+    await api('/api/user/country', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ country_code: country.code }) });
   }
   async function profile(requireCountry = true) {
     let data = await api('/api/user/profile'); if (data.requires_country && requireCountry) { await chooseCountry(); data = await api('/api/user/profile'); }
@@ -74,5 +131,5 @@
     const root = document.createElement('div'); root.className = 'u-modal-root show'; root.innerHTML = `<div class="u-modal u-celebrate" role="dialog" aria-modal="true"><div class="u-celebrate-icon">${icon('sparkle')}</div><div class="u-eyebrow">Reward unlocked</div><h2>${money(reward, currency)} earned!</h2><p>Your verified message was sent successfully. You are now on a ${gamification?.streak_days || 0}-day streak.</p><button class="u-btn primary" type="button">Keep earning</button></div>`; document.body.appendChild(root); root.querySelector('button').onclick = () => root.remove(); root.querySelector('button').focus();
   }
   document.addEventListener('DOMContentLoaded', () => { hydrateIcons(); const main = document.querySelector('main[data-user-page]'); if (main) shell(main.dataset.userPage); });
-  Object.assign(window, { uEscape: escapeHTML, uMoney: money, uDate: date, uApi: api, uToast: toast, uEmpty: empty, uProfile: profile, uCelebrate: celebrate, uLogout: logout, uIcon: icon });
+  Object.assign(window, { uEscape: escapeHTML, uMoney: money, uDate: date, uApi: api, uToast: toast, uEmpty: empty, uProfile: profile, uCelebrate: celebrate, uLogout: logout, uIcon: icon, uConfirm: confirmDialog, uCountryPicker: countryPicker, uCountryFlag: countryFlag, uShowEvent: showEvent, uSafeURL: safeInternalURL });
 })();
