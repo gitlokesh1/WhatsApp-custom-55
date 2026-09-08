@@ -73,6 +73,7 @@ func initEarningPortalSchema() error {
 			created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 			updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 		);
+		ALTER TABLE public.portal_banners ADD COLUMN IF NOT EXISTS show_as_popup BOOLEAN NOT NULL DEFAULT false;
 		CREATE INDEX IF NOT EXISTS portal_banners_active_idx ON public.portal_banners(active,country_code,display_order);
 		DO $$ BEGIN
 			IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='app_users_country_fk') THEN
@@ -236,7 +237,7 @@ func userBannersHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error"})
 		return
 	}
-	rows, err := userDB.Query(`SELECT id,title,body,alt_text,image_url,cta_label,cta_url FROM public.portal_banners WHERE active=true AND (country_code IS NULL OR country_code=$1) AND (starts_at IS NULL OR starts_at<=now()) AND (ends_at IS NULL OR ends_at>=now()) ORDER BY display_order,created_at DESC`, country.String)
+	rows, err := userDB.Query(`SELECT id,title,body,alt_text,image_url,cta_label,cta_url,show_as_popup FROM public.portal_banners WHERE active=true AND (country_code IS NULL OR country_code=$1) AND (starts_at IS NULL OR starts_at<=now()) AND (ends_at IS NULL OR ends_at>=now()) ORDER BY display_order,created_at DESC`, country.String)
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": "Could not load banners"})
 		return
@@ -245,8 +246,9 @@ func userBannersHandler(w http.ResponseWriter, r *http.Request) {
 	out := []map[string]any{}
 	for rows.Next() {
 		var id, title, body, alt, image, label, url string
-		if rows.Scan(&id, &title, &body, &alt, &image, &label, &url) == nil {
-			out = append(out, map[string]any{"id": id, "title": title, "body": body, "alt_text": alt, "image_url": image, "cta_label": label, "cta_url": url})
+		var showAsPopup bool
+		if rows.Scan(&id, &title, &body, &alt, &image, &label, &url, &showAsPopup) == nil {
+			out = append(out, map[string]any{"id": id, "title": title, "body": body, "alt_text": alt, "image_url": image, "cta_label": label, "cta_url": url, "show_as_popup": showAsPopup})
 		}
 	}
 	userFeaturesJSON(w, 200, map[string]any{"status": "success", "banners": out})
