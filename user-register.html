@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0d875a">
   <title>88Task • Create account</title>
-  <link rel="stylesheet" href="/user-ui.css?v=20260908.5">
+  <link rel="stylesheet" href="/user-ui.css?v=20260909.1">
 </head>
 <body>
 <main class="u-auth-page u-register-page">
@@ -48,7 +48,7 @@
     </div>
   </section>
 </main>
-<script src="/user-ui.js?v=20260908.5"></script>
+<script src="/user-ui.js?v=20260909.1"></script>
 <script>
 const params=new URLSearchParams(location.search),countryInput=document.getElementById('country'),countryButton=document.getElementById('countryTrigger'),nameInput=document.getElementById('name'),passwordInput=document.getElementById('password'),refInput=document.getElementById('ref');let countries=[];refInput.value=params.get('ref')||'';
 function selectCountry(selected){if(!selected)return;countryInput.value=selected.code;countryFlag.innerHTML=uCountryFlag(selected.code,selected.name);countryName.textContent=selected.name;countryMeta.textContent=selected.currency_code+' · '+uMoney(selected.reward_per_message,selected.currency_code)+' per message · Goal '+selected.daily_goal+'/day';countryButton.classList.remove('invalid')}
