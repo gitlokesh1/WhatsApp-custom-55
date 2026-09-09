@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0d875a">
   <title>88Task • Create account</title>
-  <link rel="stylesheet" href="/user-ui.css?v=20260909.6">
+  <link rel="stylesheet" href="/user-ui.css?v=20260909.7">
 </head>
 <body>
 <main class="u-auth-page u-register-page">
@@ -17,7 +17,7 @@
       <div class="u-brand"><span class="u-brand-mark">88</span><span><strong>88Task</strong><small>Verified task rewards</small></span></div>
       <div class="u-eyebrow u-auth-eyebrow">Your earning journey</div>
       <h1>Build a rewarding daily habit.</h1>
-      <p>Choose your local earning country, complete verified tasks, and unlock higher levels as you grow.</p>
+      <p>Choose your country, complete tasks, and unlock new levels.</p>
       </div>
       <div class="u-auth-points"><span class="u-auth-point"><span data-u-icon="globe"></span>Local rewards</span><span class="u-auth-point"><span data-u-icon="medal"></span>Five levels</span><span class="u-auth-point"><span data-u-icon="gift"></span>Referral earnings</span></div>
     </div>
@@ -59,7 +59,7 @@
     </div>
   </section>
 </main>
-<script src="/user-i18n.js?v=20260909.4"></script><script src="/user-ui.js?v=20260909.8"></script>
+<script src="/user-i18n.js?v=20260909.5"></script><script src="/user-ui.js?v=20260909.9"></script>
 <script>
 const params=new URLSearchParams(location.search),countryInput=document.getElementById('country'),countryButton=document.getElementById('countryTrigger'),nameInput=document.getElementById('name'),mobileInput=document.getElementById('mobile'),passwordInput=document.getElementById('password'),refInput=document.getElementById('ref'),termsConsent=document.getElementById('termsConsent'),invitedCountry=(params.get('country')||'').trim().toUpperCase();let countries=[],campaignRequest=0,confirmedMobile='';refInput.value=params.get('ref')||'';
 function selectCountry(selected){if(!selected)return;countryInput.value=selected.code;countryFlag.innerHTML=uCountryFlag(selected.code,selected.name);countryName.textContent=selected.name;countryMeta.textContent=selected.currency_code+' · '+uMoney(selected.reward_per_message,selected.currency_code)+' per message · Goal '+selected.daily_goal+'/day';countryButton.classList.remove('invalid');loadCampaign(selected.code)}
