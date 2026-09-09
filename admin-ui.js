@@ -59,7 +59,7 @@
   const shellMarkup = (active) => `
     <aside class="admin-sidebar" aria-label="Admin navigation">
       <a class="admin-brand" href="/admin">
-        <span class="admin-brand-mark">${icon('logo')}</span>
+        <span class="admin-brand-mark">88</span>
         <span class="admin-brand-copy"><strong>88Task</strong><span data-i18n="shell.console">Operations Console</span></span>
       </a>
       ${groups.map((group,index) => `<section class="admin-nav-group"><div id="admin-nav-group-${index}" class="admin-nav-label" data-i18n="${group.label}">${group.title || ''}</div><nav class="admin-nav" aria-labelledby="admin-nav-group-${index}">${group.items.map(item => `<a href="${item.href}" class="${item.key === active ? 'active' : ''}" ${item.key === active ? 'aria-current="page"' : ''}>${icon(item.icon)}<span data-i18n="${item.label}">${item.title || ''}</span></a>`).join('')}</nav></section>`).join('')}
@@ -79,7 +79,7 @@
     shell.innerHTML = shellMarkup(active);
     const workspace = document.createElement('div');
     workspace.className = 'admin-workspace';
-    workspace.innerHTML = `<header class="admin-topbar"><div class="admin-topbar-left"><button class="admin-menu-toggle" type="button" aria-label="Open navigation" data-admin-nav-toggle>${icon('menu')}</button><div><div class="admin-topbar-title" data-i18n="shell.console">Operations Console</div><div class="admin-topbar-context" data-i18n="shell.workspace">WhatsApp management workspace</div></div></div><div class="admin-topbar-actions"><select class="admin-language" data-admin-language aria-label="Language"></select></div></header>`;
+    workspace.innerHTML = `<header class="admin-topbar"><div class="admin-topbar-left"><button class="admin-menu-toggle" type="button" aria-label="Open navigation" data-admin-nav-toggle>${icon('menu')}</button><span class="admin-brand-mark admin-topbar-logo">88</span><div><div class="admin-topbar-title" data-i18n="shell.console">Operations Console</div><div class="admin-topbar-context" data-i18n="shell.workspace">WhatsApp management workspace</div></div></div><div class="admin-topbar-actions"><select class="admin-language" data-admin-language aria-label="Language"></select></div></header>`;
     main.classList.add('admin-content');
     main.parentNode.insertBefore(shell, main);
     shell.appendChild(workspace);

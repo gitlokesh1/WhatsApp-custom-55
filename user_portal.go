@@ -230,8 +230,14 @@ func userPage(w http.ResponseWriter, r *http.Request, file string) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	data, err := os.ReadFile(file)
+	if err != nil {
+		http.Error(w, "Page not found", http.StatusNotFound)
+		return
+	}
 	w.Header().Set("Cache-Control", "no-cache")
-	http.ServeFile(w, r, file)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(injectBrandingScript(string(data))))
 }
 func userUIHandler(file, contentType string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

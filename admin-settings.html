@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>88Task • Settings</title><link rel="stylesheet" href="/admin-ui.css?v=20260909.4"></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>88Task • Settings</title><link rel="stylesheet" href="/admin-ui.css?v=20260909.5"></head><body>
 <main data-admin-page="settings">
   <header class="admin-page-head"><div><div class="admin-eyebrow" data-i18n="settings.eyebrow">System configuration</div><h1 data-i18n="settings.title">Settings</h1><p data-i18n="settings.subtitle">Configure automation behavior, sending safeguards, and post-pairing workflows.</p></div><button id="saveButton" class="admin-btn primary" type="button" data-i18n="common.save_changes">Save changes</button></header>
   <div class="admin-alert info"><div><strong data-i18n="settings.applies_title">Applies to every outbound message</strong><span data-i18n="settings.applies_help">These safeguards cover user earning tasks, automated replies, bulk campaigns, test sends, and post-pairing messages.</span></div></div>
@@ -18,6 +18,11 @@
       </article>
     </div>
     <div>
+      <article class="admin-card"><div class="admin-card-head"><div><h2>Company branding</h2><p>Upload one logo for every admin, user, registration, legal, pairing, and support page.</p></div></div>
+        <div class="admin-branding-preview"><span id="logoPlaceholder" class="admin-branding-placeholder">88</span><img id="logoPreview" alt="Current company logo" hidden><div><strong>Company logo</strong><span>Recommended: square 512 × 512 px. JPEG, PNG, or WebP up to 2 MB.</span></div></div>
+        <div class="admin-field" style="margin-top:14px"><label for="logoFile">Logo file</label><input id="logoFile" class="admin-input" type="file" accept="image/jpeg,image/png,image/webp"></div>
+        <div class="admin-actions" style="margin-top:12px"><button id="uploadLogo" class="admin-btn primary" type="button">Upload logo</button><button id="removeLogo" class="admin-btn danger" type="button" hidden>Use placeholder</button></div>
+      </article>
       <article class="admin-card"><div class="admin-card-head"><div><h2 data-i18n="settings.pair_message">Post-pairing message</h2><p data-i18n="settings.pair_message_help">Optionally send a welcome message once a session is ready.</p></div></div>
         <div class="admin-setting-row"><div class="admin-setting-copy"><strong data-i18n="settings.enable_pair_message">Send after successful pairing</strong><span data-i18n="settings.safety_applies">Sending safeguards still apply.</span></div><input id="autoMessage" class="admin-switch" type="checkbox"></div>
         <div class="admin-field" style="margin-top:14px"><label for="autoTarget" data-i18n="settings.recipient">Recipient phone number</label><input id="autoTarget" class="admin-input" inputmode="numeric" placeholder="919876543210"><small data-i18n="settings.phone_help">Include country code without + or spaces.</small></div>
@@ -28,10 +33,17 @@
     </div>
   </section>
 </main>
-<script src="/admin-ui.js?v=20260909.4"></script><script src="/admin-i18n.js?v=20260909.7"></script>
+<script src="/admin-ui.js?v=20260909.5"></script><script src="/admin-i18n.js?v=20260909.8"></script>
 <script>
 const settingIDs={delete_chat_after_send:'deleteChat',send_typing:'sendTyping',typing_min_ms:'typingMin',typing_max_ms:'typingMax',post_send_delay_ms:'postDelay',ban_safety_enabled:'banSafety',safety_min_interval_ms:'safetyInterval',safety_max_messages_hour:'maxHour',safety_max_messages_day:'maxDay',auto_message_after_pairing:'autoMessage',auto_message_target:'autoTarget',auto_message_text:'autoText',bulk_auto_send_enabled:'bulkAuto'};
 async function loadSettings(){try{const data=await adminApi('/admin/settings/data');Object.entries(settingIDs).forEach(([key,id])=>{const input=document.getElementById(id),value=data.settings?.[key];if(input.type==='checkbox')input.checked=Boolean(value);else input.value=value??''})}catch(error){showAdminError(error.message)}}
+let localLogoURL='',storedLogoURL='';
+function showLogo(url){logoPreview.hidden=!url;logoPlaceholder.hidden=Boolean(url);removeLogo.hidden=!storedLogoURL;if(url)logoPreview.src=url}
+async function loadBranding(){try{const response=await fetch('/api/public/branding',{cache:'no-cache'}),data=await response.json();storedLogoURL=data.logo_url||'';showLogo(storedLogoURL)}catch(_){showLogo('')}}
+logoPreview.onerror=()=>{logoPreview.hidden=true;logoPlaceholder.hidden=false};
+logoFile.onchange=()=>{if(localLogoURL)URL.revokeObjectURL(localLogoURL);localLogoURL=logoFile.files[0]?URL.createObjectURL(logoFile.files[0]):'';showLogo(localLogoURL||storedLogoURL)};
+uploadLogo.onclick=async()=>{if(!logoFile.files[0])return showAdminError('Choose a company logo first.');const form=new FormData();form.set('logo',logoFile.files[0]);adminSetBusy(uploadLogo,true,'Uploading…');try{await adminApi('/admin/branding',{method:'POST',body:form});adminToast('Company logo updated');location.reload()}catch(error){showAdminError(error.message)}finally{adminSetBusy(uploadLogo,false)}};
+removeLogo.onclick=async()=>{if(!await showAdminConfirm('All pages will return to the built-in 88 placeholder.','Remove company logo',{danger:true}))return;try{await adminApi('/admin/branding',{method:'DELETE'});adminToast('Company logo removed');location.reload()}catch(error){showAdminError(error.message)}};
 async function saveSettings(){
   const button=document.getElementById('saveButton'),payload={};
   for(const [key,id] of Object.entries(settingIDs)){
@@ -49,5 +61,5 @@ async function saveSettings(){
   adminSetBusy(button,true,adminT('common.saving'));
   try{await adminApi('/admin/settings/data',{method:'POST',body:JSON.stringify(payload)});adminToast(adminT('settings.saved'))}catch(error){showAdminError(error.message)}finally{adminSetBusy(button,false)}
 }
-document.addEventListener('DOMContentLoaded',()=>{if(!sessionStorage.getItem('admin_token'))return adminLogout();document.getElementById('saveButton').addEventListener('click',saveSettings);loadSettings()});
+document.addEventListener('DOMContentLoaded',()=>{if(!sessionStorage.getItem('admin_token'))return adminLogout();document.getElementById('saveButton').addEventListener('click',saveSettings);loadSettings();loadBranding()});
 </script></body></html>
