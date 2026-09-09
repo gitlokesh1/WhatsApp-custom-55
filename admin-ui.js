@@ -12,11 +12,18 @@
       bulk: '<path d="M4 5h16M4 12h16M4 19h16"/><path d="m17 2 3 3-3 3M17 9l3 3-3 3M17 16l3 3-3 3"/>',
       logs: '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h8"/>',
       telemetry: '<path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/>',
+      users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+      bonuses: '<path d="M20 12v9H4v-9M2 7h20v5H2zM12 7v14M12 7H7.5a2.5 2.5 0 1 1 2.1-3.85L12 7Zm0 0h4.5a2.5 2.5 0 1 0-2.1-3.85L12 7Z"/>',
+      countries: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>',
+      tasks: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+      banners: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/>',
+      withdrawals: '<path d="M3 7h18v12H3z"/><path d="M3 10h18M7 15h4"/>',
+	  customerService: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"/><path d="M8 9h8M8 13h5"/>',
       settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.09A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3V9.6h.09A1.7 1.7 0 0 0 4.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.09A1.7 1.7 0 0 0 15.5 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.14.37.35.7.6 1 .3.3.69.4 1.1.4h.09v4h-.09A1.7 1.7 0 0 0 19.4 15Z"/>',
       schema: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v7c0 1.7 4 3 9 3s9-1.3 9-3V5M3 12v7c0 1.7 4 3 9 3s9-1.3 9-3v-7"/>',
       logout: '<path d="M10 17l5-5-5-5M15 12H3"/><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/>',
       menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
-      logo: '<path d="M20 11.4A8 8 0 0 1 8.3 18.5L3 20l1.5-5.1A8 8 0 1 1 20 11.4Z"/><path d="M9 8.5c.7 2.4 2.1 3.8 4.5 4.5"/>'
+      logo: '<path fill="currentColor" stroke="none" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>'
     };
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.dashboard}</svg>`;
   };
@@ -29,13 +36,22 @@
       { key: 'health', href: '/admin/account-health', label: 'nav.health', icon: 'health' }
     ] },
     { label: 'nav.messaging', items: [
+      { key: 'settings', href: '/admin/settings', label: 'nav.message_safety', title: 'Message Safety', icon: 'settings' },
       { key: 'control', href: '/admin/control', label: 'nav.conversations', icon: 'conversations' },
       { key: 'bulk', href: '/admin/bulk', label: 'nav.bulk', icon: 'bulk' },
       { key: 'logs', href: '/admin/send-logs', label: 'nav.logs', icon: 'logs' },
       { key: 'telemetry', href: '/admin/telemetry', label: 'nav.telemetry', icon: 'telemetry' }
     ] },
+    { label: 'nav.earning_portal', title: 'Earning portal', items: [
+      { key: 'users', href: '/admin/users', label: 'nav.users', title: 'Users', icon: 'users' },
+      { key: 'bonuses', href: '/admin/bonuses', label: 'nav.bonuses', title: 'Bonuses', icon: 'bonuses' },
+      { key: 'countries', href: '/admin/countries', label: 'nav.countries', title: 'Countries & rates', icon: 'countries' },
+      { key: 'tasks', href: '/admin/tasks', label: 'nav.earning_tasks', title: 'Earning tasks', icon: 'tasks' },
+      { key: 'banners', href: '/admin/banners', label: 'nav.banners', title: 'Banners', icon: 'banners' },
+	  { key: 'customerService', href: '/admin/customer-service', label: 'nav.customer_service', title: 'Customer service', icon: 'customerService' },
+      { key: 'withdrawals', href: '/admin/withdrawals', label: 'nav.withdrawals', title: 'Withdrawals', icon: 'withdrawals' }
+    ] },
     { label: 'nav.system', items: [
-      { key: 'settings', href: '/admin/settings', label: 'nav.settings', icon: 'settings' },
       { key: 'schema', href: '/admin/schema', label: 'nav.schema', icon: 'schema' }
     ] }
   ];
@@ -46,7 +62,7 @@
         <span class="admin-brand-mark">${icon('logo')}</span>
         <span class="admin-brand-copy"><strong>88Task</strong><span data-i18n="shell.console">Operations Console</span></span>
       </a>
-      ${groups.map((group,index) => `<section class="admin-nav-group"><div id="admin-nav-group-${index}" class="admin-nav-label" data-i18n="${group.label}"></div><nav class="admin-nav" aria-labelledby="admin-nav-group-${index}">${group.items.map(item => `<a href="${item.href}" class="${item.key === active ? 'active' : ''}" ${item.key === active ? 'aria-current="page"' : ''}>${icon(item.icon)}<span data-i18n="${item.label}"></span></a>`).join('')}</nav></section>`).join('')}
+      ${groups.map((group,index) => `<section class="admin-nav-group"><div id="admin-nav-group-${index}" class="admin-nav-label" data-i18n="${group.label}">${group.title || ''}</div><nav class="admin-nav" aria-labelledby="admin-nav-group-${index}">${group.items.map(item => `<a href="${item.href}" class="${item.key === active ? 'active' : ''}" ${item.key === active ? 'aria-current="page"' : ''}>${icon(item.icon)}<span data-i18n="${item.label}">${item.title || ''}</span></a>`).join('')}</nav></section>`).join('')}
       <div class="admin-sidebar-footer">
         <div class="admin-live"><span data-i18n="shell.live">Service connected</span></div>
         <button class="admin-sidebar-logout" type="button" data-admin-logout>${icon('logout')}<span data-i18n="nav.logout"></span></button>
@@ -72,6 +88,7 @@
     shell.querySelector('[data-admin-nav-close]').addEventListener('click', () => shell.classList.remove('nav-open'));
     shell.querySelectorAll('.admin-nav a').forEach(link => link.addEventListener('click', () => shell.classList.remove('nav-open')));
     shell.querySelector('[data-admin-logout]').addEventListener('click', window.adminLogout);
+    requestAnimationFrame(() => shell.querySelector('.admin-nav a.active')?.scrollIntoView({ block: 'center' }));
   }
 
   window.adminLogout = () => {

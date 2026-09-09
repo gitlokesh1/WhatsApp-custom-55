@@ -1,7 +1,7 @@
 (() => {
   const en = {
     'shell.console':'Operations Console','shell.workspace':'WhatsApp management workspace','shell.live':'Service connected',
-    'nav.overview':'Overview','nav.whatsapp':'WhatsApp','nav.messaging':'Messaging','nav.system':'System','nav.dashboard':'Dashboard','nav.devices':'Devices','nav.pair':'Pair WhatsApp','nav.health':'Account Health','nav.conversations':'Conversations','nav.bulk':'Bulk Messages','nav.logs':'Send Logs','nav.telemetry':'Telemetry','nav.settings':'Settings','nav.schema':'Public Schema','nav.logout':'Logout',
+    'nav.overview':'Overview','nav.whatsapp':'WhatsApp','nav.messaging':'Messaging','nav.system':'System','nav.dashboard':'Dashboard','nav.devices':'Devices','nav.pair':'Pair WhatsApp','nav.health':'Account Health','nav.conversations':'Conversations','nav.bulk':'Bulk Messages','nav.logs':'Send Logs','nav.telemetry':'Telemetry','nav.settings':'Settings','nav.schema':'Public Schema','nav.logout':'Logout','nav.customer_service':'Customer service',
     'common.ok':'OK','common.error':'Error','common.confirm':'Confirm action','common.cancel':'Cancel','common.save':'Save','common.save_changes':'Save changes','common.working':'Working…','common.refreshing':'Refreshing…','common.saving':'Saving…','common.sending':'Sending…','common.enter_value':'Enter value','common.refresh':'Refresh','common.loading':'Loading…','common.load_failed':'Could not load data','common.unavailable':'Unavailable','common.manage':'Manage','common.next':'Next','common.send':'Send','common.retry':'Retry','common.edit':'Edit','common.delete':'Delete','common.close':'Close','common.copy':'Copy','common.view_all':'View all','common.enabled':'Enabled','common.disabled':'Disabled','common.connected':'Connected','common.offline':'Offline','common.total':'Total','common.search':'Search','common.actions':'Actions','common.account':'Account','common.user_id':'User ID','common.phone':'Phone','common.connection':'Connection','common.status':'Status','common.message':'Message','common.created':'Created','common.updated':'Updated',
     'status.ready':'Ready','status.connected':'Connected','status.offline':'Offline','status.disconnected':'Disconnected','status.logged_in':'Logged in','status.sent':'Sent','status.delivered':'Delivered','status.read':'Read','status.linked':'Linked','status.healthy':'Healthy','status.active':'Active','status.warning':'Warning','status.pending':'Pending','status.queued':'Queued','status.sending':'Sending','status.handoff':'Handoff','status.failed':'Failed','status.expired':'Expired','status.opted_out':'Opted out','status.timelocked':'Timelocked','status.capped':'Capped','status.unknown':'Unknown','status.paused':'Paused','status.cancelled':'Cancelled',
     'login.title':'Admin sign in','login.subtitle':'Enter your secure admin token to access WhatsApp operations.','login.token':'Admin token','login.placeholder':'Enter admin token','login.action':'Sign in','login.invalid':'The admin token is invalid.','login.signing_in':'Signing in…',
@@ -2681,6 +2681,19 @@
   for (const [locale, values] of Object.entries(completeTranslations)) dictionaries[locale] = { ...values, ...dictionaries[locale] };
   const missingDeviceMessages = { hi:'डिवाइस URL में user_id पैरामीटर नहीं है।', pt:'O parâmetro user_id está ausente na URL do dispositivo.', es:'Falta el parámetro user_id en la URL del dispositivo.', id:'Parameter user_id tidak ada pada URL perangkat.', bn:'ডিভাইস URL-এ user_id প্যারামিটারটি নেই।', ur:'ڈیوائس URL میں user_id پیرامیٹر موجود نہیں ہے۔', ar:'معلمة user_id مفقودة من عنوان URL للجهاز.' };
   for (const [locale, message] of Object.entries(missingDeviceMessages)) dictionaries[locale]['device.missing_user'] = message;
+  const financeNavigation = {
+    en:{withdrawals:'Withdrawals',bonuses:'Bonuses'},hi:{withdrawals:'निकासी',bonuses:'बोनस'},pt:{withdrawals:'Saques',bonuses:'Bônus'},es:{withdrawals:'Retiros',bonuses:'Bonificaciones'},id:{withdrawals:'Penarikan',bonuses:'Bonus'},bn:{withdrawals:'উত্তোলন',bonuses:'বোনাস'},ur:{withdrawals:'رقم نکالنا',bonuses:'بونس'},ar:{withdrawals:'عمليات السحب',bonuses:'المكافآت'}
+  };
+  for (const [locale, labels] of Object.entries(financeNavigation)) {
+    dictionaries[locale]['nav.withdrawals'] = labels.withdrawals;
+    dictionaries[locale]['nav.bonuses'] = labels.bonuses;
+  }
+  const messageSafetyNavigation = {
+    en:'Message Safety',hi:'संदेश सुरक्षा',pt:'Segurança de mensagens',es:'Seguridad de mensajes',id:'Keamanan pesan',bn:'বার্তা নিরাপত্তা',ur:'پیغام کی حفاظت',ar:'أمان الرسائل'
+  };
+  for (const [locale, label] of Object.entries(messageSafetyNavigation)) dictionaries[locale]['nav.message_safety'] = label;
+  dictionaries.en['settings.applies_title'] = 'Applies to every outbound message';
+  dictionaries.en['settings.applies_help'] = 'These safeguards cover user earning tasks, automated replies, bulk campaigns, test sends, and post-pairing messages.';
 
   const languageNames = { en:'English', hi:'हिन्दी', pt:'Português', es:'Español', id:'Bahasa Indonesia', bn:'বাংলা', ur:'اردو', ar:'العربية' };
   let language = localStorage.getItem('88task_lang') || 'en';

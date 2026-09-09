@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>88Task • Countries & Rates</title>
+  <link rel="stylesheet" href="/admin-ui.css?v=20260909.4">
+</head>
+<body>
+<main data-admin-page="countries">
+  <header class="admin-page-head">
+    <div><div class="admin-eyebrow">Earning configuration</div><h1>Countries & reward rates</h1><p>Control local currency, per-message rewards, daily goals, and country availability.</p></div>
+    <button class="admin-btn primary" id="newButton">Add country</button>
+  </header>
+  <section class="admin-stats">
+    <article class="admin-stat"><div class="admin-stat-label">Configured countries</div><div id="countryCount" class="admin-stat-value">—</div></article>
+    <article class="admin-stat"><div class="admin-stat-label">Active countries</div><div id="activeCount" class="admin-stat-value">—</div></article>
+    <article class="admin-stat"><div class="admin-stat-label">Registered users</div><div id="userCount" class="admin-stat-value">—</div></article>
+  </section>
+  <article id="editor" class="admin-card" hidden>
+    <div class="admin-card-head"><div><h2 id="editorTitle">Add country</h2><p>Select a country and its earning details will be filled automatically.</p></div><button class="admin-btn small" id="closeButton">Close</button></div>
+    <form id="countryForm" class="admin-form-grid">
+      <div class="admin-field wide">
+        <label for="countryPreset">Country</label>
+        <input id="countrySearch" class="admin-input" type="search" placeholder="Search country or code" autocomplete="off">
+        <select id="countryPreset" class="admin-select" required><option value="">Choose a country</option></select>
+        <small>Countries already configured are unavailable when adding a new one.</small>
+      </div>
+      <div id="countryPreview" class="admin-country-preview wide" hidden>
+        <img id="countryFlag" alt="" width="64" height="48">
+        <div><strong id="countryPreviewName">—</strong><span id="countryPreviewMeta">—</span></div>
+      </div>
+      <input id="code" type="hidden">
+      <input id="name" type="hidden">
+      <input id="currencyCode" type="hidden">
+      <div class="admin-field">
+        <label for="timezone">Earning timezone</label>
+        <select id="timezone" class="admin-select" required disabled><option value="">Select a country first</option></select>
+        <small>Daily goals and streaks reset using this timezone.</small>
+      </div>
+      <div class="admin-field"><label for="reward">Reward per successful message</label><input id="reward" class="admin-input" type="number" min="0" step="0.0001" required></div>
+      <div class="admin-field"><label for="dailyGoal">Daily message goal</label><input id="dailyGoal" class="admin-input" type="number" min="1" max="10000" required></div>
+      <div class="admin-field"><label for="displayOrder">Display order</label><input id="displayOrder" class="admin-input" type="number" value="0"></div>
+      <div class="admin-setting-row"><div class="admin-setting-copy"><strong>Active</strong><span>Available at registration and for new task claims.</span></div><input id="active" class="admin-switch" type="checkbox" checked aria-label="Country active"></div>
+      <div class="admin-setting-row"><div class="admin-setting-copy"><strong>Withdrawals</strong><span>Allow configured payout channels for this country.</span></div><input id="withdrawalsEnabled" class="admin-switch" type="checkbox" aria-label="Country withdrawals enabled"></div>
+      <div class="admin-actions wide"><button id="saveButton" class="admin-btn primary" type="submit">Save country</button></div>
+    </form>
+  </article>
+  <article class="admin-card flush">
+    <div style="padding:20px 20px 0"><div class="admin-card-head"><div><h2>Country directory</h2><p>Currency cannot be changed after a reward has been credited.</p></div><button class="admin-btn" id="refreshButton">Refresh</button></div></div>
+    <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Country</th><th>Currency</th><th>Timezone</th><th>Message reward</th><th>Daily goal</th><th>Users</th><th>Tasks</th><th>Status</th><th>Actions</th></tr></thead><tbody id="rows"><tr><td colspan="9"><div class="admin-empty">Loading…</div></td></tr></tbody></table></div>
+  </article>
+</main>
+<script src="/admin-ui.js?v=20260909.4"></script>
+<script src="/admin-i18n.js?v=20260909.4"></script>
+<script src="/admin-country-catalog.js?v=20260909.1"></script>
+<script>
+let countries=[];
+const catalog=window.adminCountryCatalog||[];
+const editor=document.getElementById('editor'),editorTitle=document.getElementById('editorTitle'),countryForm=document.getElementById('countryForm'),countryPreset=document.getElementById('countryPreset'),countrySearch=document.getElementById('countrySearch'),countryPreview=document.getElementById('countryPreview'),countryFlag=document.getElementById('countryFlag'),countryPreviewName=document.getElementById('countryPreviewName'),countryPreviewMeta=document.getElementById('countryPreviewMeta'),codeInput=document.getElementById('code'),countryNameInput=document.getElementById('name'),currencyCodeInput=document.getElementById('currencyCode'),timezoneInput=document.getElementById('timezone'),rewardInput=document.getElementById('reward'),dailyGoalInput=document.getElementById('dailyGoal'),displayOrderInput=document.getElementById('displayOrder'),activeInput=document.getElementById('active'),withdrawalsEnabledInput=document.getElementById('withdrawalsEnabled'),saveButton=document.getElementById('saveButton'),rows=document.getElementById('rows'),countryCount=document.getElementById('countryCount'),activeCount=document.getElementById('activeCount'),userCount=document.getElementById('userCount');
+function renderCountryChoices(current){
+  const selected=current?.code||countryPreset.value;
+  const configured=new Set(countries.map(item=>item.code));
+  const query=countrySearch.value.trim().toLowerCase();let choices=catalog.filter(item=>!query||item.name.toLowerCase().includes(query)||item.code.toLowerCase().includes(query)||item.currency.toLowerCase().includes(query));
+  if(current&&!choices.some(item=>item.code===current.code))choices.push({code:current.code,name:current.name,currency:current.currency_code,timezones:[current.timezone]});
+  countryPreset.innerHTML='<option value="">Choose a country</option>'+choices.map(item=>'<option value="'+adminEscape(item.code)+'" '+(configured.has(item.code)&&item.code!==current?.code?'disabled':'')+'>'+adminEscape(item.name)+' · '+adminEscape(item.code)+'</option>').join('');
+  if(selected&&choices.some(item=>item.code===selected)){countryPreset.value=selected}else{countryPreset.value='';codeInput.value='';countryNameInput.value='';currencyCodeInput.value='';countryPreview.hidden=true;timezoneInput.disabled=true}
+}
+function applyCountry(countryCode,current){
+  const preset=catalog.find(item=>item.code===countryCode)||current;
+  if(!preset){countryPreview.hidden=true;timezoneInput.disabled=true;return}
+  const name=current?.name||preset.name,currency=current?.currency_code||preset.currency;
+  const timezones=[...(preset.timezones||[])];
+  if(current?.timezone&&!timezones.includes(current.timezone))timezones.unshift(current.timezone);
+  codeInput.value=countryCode;countryNameInput.value=name;currencyCodeInput.value=currency;
+  countryFlag.src='https://flagcdn.com/w80/'+countryCode.toLowerCase()+'.png';countryFlag.alt='';
+  countryPreviewName.textContent=name;countryPreviewMeta.textContent=countryCode+' · '+currency;countryPreview.hidden=false;
+  timezoneInput.innerHTML=timezones.map(zone=>'<option value="'+adminEscape(zone)+'">'+adminEscape(zone.replaceAll('_',' '))+'</option>').join('');
+  timezoneInput.disabled=false;timezoneInput.value=current?.timezone||timezones[0]||'';
+}
+function openEditor(item={}){
+  const editing=Boolean(item.code);editor.hidden=false;editorTitle.textContent=editing?'Edit '+item.name:'Add country';countryForm.reset();countrySearch.value='';countrySearch.disabled=editing;renderCountryChoices(editing?item:null);countryPreset.disabled=editing;countryPreset.value=item.code||'';
+  if(editing)applyCountry(item.code,item);else{countryPreview.hidden=true;timezoneInput.innerHTML='<option value="">Select a country first</option>';timezoneInput.disabled=true}
+  rewardInput.value=item.reward_per_message??'';dailyGoalInput.value=item.daily_goal||10;displayOrderInput.value=item.display_order||0;activeInput.checked=item.active??true;withdrawalsEnabledInput.checked=item.withdrawals_enabled??false;editor.scrollIntoView({behavior:'smooth'});
+}
+function closeEditor(){editor.hidden=true;countryForm.reset();countryPreset.disabled=false;countrySearch.disabled=false;countryPreview.hidden=true}
+async function load(){
+  try{
+    const data=await adminApi('/admin/countries/data');countries=data.countries||[];
+    countryCount.textContent=countries.length;activeCount.textContent=countries.filter(item=>item.active).length;userCount.textContent=countries.reduce((total,item)=>total+Number(item.users||0),0);
+    rows.innerHTML=countries.length?countries.map(item=>'<tr><td><div class="admin-cell-main">'+adminEscape(item.name)+'</div><div class="admin-help">'+adminEscape(item.code)+'</div></td><td>'+adminEscape(item.currency_code)+'</td><td>'+adminEscape(item.timezone)+'</td><td class="numeric">'+adminEscape(item.reward_per_message)+'</td><td class="numeric">'+adminEscape(item.daily_goal)+'</td><td class="numeric">'+adminEscape(item.users)+'</td><td class="numeric">'+adminEscape(item.tasks)+'</td><td>'+adminStatusBadge(item.active?'active':'disabled')+'</td><td><div class="admin-actions"><button class="admin-btn small" data-edit="'+adminEscape(item.code)+'">Edit</button><button class="admin-btn small danger" data-delete="'+adminEscape(item.code)+'">Delete</button></div></td></tr>').join(''):'<tr><td colspan="9"><div class="admin-empty">No countries configured.</div></td></tr>';
+    rows.querySelectorAll('[data-edit]').forEach(button=>button.onclick=()=>openEditor(countries.find(item=>item.code===button.dataset.edit)));rows.querySelectorAll('[data-delete]').forEach(button=>button.onclick=()=>removeCountry(button.dataset.delete));
+  }catch(error){showAdminError(error.message)}
+}
+async function removeCountry(countryCode){if(!await showAdminConfirm('Delete '+countryCode+'? Countries in use cannot be deleted.','Delete country',{danger:true}))return;try{await adminApi('/admin/countries/data',{method:'POST',body:{action:'delete',code:countryCode}});adminToast('Country deleted');load()}catch(error){showAdminError(error.message)}}
+countryPreset.onchange=()=>applyCountry(countryPreset.value);
+countrySearch.oninput=()=>renderCountryChoices();
+countryForm.onsubmit=async event=>{event.preventDefault();adminSetBusy(saveButton,true,'Saving…');try{await adminApi('/admin/countries/data',{method:'POST',body:{code:codeInput.value,name:countryNameInput.value,currency_code:currencyCodeInput.value,timezone:timezoneInput.value,reward:Number(rewardInput.value),daily_goal:Number(dailyGoalInput.value),display_order:Number(displayOrderInput.value),active:activeInput.checked,withdrawals_enabled:withdrawalsEnabledInput.checked}});adminToast('Country saved');closeEditor();load()}catch(error){showAdminError(error.message)}finally{adminSetBusy(saveButton,false)}};
+document.getElementById('newButton').onclick=()=>openEditor();document.getElementById('closeButton').onclick=closeEditor;document.getElementById('refreshButton').onclick=load;
+document.addEventListener('DOMContentLoaded',()=>{if(!sessionStorage.getItem('admin_token'))return adminLogout();load()});
+</script>
+</body>
+</html>
