@@ -248,6 +248,7 @@
   window.uT = translate;
   window.uLanguage = () => language;
   window.uTranslate = translateTree;
+  window.uInitLanguageSelectors = initializeSelectors;
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
