@@ -9,11 +9,7 @@
 </head>
 <body>
 <main class="u-content u-dashboard" data-user-page="dashboard">
-  <header class="u-page-head">
-    <div><div class="u-eyebrow">Today at a glance</div><h1>Keep your momentum</h1><p>One focused place for today’s earnings and progress.</p></div>
-    <a class="u-btn primary" href="/tasks">Start a task <span data-u-icon="arrowRight"></span></a>
-  </header>
-
+  <section id="banners" class="u-banner-wrap u-dashboard-banner" aria-label="Announcements"></section>
   <div id="countryAlert"></div>
   <section class="u-dashboard-focus" aria-label="Earning overview">
     <article class="u-hero u-balance-hero">
@@ -25,7 +21,7 @@
           <div><b id="rate">—</b><span>Per task</span></div>
           <div><b id="wa">—</b><span>WhatsApp linked</span></div>
         </div>
-        <div class="u-actions u-hero-actions"><a class="u-btn" href="/tasks">View tasks</a><button class="u-btn" disabled title="Withdrawals are coming soon">Withdraw · Soon</button></div>
+        <div class="u-actions u-hero-actions"><a class="u-btn" href="/tasks">View tasks</a><a class="u-btn" href="/withdrawals">Withdraw</a></div>
       </div>
     </article>
 
@@ -39,8 +35,6 @@
       </div>
     </article>
   </section>
-
-  <section id="banners" class="u-banner-wrap u-dashboard-banner" aria-label="Announcements"></section>
 
   <section class="u-dashboard-lower">
     <article class="u-card u-progress-hub">
@@ -57,7 +51,7 @@
     </article>
 
     <article class="u-card u-activity-card">
-      <div class="u-card-head"><div><div class="u-eyebrow">Wallet activity</div><h2>Recent earnings</h2></div><a class="u-btn small" href="/profile">View all</a></div>
+      <div class="u-card-head"><div><div class="u-eyebrow">Wallet activity</div><h2>Recent transactions</h2></div><a class="u-btn small" href="/profile">View all</a></div>
       <div id="earnings"><div class="u-skeleton"></div></div>
     </article>
   </section>
@@ -66,8 +60,8 @@
 <script src="/user-ui.js?v=20260909.1"></script>
 <script>
 let bannerIndex=0,bannerTimer;
-function renderBanners(items){const root=document.getElementById('banners');if(!items.length){root.innerHTML='<div class="u-banner"><div class="u-banner-copy"><div class="u-eyebrow" style="color:#cfcaff">88Task rewards</div><h2>Small tasks. Real progress.</h2><p>Connect WhatsApp, complete available tasks, and receive a reward for every successful message.</p><a class="u-btn" href="/tasks">Explore tasks</a></div></div>';return}const show=()=>{const b=items[bannerIndex],ctaURL=uSafeURL(b.cta_url);root.innerHTML='<article class="u-banner"><div class="u-banner-copy"><h2>'+uEscape(b.title)+'</h2><p>'+uEscape(b.body)+'</p>'+(b.cta_label&&ctaURL?'<a class="u-btn" href="'+uEscape(ctaURL)+'">'+uEscape(b.cta_label)+'</a>':'')+'</div>'+(b.image_url?'<img src="'+uEscape(b.image_url)+'" alt="'+uEscape(b.alt_text)+'" loading="lazy">':'')+'</article><div class="u-banner-dots">'+items.map((_,i)=>'<button class="'+(i===bannerIndex?'active':'')+'" aria-label="Show banner '+(i+1)+'" data-banner="'+i+'"></button>').join('')+'</div>';root.querySelectorAll('[data-banner]').forEach(x=>x.onclick=()=>{bannerIndex=Number(x.dataset.banner);show()})};show();if(items.length>1)bannerTimer=setInterval(()=>{bannerIndex=(bannerIndex+1)%items.length;show()},6500)}
-async function load(){try{const [p,e,b]=await Promise.all([uProfile(),uApi('/api/user/earnings'),uApi('/api/user/banners')]);const g=p.gamification;balance.textContent=uMoney(p.balance,p.currency_code);today.textContent=uMoney(p.today_earning,p.currency_code);rate.textContent=uMoney(p.reward_per_message,p.currency_code);country.textContent=p.country_name||'Country pending';wa.textContent=p.linked_whatsapp+'/'+p.max_whatsapp;lifetime.textContent=g.lifetime_messages;level.textContent=g.level;streak.textContent=g.streak_days;goalBadge.textContent=g.today_messages+' / '+g.daily_goal;goalProgress.style.width=g.goal_progress+'%';goalCopy.textContent=g.today_messages>=g.daily_goal?'Daily goal complete. Great work today!':Math.max(0,g.daily_goal-g.today_messages)+' successful task'+(g.daily_goal-g.today_messages===1?'':'s')+' left today.';levelProgress.style.width=g.level_progress+'%';levelPercent.textContent=g.level_progress+'%';levelNote.textContent=g.level==='Diamond'?'Highest level achieved':g.next_level_at+' tasks unlock the next level';levelCopy.textContent=g.level==='Diamond'?'You reached the highest 88Task level.':Math.max(0,g.next_level_at-g.lifetime_messages)+' more successful tasks to advance.';countryAlert.innerHTML=p.country_active?'':'<div class="u-alert">Earning is currently paused for '+uEscape(p.country_name)+'. Your balance and history remain available.</div>';copyReferral.onclick=()=>navigator.clipboard.writeText(location.origin+'/register?ref='+p.referral_code).then(()=>uToast('Referral link copied'));earnings.innerHTML=e.earnings.length?e.earnings.slice(0,3).map(x=>'<div class="u-row"><div class="u-row-main"><strong>'+uEscape(x.description)+'</strong><span>'+uDate(x.created_at)+'</span></div><strong class="u-reward">+'+uMoney(x.amount,x.currency_code)+'</strong></div>').join(''):uEmpty('sparkle','No earnings yet','Complete your first available task to get started.');renderBanners(b.banners);uShowEvent((b.banners||[]).filter(item=>item.show_as_popup))}catch(error){uToast(error.message,'error')}}
+function renderBanners(items){const root=document.getElementById('banners');if(!items.length){root.innerHTML='';return}const stop=()=>clearInterval(bannerTimer);const show=()=>{const b=items[bannerIndex],ctaURL=uSafeURL(b.cta_url);root.innerHTML='<article class="u-banner"><div class="u-banner-copy"><h2>'+uEscape(b.title)+'</h2><p>'+uEscape(b.body)+'</p>'+(b.cta_label&&ctaURL?'<a class="u-btn" href="'+uEscape(ctaURL)+'">'+uEscape(b.cta_label)+'</a>':'')+'</div>'+(b.image_url?'<div class="u-banner-art"><img src="'+uEscape(b.image_url)+'" alt="'+uEscape(b.alt_text||'')+'" loading="lazy"></div>':'')+'</article><div class="u-banner-dots">'+items.map((_,i)=>'<button class="'+(i===bannerIndex?'active':'')+'" aria-label="Show banner '+(i+1)+'" data-banner="'+i+'"></button>').join('')+'</div>';root.querySelector('img')?.addEventListener('error',e=>e.currentTarget.parentElement.remove());root.querySelectorAll('[data-banner]').forEach(x=>x.onclick=()=>{stop();bannerIndex=Number(x.dataset.banner);show()})};show();root.addEventListener('pointerenter',stop);root.addEventListener('focusin',stop);if(items.length>1&&!matchMedia('(prefers-reduced-motion: reduce)').matches)bannerTimer=setInterval(()=>{bannerIndex=(bannerIndex+1)%items.length;show()},6500)}
+async function load(){const [profileResult,walletResult,bannerResult]=await Promise.allSettled([uProfile(),uApi('/api/user/wallet?limit=3'),uApi('/api/user/banners')]);if(profileResult.status==='fulfilled'){const p=profileResult.value,g=p.gamification;balance.textContent=uMoney(p.balance,p.currency_code);today.textContent=uMoney(p.today_earning,p.currency_code);rate.textContent=uMoney(p.reward_per_message,p.currency_code);country.textContent=p.country_name||'Country pending';wa.textContent=p.linked_whatsapp+'/'+p.max_whatsapp;lifetime.textContent=g.lifetime_messages;level.textContent=g.level;streak.textContent=g.streak_days;goalBadge.textContent=g.today_messages+' / '+g.daily_goal;goalProgress.style.width=g.goal_progress+'%';goalCopy.textContent=g.today_messages>=g.daily_goal?'Daily goal complete. Great work today!':Math.max(0,g.daily_goal-g.today_messages)+' successful tasks left today.';levelProgress.style.width=g.level_progress+'%';levelPercent.textContent=g.level_progress+'%';levelNote.textContent=g.level==='Diamond'?'Highest level achieved':g.next_level_at+' tasks unlock the next level';levelCopy.textContent=g.level==='Diamond'?'You reached the highest 88Task level.':Math.max(0,g.next_level_at-g.lifetime_messages)+' more successful tasks to advance.';countryAlert.innerHTML=p.country_active?'':'<div class="u-alert">Earning is currently paused for '+uEscape(p.country_name)+'.</div>';copyReferral.onclick=()=>navigator.clipboard.writeText(location.origin+'/register?ref='+p.referral_code).then(()=>uToast('Referral link copied'))}else uToast(profileResult.reason.message,'error');if(walletResult.status==='fulfilled'){const list=walletResult.value.transactions||[];earnings.innerHTML=list.length?list.map(x=>'<div class="u-row"><div class="u-row-main"><strong>'+uEscape(x.description)+'</strong><span>'+uEscape((x.source_type||'transaction').replaceAll('_',' '))+' · '+uDate(x.created_at)+'</span></div><strong class="u-reward '+(x.direction==='debit'?'debit':'')+'">'+(x.direction==='debit'?'−':'+')+uMoney(x.amount,x.currency_code)+'</strong></div>').join(''):uEmpty('sparkle','No wallet activity','Your transactions will appear here.')}else earnings.innerHTML=uEmpty('alert','Wallet unavailable','Other dashboard features remain available.');if(bannerResult.status==='fulfilled'){renderBanners(bannerResult.value.banners||[]);uShowEvent((bannerResult.value.banners||[]).filter(item=>item.show_as_popup))}}
 load();setInterval(()=>uProfile().catch(()=>{}),30000);
 </script>
 </body>

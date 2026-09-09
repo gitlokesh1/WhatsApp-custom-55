@@ -17,10 +17,12 @@
       <p>Choose your local earning country, complete verified tasks, and unlock higher levels as you grow.</p>
     </div>
     <div class="u-auth-points"><span class="u-auth-point"><span data-u-icon="globe"></span>Local rewards</span><span class="u-auth-point"><span data-u-icon="medal"></span>Five levels</span><span class="u-auth-point"><span data-u-icon="gift"></span>Referral earnings</span></div>
+    <div id="registerCampaignDesktop" class="u-register-campaign desktop"></div>
   </section>
 
   <section class="u-auth-panel">
     <div class="u-auth-box">
+      <div id="registerCampaignMobile" class="u-register-campaign mobile"></div>
       <div class="u-auth-logo"><span class="u-brand-mark">88</span><strong>88Task</strong></div>
       <div class="u-eyebrow">Create your account</div>
       <h2>Start earning locally</h2>
@@ -44,6 +46,7 @@
         <button id="registerButton" class="u-btn primary block" type="submit" style="margin-top:18px">Create account</button>
         <div id="msg" class="u-help" role="alert" style="margin-top:12px"></div>
       </form>
+      <section id="successPanel" class="u-card u-register-success" hidden aria-live="polite"><div class="u-eyebrow">Account ready</div><h2>Save your User ID</h2><p>You will use this ID whenever you sign in.</p><div id="createdUserID" class="u-code"></div><div class="u-actions"><button id="copyUserID" class="u-btn" type="button">Copy User ID</button><a class="u-btn primary" href="/dashboard">Continue to dashboard</a></div></section>
       <p class="u-auth-link">Already registered? <a href="/login">Sign in</a></p>
     </div>
   </section>
@@ -53,9 +56,10 @@
 const params=new URLSearchParams(location.search),countryInput=document.getElementById('country'),countryButton=document.getElementById('countryTrigger'),nameInput=document.getElementById('name'),passwordInput=document.getElementById('password'),refInput=document.getElementById('ref');let countries=[];refInput.value=params.get('ref')||'';
 function selectCountry(selected){if(!selected)return;countryInput.value=selected.code;countryFlag.innerHTML=uCountryFlag(selected.code,selected.name);countryName.textContent=selected.name;countryMeta.textContent=selected.currency_code+' · '+uMoney(selected.reward_per_message,selected.currency_code)+' per message · Goal '+selected.daily_goal+'/day';countryButton.classList.remove('invalid')}
 async function loadCountries(){try{const data=await uApi('/api/public/countries');countries=data.countries||[];countryButton.disabled=!countries.length;if(!countries.length)countryMeta.textContent='No countries are currently available'}catch(error){countryButton.disabled=true;countryMeta.textContent='Countries are temporarily unavailable';msg.textContent=error.message}}
+async function loadCampaign(){try{const data=await uApi('/api/public/banners?placement=register'),b=(data.banners||[])[0];if(!b)return;const url=uSafeURL(b.cta_url),html='<article><div><strong>'+uEscape(b.title)+'</strong><p>'+uEscape(b.body||'')+'</p>'+(url&&b.cta_label?'<a href="'+uEscape(url)+'">'+uEscape(b.cta_label)+'</a>':'')+'</div>'+(b.image_url?'<img src="'+uEscape(b.image_url)+'" alt="'+uEscape(b.alt_text||'')+'">':'')+'</article>';registerCampaignDesktop.innerHTML=html;registerCampaignMobile.innerHTML=html}catch(_){}}
 countryButton.onclick=async()=>selectCountry(await uCountryPicker(countries,countryInput.value));
-registerForm.onsubmit=async event=>{event.preventDefault();msg.textContent='';if(!registerForm.checkValidity()){registerForm.reportValidity();return}if(!countryInput.value){countryButton.classList.add('invalid');countryButton.focus();msg.textContent='Choose your earning country to continue.';return}registerButton.disabled=true;registerButton.textContent='Creating account…';try{const response=await fetch('/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:nameInput.value.trim(),password:passwordInput.value,referral_code:refInput.value.trim(),country_code:countryInput.value})});const data=await response.json().catch(()=>({}));if(!response.ok||data.status!=='success')throw new Error(data.message||'Registration failed');sessionStorage.removeItem('88task_seen_events');sessionStorage.removeItem('88task_seen_event');msg.innerHTML='<strong>Account ready!</strong> Your User ID is <strong>'+uEscape(data.user_id)+'</strong>. Save it now.';setTimeout(()=>location.href='/dashboard',1800)}catch(error){msg.textContent=error.message;registerButton.disabled=false;registerButton.textContent='Create account'}};
-loadCountries();
+registerForm.onsubmit=async event=>{event.preventDefault();msg.textContent='';if(!registerForm.checkValidity()){registerForm.reportValidity();return}if(!countryInput.value){countryButton.classList.add('invalid');countryButton.focus();msg.textContent='Choose your earning country to continue.';return}registerButton.disabled=true;registerButton.textContent='Creating account…';try{const response=await fetch('/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:nameInput.value.trim(),password:passwordInput.value,referral_code:refInput.value.trim(),country_code:countryInput.value})});const data=await response.json().catch(()=>({}));if(!response.ok||data.status!=='success')throw new Error(data.message||'Registration failed');sessionStorage.removeItem('88task_seen_events');sessionStorage.removeItem('88task_seen_event');registerForm.hidden=true;successPanel.hidden=false;createdUserID.textContent=data.user_id;copyUserID.onclick=async()=>{try{await navigator.clipboard.writeText(data.user_id);uToast('User ID copied')}catch(_){uToast('Select and copy the User ID above','error')}};successPanel.querySelector('a').focus()}catch(error){msg.textContent=error.message;registerButton.disabled=false;registerButton.textContent='Create account'}};
+loadCountries();loadCampaign();
 </script>
 </body>
 </html>

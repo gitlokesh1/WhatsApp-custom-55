@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"go.mau.fi/whatsmeow/types"
 )
 
@@ -145,9 +146,13 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	var country, currency string
 	var reward float64
-	var countryActive bool
-	if err = tx.QueryRow(`SELECT c.code,c.currency_code,c.reward_per_message,c.active FROM public.app_users u JOIN public.earning_countries c ON c.code=u.country_code WHERE u.id=$1::uuid FOR UPDATE OF u`, id).Scan(&country, &currency, &reward, &countryActive); err != nil {
+	var countryActive, mustChangePassword bool
+	if err = tx.QueryRow(`SELECT c.code,c.currency_code,c.reward_per_message,c.active,u.must_change_password FROM public.app_users u JOIN public.earning_countries c ON c.code=u.country_code WHERE u.id=$1::uuid FOR UPDATE OF u`, id).Scan(&country, &currency, &reward, &countryActive, &mustChangePassword); err != nil {
 		userFeaturesJSON(w, 409, map[string]any{"status": "error", "message": "Select your country before earning"})
+		return
+	}
+	if mustChangePassword {
+		userFeaturesJSON(w, http.StatusPreconditionRequired, map[string]any{"status": "error", "message": "Change your temporary password before starting a task"})
 		return
 	}
 	if !countryActive {
@@ -228,7 +233,13 @@ func creditTaskReward(userID, accountID, claimID string, reward float64, country
 	if _, err = tx.Exec(`UPDATE public.task_claims SET status='sent',sent_at=now() WHERE id=$1::uuid`, claimID); err != nil {
 		return err
 	}
-	result, err := tx.Exec(`INSERT INTO public.earning_ledger(user_id,task_claim_id,amount,type,description,country_code,currency_code,credit_key) VALUES($1::uuid,$2::uuid,$3,'task_reward','WhatsApp task reward',$4,$5,$6) ON CONFLICT(credit_key) WHERE credit_key IS NOT NULL DO NOTHING`, userID, claimID, reward, country, currency, rewardCreditKey(userID, claimID))
+	if reward <= 0 {
+		if _, err = tx.Exec(`UPDATE public.user_whatsapp_accounts SET current_send_total=current_send_total+1,today_send_total=today_send_total+1,last_seen_at=now(),updated_at=now() WHERE id=$1::uuid`, accountID); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+	result, err := tx.Exec(`INSERT INTO public.wallet_transactions(id,user_id,amount,currency_code,type,description,source_id,idempotency_key) VALUES($1::uuid,$2::uuid,$3,$4,'task_reward','WhatsApp task reward',$5,$6) ON CONFLICT(idempotency_key) DO NOTHING`, uuid.NewString(), userID, reward, currency, claimID, rewardCreditKey(userID, claimID))
 	if err != nil {
 		return err
 	}
@@ -267,7 +278,7 @@ func creditTaskReward(userID, accountID, claimID string, reward float64, country
 			if _, err = tx.Exec(`INSERT INTO public.referral_commissions(referrer_id,referred_user_id,task_claim_id,amount,level) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5)`, refID, parent, claimID, commission, level); err != nil {
 				return err
 			}
-			if _, err = tx.Exec(`INSERT INTO public.earning_ledger(user_id,task_claim_id,amount,type,description,country_code,currency_code,credit_key) VALUES($1::uuid,$2::uuid,$3,'referral_commission',$4,$5,$6,$7) ON CONFLICT(credit_key) WHERE credit_key IS NOT NULL DO NOTHING`, refID, claimID, commission, description, refCountry, refCurrency, key); err != nil {
+			if _, err = tx.Exec(`INSERT INTO public.wallet_transactions(id,user_id,amount,currency_code,type,description,source_id,idempotency_key) VALUES($1::uuid,$2::uuid,$3,$4,'referral_commission',$5,$6,$7) ON CONFLICT(idempotency_key) DO NOTHING`, uuid.NewString(), refID, commission, refCurrency, description, claimID, key); err != nil {
 				return err
 			}
 			if _, err = tx.Exec(`UPDATE public.app_users SET balance=balance+$1,total_earning=total_earning+$1,updated_at=now() WHERE id=$2::uuid`, commission, refID); err != nil {
@@ -313,7 +324,7 @@ func userEarningsHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, 401, map[string]any{"status": "error"})
 		return
 	}
-	rows, err := userDB.Query(`SELECT amount,type,description,created_at,COALESCE(currency_code,'INR') FROM public.earning_ledger WHERE user_id=$1::uuid ORDER BY created_at DESC LIMIT 100`, id)
+	rows, err := userDB.Query(`SELECT amount,type,description,created_at,currency_code FROM public.wallet_transactions WHERE user_id=$1::uuid AND amount>0 ORDER BY created_at DESC LIMIT 100`, id)
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error"})
 		return

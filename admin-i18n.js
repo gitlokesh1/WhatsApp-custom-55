@@ -2681,6 +2681,13 @@
   for (const [locale, values] of Object.entries(completeTranslations)) dictionaries[locale] = { ...values, ...dictionaries[locale] };
   const missingDeviceMessages = { hi:'डिवाइस URL में user_id पैरामीटर नहीं है।', pt:'O parâmetro user_id está ausente na URL do dispositivo.', es:'Falta el parámetro user_id en la URL del dispositivo.', id:'Parameter user_id tidak ada pada URL perangkat.', bn:'ডিভাইস URL-এ user_id প্যারামিটারটি নেই।', ur:'ڈیوائس URL میں user_id پیرامیٹر موجود نہیں ہے۔', ar:'معلمة user_id مفقودة من عنوان URL للجهاز.' };
   for (const [locale, message] of Object.entries(missingDeviceMessages)) dictionaries[locale]['device.missing_user'] = message;
+  const financeNavigation = {
+    en:{withdrawals:'Withdrawals',bonuses:'Bonuses'},hi:{withdrawals:'निकासी',bonuses:'बोनस'},pt:{withdrawals:'Saques',bonuses:'Bônus'},es:{withdrawals:'Retiros',bonuses:'Bonificaciones'},id:{withdrawals:'Penarikan',bonuses:'Bonus'},bn:{withdrawals:'উত্তোলন',bonuses:'বোনাস'},ur:{withdrawals:'رقم نکالنا',bonuses:'بونس'},ar:{withdrawals:'عمليات السحب',bonuses:'المكافآت'}
+  };
+  for (const [locale, labels] of Object.entries(financeNavigation)) {
+    dictionaries[locale]['nav.withdrawals'] = labels.withdrawals;
+    dictionaries[locale]['nav.bonuses'] = labels.bonuses;
+  }
 
   const languageNames = { en:'English', hi:'हिन्दी', pt:'Português', es:'Español', id:'Bahasa Indonesia', bn:'বাংলা', ur:'اردو', ar:'العربية' };
   let language = localStorage.getItem('88task_lang') || 'en';

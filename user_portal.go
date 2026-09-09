@@ -149,7 +149,8 @@ func userLoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var id, hash, name string
-	err := userDB.QueryRow(`SELECT id::text,password_hash,display_name FROM public.app_users WHERE user_id=$1 AND status='active'`, strings.TrimSpace(in.UserID)).Scan(&id, &hash, &name)
+	var mustChange bool
+	err := userDB.QueryRow(`SELECT id::text,password_hash,display_name,must_change_password FROM public.app_users WHERE user_id=$1 AND status='active'`, strings.TrimSpace(in.UserID)).Scan(&id, &hash, &name, &mustChange)
 	if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(in.Password)) != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		userJSON(w, map[string]any{"status": "error", "message": "Invalid User ID or password"})
@@ -165,7 +166,7 @@ func userLoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, &http.Cookie{Name: "lumo_session", Value: token, Path: "/", HttpOnly: true, Secure: r.TLS != nil || strings.HasPrefix(os.Getenv("PUBLIC_BASE_URL"), "https://"), SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
-	userJSON(w, map[string]any{"status": "success", "user_id": in.UserID, "name": name})
+	userJSON(w, map[string]any{"status": "success", "user_id": in.UserID, "name": name, "must_change_password": mustChange})
 }
 func userLogoutHandler(w http.ResponseWriter, r *http.Request) {
 	token := userPortalToken(r)
@@ -189,7 +190,8 @@ func userProfileHandler(w http.ResponseWriter, r *http.Request) {
 	var reward sql.NullFloat64
 	var goal sql.NullInt64
 	var countryActive sql.NullBool
-	err := userDB.QueryRow(`SELECT u.id::text,u.display_name,u.referral_code,u.balance,u.total_earning,u.country_code,c.name,c.currency_code,c.timezone,c.reward_per_message,c.daily_goal,c.active FROM public.app_users u LEFT JOIN public.earning_countries c ON c.code=u.country_code WHERE u.user_id=$1`, uid).Scan(&id, &name, &rcode, &balance, &total, &countryCode, &countryName, &currency, &timezone, &reward, &goal, &countryActive)
+	var mustChange bool
+	err := userDB.QueryRow(`SELECT u.id::text,u.display_name,u.referral_code,u.balance,u.total_earning,u.country_code,c.name,c.currency_code,c.timezone,c.reward_per_message,c.daily_goal,c.active,u.must_change_password FROM public.app_users u LEFT JOIN public.earning_countries c ON c.code=u.country_code WHERE u.user_id=$1`, uid).Scan(&id, &name, &rcode, &balance, &total, &countryCode, &countryName, &currency, &timezone, &reward, &goal, &countryActive, &mustChange)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -207,9 +209,9 @@ func userProfileHandler(w http.ResponseWriter, r *http.Request) {
 	gamification := userGamification(id, zone, dailyGoal)
 	var todayEarning float64
 	if countryCode.Valid {
-		_ = userDB.QueryRow(`SELECT COALESCE(sum(amount),0) FROM public.earning_ledger WHERE user_id=$1::uuid AND (created_at AT TIME ZONE $2)::date=(now() AT TIME ZONE $2)::date`, id, zone).Scan(&todayEarning)
+		_ = userDB.QueryRow(`SELECT COALESCE(sum(amount),0) FROM public.wallet_transactions WHERE user_id=$1::uuid AND type IN ('task_reward','referral_commission','bonus') AND (created_at AT TIME ZONE $2)::date=(now() AT TIME ZONE $2)::date`, id, zone).Scan(&todayEarning)
 	}
-	userJSON(w, map[string]any{"status": "success", "user_id": uid, "name": name, "referral_code": rcode, "balance": balance, "today_earning": todayEarning, "total_earning": total, "linked_whatsapp": linked, "max_whatsapp": 3, "requires_country": !countryCode.Valid, "country_code": countryCode.String, "country_name": countryName.String, "currency_code": currency.String, "timezone": zone, "reward_per_message": reward.Float64, "country_active": countryActive.Bool, "gamification": gamification})
+	userJSON(w, map[string]any{"status": "success", "user_id": uid, "name": name, "referral_code": rcode, "balance": balance, "today_earning": todayEarning, "total_earning": total, "linked_whatsapp": linked, "max_whatsapp": 3, "requires_country": !countryCode.Valid, "country_code": countryCode.String, "country_name": countryName.String, "currency_code": currency.String, "timezone": zone, "reward_per_message": reward.Float64, "country_active": countryActive.Bool, "must_change_password": mustChange, "gamification": gamification})
 }
 
 func userPage(w http.ResponseWriter, r *http.Request, file string) {
@@ -254,6 +256,7 @@ func init() {
 	http.HandleFunc("/whatsapp", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-whatsapp.html") })
 	http.HandleFunc("/referrals", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-referrals.html") })
 	http.HandleFunc("/profile", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-profile.html") })
+	http.HandleFunc("/withdrawals", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-withdrawals.html") })
 	http.HandleFunc("/support", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-support.html") })
 	http.HandleFunc("/user-ui.css", userUIHandler("user-ui.css", "text/css; charset=utf-8"))
 	http.HandleFunc("/user-ui.js", userUIHandler("user-ui.js", "application/javascript; charset=utf-8"))
