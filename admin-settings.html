@@ -28,7 +28,7 @@
     </div>
   </section>
 </main>
-<script src="/admin-ui.js?v=20260909.4"></script><script src="/admin-i18n.js?v=20260909.6"></script>
+<script src="/admin-ui.js?v=20260909.4"></script><script src="/admin-i18n.js?v=20260909.7"></script>
 <script>
 const settingIDs={delete_chat_after_send:'deleteChat',send_typing:'sendTyping',typing_min_ms:'typingMin',typing_max_ms:'typingMax',post_send_delay_ms:'postDelay',ban_safety_enabled:'banSafety',safety_min_interval_ms:'safetyInterval',safety_max_messages_hour:'maxHour',safety_max_messages_day:'maxDay',auto_message_after_pairing:'autoMessage',auto_message_target:'autoTarget',auto_message_text:'autoText',bulk_auto_send_enabled:'bulkAuto'};
 async function loadSettings(){try{const data=await adminApi('/admin/settings/data');Object.entries(settingIDs).forEach(([key,id])=>{const input=document.getElementById(id),value=data.settings?.[key];if(input.type==='checkbox')input.checked=Boolean(value);else input.value=value??''})}catch(error){showAdminError(error.message)}}
