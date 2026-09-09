@@ -101,10 +101,16 @@ func setActive(userID string, s *Session) {
 }
 func removeSession(userID string) *Session {
 	manager.mu.Lock()
-	defer manager.mu.Unlock()
 	s := manager.sessions[userID]
+	if s == nil {
+		s = manager.pending[userID]
+	}
 	delete(manager.sessions, userID)
 	delete(manager.pending, userID)
+	manager.mu.Unlock()
+	if s != nil {
+		unregisterConversationPipeline(s.client)
+	}
 	return s
 }
 func saveUserSession(userID string, jid types.JID) error {
@@ -144,6 +150,8 @@ func loadSessions(ctx context.Context) error {
 		client := whatsmeow.NewClient(device, waLog.Stdout("Client-"+uid, "INFO", true))
 		registerConversationPipeline(uid, client)
 		if err := client.Connect(); err != nil {
+			unregisterConversationPipeline(client)
+			client.Disconnect()
 			continue
 		}
 		manager.mu.Lock()
@@ -179,6 +187,9 @@ func main() {
 		panic(err)
 	}
 	if err = initSupabaseTables(); err != nil {
+		panic(err)
+	}
+	if err = initPortalBaseSchema(); err != nil {
 		panic(err)
 	}
 	if err = initEarningPortalSchema(); err != nil {
@@ -385,17 +396,22 @@ func pairHandler(w http.ResponseWriter, r *http.Request) {
 	client := whatsmeow.NewClient(device, waLog.Stdout("Client-"+uid, "INFO", true))
 	registerConversationPipeline(uid, client)
 	if err := client.Connect(); err != nil {
+		unregisterConversationPipeline(client)
+		client.Disconnect()
 		_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: err.Error()})
 		return
 	}
 	s := &Session{client: client}
 	if !createPendingSession(uid, s) {
+		unregisterConversationPipeline(client)
+		client.Disconnect()
 		_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: "Pairing already in progress"})
 		return
 	}
 	code, err := client.PairPhone(context.Background(), phone, true, whatsmeow.PairClientChrome, "Chrome (Linux)")
 	if err != nil {
 		removeSession(uid)
+		client.Disconnect()
 		_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: err.Error(), Connected: client.IsConnected()})
 		return
 	}
