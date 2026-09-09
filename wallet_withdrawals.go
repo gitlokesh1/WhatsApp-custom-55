@@ -275,11 +275,16 @@ func walletHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	typeFilter := strings.TrimSpace(r.URL.Query().Get("type"))
 	statusFilter := strings.TrimSpace(r.URL.Query().Get("status"))
 	directionFilter := strings.TrimSpace(r.URL.Query().Get("direction"))
+	search := strings.TrimSpace(r.URL.Query().Get("q"))
+	if len(search) > 120 {
+		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Search is too long"})
+		return
+	}
 	if directionFilter != "" && directionFilter != "credit" && directionFilter != "debit" {
 		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Invalid direction filter"})
 		return
 	}
-	rows, err := userDB.Query(`SELECT id,amount,type,description,status,created_at,currency_code FROM public.wallet_transactions WHERE user_id=$1::uuid AND ($2::timestamptz IS NULL OR (created_at,id)<($2::timestamptz,$3::uuid)) AND ($4='' OR type=$4) AND ($5='' OR status=$5) AND ($6='' OR ($6='credit' AND amount>0) OR ($6='debit' AND amount<0)) ORDER BY created_at DESC,id DESC LIMIT $7`, id, beforeTime, beforeID, typeFilter, statusFilter, directionFilter, limit+1)
+	rows, err := userDB.Query(`SELECT id,amount,type,description,status,created_at,currency_code FROM public.wallet_transactions WHERE user_id=$1::uuid AND ($2::timestamptz IS NULL OR (created_at,id)<($2::timestamptz,$3::uuid)) AND ($4='' OR type=$4) AND ($5='' OR status=$5) AND ($6='' OR ($6='credit' AND amount>0) OR ($6='debit' AND amount<0)) AND ($7='' OR description ILIKE '%%'||$7||'%%' OR type ILIKE '%%'||$7||'%%') ORDER BY created_at DESC,id DESC LIMIT $8`, id, beforeTime, beforeID, typeFilter, statusFilter, directionFilter, search, limit+1)
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": "Could not load wallet history"})
 		return

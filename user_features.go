@@ -349,7 +349,7 @@ func userSupportHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodGet {
-		rows, err := userDB.Query(`SELECT id,subject,message,status,created_at,updated_at FROM public.customer_care_tickets WHERE user_id=$1::uuid ORDER BY created_at DESC`, id)
+		rows, err := userDB.Query(`SELECT id,subject,message,status,COALESCE(support_reply,''),COALESCE(support_agent_label,''),last_replied_at,created_at,updated_at FROM public.customer_care_tickets WHERE user_id=$1::uuid ORDER BY created_at DESC`, id)
 		if err != nil {
 			userFeaturesJSON(w, 500, map[string]any{"status": "error"})
 			return
@@ -357,10 +357,11 @@ func userSupportHandler(w http.ResponseWriter, r *http.Request) {
 		defer rows.Close()
 		out := []map[string]any{}
 		for rows.Next() {
-			var tid, sub, msg, status string
+			var tid, sub, msg, status, reply, agent string
+			var replied *time.Time
 			var created, updated time.Time
-			if rows.Scan(&tid, &sub, &msg, &status, &created, &updated) == nil {
-				out = append(out, map[string]any{"id": tid, "subject": sub, "message": msg, "status": status, "created_at": created, "updated_at": updated})
+			if rows.Scan(&tid, &sub, &msg, &status, &reply, &agent, &replied, &created, &updated) == nil {
+				out = append(out, map[string]any{"id": tid, "subject": sub, "message": msg, "status": status, "support_reply": reply, "support_agent_label": agent, "last_replied_at": replied, "created_at": created, "updated_at": updated})
 			}
 		}
 		userFeaturesJSON(w, 200, map[string]any{"status": "success", "tickets": out})
@@ -378,9 +379,15 @@ func userSupportHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Subject and message are required"})
 		return
 	}
-	_, err := userDB.Exec(`INSERT INTO public.customer_care_tickets(user_id,subject,message) VALUES($1::uuid,$2,$3)`, id, strings.TrimSpace(in.Subject), strings.TrimSpace(in.Message))
+	result, err := userDB.Exec(`INSERT INTO public.customer_care_tickets(user_id,country_code,subject,message)
+		SELECT id,country_code,$2,$3 FROM public.app_users WHERE id=$1::uuid AND country_code IS NOT NULL`, id, strings.TrimSpace(in.Subject), strings.TrimSpace(in.Message))
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error"})
+		return
+	}
+	created, _ := result.RowsAffected()
+	if created == 0 {
+		userFeaturesJSON(w, 409, map[string]any{"status": "error", "message": "Choose your earning country before submitting a ticket"})
 		return
 	}
 	userFeaturesJSON(w, 200, map[string]any{"status": "success", "message": "Support ticket created"})

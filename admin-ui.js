@@ -18,6 +18,7 @@
       tasks: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
       banners: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/>',
       withdrawals: '<path d="M3 7h18v12H3z"/><path d="M3 10h18M7 15h4"/>',
+	  customerService: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"/><path d="M8 9h8M8 13h5"/>',
       settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.09A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3V9.6h.09A1.7 1.7 0 0 0 4.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.09A1.7 1.7 0 0 0 15.5 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.14.37.35.7.6 1 .3.3.69.4 1.1.4h.09v4h-.09A1.7 1.7 0 0 0 19.4 15Z"/>',
       schema: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v7c0 1.7 4 3 9 3s9-1.3 9-3V5M3 12v7c0 1.7 4 3 9 3s9-1.3 9-3v-7"/>',
       logout: '<path d="M10 17l5-5-5-5M15 12H3"/><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/>',
@@ -47,6 +48,7 @@
       { key: 'countries', href: '/admin/countries', label: 'nav.countries', title: 'Countries & rates', icon: 'countries' },
       { key: 'tasks', href: '/admin/tasks', label: 'nav.earning_tasks', title: 'Earning tasks', icon: 'tasks' },
       { key: 'banners', href: '/admin/banners', label: 'nav.banners', title: 'Banners', icon: 'banners' },
+	  { key: 'customerService', href: '/admin/customer-service', label: 'nav.customer_service', title: 'Customer service', icon: 'customerService' },
       { key: 'withdrawals', href: '/admin/withdrawals', label: 'nav.withdrawals', title: 'Withdrawals', icon: 'withdrawals' }
     ] },
     { label: 'nav.system', items: [

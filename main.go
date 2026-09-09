@@ -187,6 +187,9 @@ func main() {
 	if err = initWalletSchema(); err != nil {
 		panic(err)
 	}
+	if err = initCustomerServiceSchema(); err != nil {
+		panic(err)
+	}
 	if err = migrateLegacySQLite(ctx); err != nil {
 		panic(err)
 	}

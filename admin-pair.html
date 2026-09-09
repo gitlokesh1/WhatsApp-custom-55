@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>88Task • Pair WhatsApp</title><link rel="stylesheet" href="/admin-ui.css?v=20260909.3"></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>88Task • Pair WhatsApp</title><link rel="stylesheet" href="/admin-ui.css?v=20260909.4"></head><body>
 <main data-admin-page="pair">
   <header class="admin-page-head"><div><div class="admin-eyebrow" data-i18n="pair.eyebrow">Account onboarding</div><h1 data-i18n="pair.title">Pair WhatsApp</h1><p data-i18n="pair.subtitle">Create a secure self-service link or connect an account directly from the admin console.</p></div><button id="refreshLinks" class="admin-btn" type="button" data-i18n="common.refresh">Refresh</button></header>
   <section class="admin-grid two">
@@ -7,7 +7,7 @@
   </section>
   <article class="admin-card flush" style="margin-top:18px"><div class="admin-card-head" style="padding:20px 20px 0"><div><h2 data-i18n="pair.history_title">Recent pairing links</h2><p data-i18n="pair.history_help">Track pending, linked, and expired invitations.</p></div></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th data-i18n="common.user_id">User ID</th><th data-i18n="common.status">Status</th><th data-i18n="common.created">Created</th><th data-i18n="pair.expires">Expires</th><th data-i18n="common.actions">Actions</th></tr></thead><tbody id="linkRows"><tr><td colspan="5"><div class="admin-empty" data-i18n="common.loading">Loading…</div></td></tr></tbody></table></div></article>
 </main>
-<script src="/admin-ui.js?v=20260909.3"></script><script src="/admin-i18n.js?v=20260909.3"></script>
+<script src="/admin-ui.js?v=20260909.4"></script><script src="/admin-i18n.js?v=20260909.4"></script>
 <script>
 let currentLinkUser='',statusTimer,directPairRequest=0;
 async function createLink(event){event.preventDefault();const user=document.getElementById('linkUser').value.trim();if(!user)return;const button=document.getElementById('linkButton');adminSetBusy(button,true,adminT('common.working'));try{const data=await adminApi(`/admin/pair-link?user_id=${encodeURIComponent(user)}`,{method:'POST'});currentLinkUser=user;const anchor=document.getElementById('pairLink');anchor.href=data.link;anchor.textContent=data.link;document.getElementById('linkExpiry').textContent=`${adminT('pair.expires')}: ${adminFormatDate(data.expires_at)}`;document.getElementById('linkState').innerHTML=adminStatusBadge('pending');document.getElementById('linkResult').hidden=false;adminToast(adminT('pair.link_created'));loadLinks();clearInterval(statusTimer);statusTimer=setInterval(checkCurrentLink,5000)}catch(error){showAdminError(error.message)}finally{adminSetBusy(button,false)}}

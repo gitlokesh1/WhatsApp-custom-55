@@ -256,6 +256,8 @@ func init() {
 	http.HandleFunc("/whatsapp", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-whatsapp.html") })
 	http.HandleFunc("/referrals", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-referrals.html") })
 	http.HandleFunc("/profile", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-profile.html") })
+	http.HandleFunc("/wallet", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-wallet.html") })
+	http.HandleFunc("/password", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-password.html") })
 	http.HandleFunc("/withdrawals", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-withdrawals.html") })
 	http.HandleFunc("/support", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-support.html") })
 	http.HandleFunc("/user-ui.css", userUIHandler("user-ui.css", "text/css; charset=utf-8"))

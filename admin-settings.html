@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>88Task • Settings</title><link rel="stylesheet" href="/admin-ui.css?v=20260909.3"></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>88Task • Settings</title><link rel="stylesheet" href="/admin-ui.css?v=20260909.4"></head><body>
 <main data-admin-page="settings">
   <header class="admin-page-head"><div><div class="admin-eyebrow" data-i18n="settings.eyebrow">System configuration</div><h1 data-i18n="settings.title">Settings</h1><p data-i18n="settings.subtitle">Configure automation behavior, sending safeguards, and post-pairing workflows.</p></div><button id="saveButton" class="admin-btn primary" type="button" data-i18n="common.save_changes">Save changes</button></header>
   <div class="admin-alert info"><div><strong data-i18n="settings.applies_title">Applies to every outbound message</strong><span data-i18n="settings.applies_help">These safeguards cover user earning tasks, automated replies, bulk campaigns, test sends, and post-pairing messages.</span></div></div>
@@ -28,7 +28,7 @@
     </div>
   </section>
 </main>
-<script src="/admin-ui.js?v=20260909.3"></script><script src="/admin-i18n.js?v=20260909.3"></script>
+<script src="/admin-ui.js?v=20260909.4"></script><script src="/admin-i18n.js?v=20260909.4"></script>
 <script>
 const settingIDs={delete_chat_after_send:'deleteChat',send_typing:'sendTyping',typing_min_ms:'typingMin',typing_max_ms:'typingMax',post_send_delay_ms:'postDelay',ban_safety_enabled:'banSafety',safety_min_interval_ms:'safetyInterval',safety_max_messages_hour:'maxHour',safety_max_messages_day:'maxDay',auto_message_after_pairing:'autoMessage',auto_message_target:'autoTarget',auto_message_text:'autoText',bulk_auto_send_enabled:'bulkAuto'};
 async function loadSettings(){try{const data=await adminApi('/admin/settings/data');Object.entries(settingIDs).forEach(([key,id])=>{const input=document.getElementById(id),value=data.settings?.[key];if(input.type==='checkbox')input.checked=Boolean(value);else input.value=value??''})}catch(error){showAdminError(error.message)}}

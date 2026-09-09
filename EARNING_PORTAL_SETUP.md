@@ -25,3 +25,7 @@ Withdrawals remain visibly disabled until all three server-only values are prese
 The gateway must verify `X-88Task-Timestamp`, `X-88Task-Signature`, and `Idempotency-Key`. It sends signed callbacks to `POST /api/payouts/webhook` using the same timestamp/signature format. After setting the secrets, configure country channels in **Admin → Withdrawals**, enable the global switch, and then enable the relevant country and individual users.
 
 All other portal features require the existing `SUPABASE_DB_URL` and `ADMIN_TOKEN` configuration. Never expose service, payout, database, or admin secrets to browser code.
+
+## Country customer service
+
+Open **Admin → Earning portal → Customer service** and generate a restricted link for each country support team. The secret link is shown only once and gives access only to tickets submitted by users in that country. Set an expiry for shift or contractor access, and revoke a link immediately when a team member no longer needs it. Customer-service links do not grant access to the admin console, user wallets, passwords, or tickets from other countries.

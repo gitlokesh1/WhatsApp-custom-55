@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0d875a">
   <title>88Task • Dashboard</title>
-  <link rel="stylesheet" href="/user-ui.css?v=20260909.1">
+  <link rel="stylesheet" href="/user-ui.css?v=20260909.2">
 </head>
 <body>
 <main class="u-content u-dashboard" data-user-page="dashboard">
@@ -51,13 +51,13 @@
     </article>
 
     <article class="u-card u-activity-card">
-      <div class="u-card-head"><div><div class="u-eyebrow">Wallet activity</div><h2>Recent transactions</h2></div><a class="u-btn small" href="/profile">View all</a></div>
+      <div class="u-card-head"><div><div class="u-eyebrow">Wallet activity</div><h2>Recent transactions</h2></div><a class="u-btn small" href="/wallet">View all</a></div>
       <div id="earnings"><div class="u-skeleton"></div></div>
     </article>
   </section>
 </main>
 
-<script src="/user-ui.js?v=20260909.1"></script>
+<script src="/user-ui.js?v=20260909.2"></script>
 <script>
 let bannerIndex=0,bannerTimer;
 function renderBanners(items){const root=document.getElementById('banners');if(!items.length){root.innerHTML='';return}const stop=()=>clearInterval(bannerTimer);const show=()=>{const b=items[bannerIndex],ctaURL=uSafeURL(b.cta_url);root.innerHTML='<article class="u-banner"><div class="u-banner-copy"><h2>'+uEscape(b.title)+'</h2><p>'+uEscape(b.body)+'</p>'+(b.cta_label&&ctaURL?'<a class="u-btn" href="'+uEscape(ctaURL)+'">'+uEscape(b.cta_label)+'</a>':'')+'</div>'+(b.image_url?'<div class="u-banner-art"><img src="'+uEscape(b.image_url)+'" alt="'+uEscape(b.alt_text||'')+'" loading="lazy"></div>':'')+'</article><div class="u-banner-dots">'+items.map((_,i)=>'<button class="'+(i===bannerIndex?'active':'')+'" aria-label="Show banner '+(i+1)+'" data-banner="'+i+'"></button>').join('')+'</div>';root.querySelector('img')?.addEventListener('error',e=>e.currentTarget.parentElement.remove());root.querySelectorAll('[data-banner]').forEach(x=>x.onclick=()=>{stop();bannerIndex=Number(x.dataset.banner);show()})};show();root.addEventListener('pointerenter',stop);root.addEventListener('focusin',stop);if(items.length>1&&!matchMedia('(prefers-reduced-motion: reduce)').matches)bannerTimer=setInterval(()=>{bannerIndex=(bannerIndex+1)%items.length;show()},6500)}

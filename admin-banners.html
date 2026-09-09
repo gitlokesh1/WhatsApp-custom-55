@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>88Task • Campaigns</title><link rel="stylesheet" href="/admin-ui.css?v=20260909.3"></head><body><main data-admin-page="banners">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>88Task • Campaigns</title><link rel="stylesheet" href="/admin-ui.css?v=20260909.4"></head><body><main data-admin-page="banners">
 <header class="admin-page-head"><div><div class="admin-eyebrow">Portal campaigns</div><h1>Banner management</h1><p>Publish polished, responsive campaigns on the dashboard or registration page.</p></div><button id="newButton" type="button" class="admin-btn primary">Create banner</button></header>
 <div class="admin-alert info"><div><strong>Artwork guidance</strong><span>Use a wide 16:7 image, at least 1200 px wide. JPEG, PNG, and WebP up to 5 MB are previewed without destructive cropping.</span></div></div>
 <article id="editor" class="admin-card" hidden><div class="admin-card-head"><div><h2 id="editorTitle">Create banner</h2><p>Register campaigns are global; dashboard campaigns can target a country.</p></div><button id="closeButton" type="button" class="admin-btn small">Close</button></div>
@@ -11,7 +11,7 @@
 <div class="admin-setting-row"><div class="admin-setting-copy"><strong>Show after login</strong><span>Dashboard only; shown once per sign-in.</span></div><input id="showPopup" class="admin-switch" type="checkbox"></div><div class="admin-setting-row"><div class="admin-setting-copy"><strong>Active</strong><span>Shown while its schedule is current.</span></div><input id="active" class="admin-switch" type="checkbox" checked></div>
 </div><button id="saveButton" class="admin-btn primary" type="submit" style="margin-top:15px">Save campaign</button></form></article>
 <section id="list" class="admin-grid two" style="margin-top:18px"><article class="admin-card"><div class="admin-empty">Loading…</div></article></section></main>
-<script src="/admin-ui.js?v=20260909.3"></script><script src="/admin-i18n.js?v=20260909.3"></script><script>
+<script src="/admin-ui.js?v=20260909.4"></script><script src="/admin-i18n.js?v=20260909.4"></script><script>
 let banners=[],editing='',previewURL='';const localValue=v=>{if(!v)return'';const d=new Date(v),pad=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes())};
 async function loadCountries(){const d=await adminApi('/admin/countries/data');country.innerHTML='<option value="">Global · all countries</option>'+d.countries.map(x=>'<option value="'+adminEscape(x.code)+'">'+adminEscape(x.name)+'</option>').join('')}
 function syncPlacement(){const register=placement.value==='register';country.disabled=register;showPopup.disabled=register;if(register){country.value='';showPopup.checked=false}}
