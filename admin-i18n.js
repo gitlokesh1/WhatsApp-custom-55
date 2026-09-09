@@ -2695,9 +2695,177 @@
   dictionaries.en['settings.applies_title'] = 'Applies to every outbound message';
   dictionaries.en['settings.applies_help'] = 'These safeguards cover user earning tasks, automated replies, bulk campaigns, test sends, and post-pairing messages.';
 
+  const recentNavigation = {
+    'nav.earning_portal':['Earning portal','कमाई पोर्टल','Portal de ganhos','Portal de ganancias','Portal penghasilan','আয় পোর্টাল','کمائی پورٹل','بوابة الأرباح'],
+    'nav.users':['Users','उपयोगकर्ता','Usuários','Usuarios','Pengguna','ব্যবহারকারী','صارفین','المستخدمون'],
+    'nav.countries':['Countries & rates','देश और दरें','Países e taxas','Países y tarifas','Negara & tarif','দেশ ও হার','ممالک اور شرحیں','البلدان والأسعار'],
+    'nav.earning_tasks':['Earning tasks','कमाई के कार्य','Tarefas de ganhos','Tareas de ganancias','Tugas penghasilan','আয়ের কাজ','کمائی کے کام','مهام الأرباح'],
+    'nav.banners':['Banners','बैनर','Banners','Banners','Banner','ব্যানার','بینرز','اللافتات'],
+    'nav.customer_service':['Customer service','ग्राहक सेवा','Atendimento ao cliente','Atención al cliente','Layanan pelanggan','গ্রাহক সেবা','کسٹمر سروس','خدمة العملاء']
+  };
+  for (const [key, values] of Object.entries(recentNavigation)) {
+    ['en','hi','pt','es','id','bn','ur','ar'].forEach((locale, index) => { dictionaries[locale][key] = values[index]; });
+  }
+  const recentPagePhrases = {
+    'Earning operations':['कमाई संचालन','Operações de ganhos','Operaciones de ganancias','Operasi penghasilan','আয় কার্যক্রম','کمائی کے آپریشنز','عمليات الأرباح'],
+    'User management':['उपयोगकर्ता प्रबंधन','Gestão de usuários','Gestión de usuarios','Manajemen pengguna','ব্যবহারকারী ব্যবস্থাপনা','صارف مینجمنٹ','إدارة المستخدمين'],
+    'Inspect users by country, review earnings, and control account access.':['देश के अनुसार उपयोगकर्ताओं, कमाई और खाता पहुंच की समीक्षा करें।','Consulte usuários por país, ganhos e acesso às contas.','Consulta usuarios por país, ganancias y acceso a cuentas.','Tinjau pengguna per negara, penghasilan, dan akses akun.','দেশ অনুযায়ী ব্যবহারকারী, আয় ও অ্যাক্সেস পর্যালোচনা করুন।','ملک کے لحاظ سے صارفین، کمائی اور اکاؤنٹ رسائی دیکھیں۔','راجع المستخدمين حسب البلد والأرباح والوصول إلى الحساب.'],
+    'User workspace':['उपयोगकर्ता कार्यक्षेत्र','Área do usuário','Espacio del usuario','Ruang kerja pengguna','ব্যবহারকারী কর্মক্ষেত্র','صارف ورک اسپیس','مساحة عمل المستخدم'],
+    'Back to users':['उपयोगकर्ताओं पर वापस','Voltar para usuários','Volver a usuarios','Kembali ke pengguna','ব্যবহারকারীদের কাছে ফিরুন','صارفین پر واپس','العودة إلى المستخدمين'],
+    'Account controls':['खाता नियंत्रण','Controles da conta','Controles de cuenta','Kontrol akun','অ্যাকাউন্ট নিয়ন্ত্রণ','اکاؤنٹ کنٹرولز','عناصر التحكم بالحساب'],
+    'Save profile':['प्रोफ़ाइल सहेजें','Salvar perfil','Guardar perfil','Simpan profil','প্রোফাইল সংরক্ষণ','پروفائل محفوظ کریں','حفظ الملف الشخصي'],
+    'Wallet action':['वॉलेट कार्रवाई','Ação na carteira','Acción de billetera','Tindakan dompet','ওয়ালেট কার্যক্রম','والیٹ کارروائی','إجراء المحفظة'],
+    'Related activity':['संबंधित गतिविधि','Atividade relacionada','Actividad relacionada','Aktivitas terkait','সম্পর্কিত কার্যক্রম','متعلقہ سرگرمی','النشاط المرتبط'],
+    'Earning configuration':['कमाई कॉन्फ़िगरेशन','Configuração de ganhos','Configuración de ganancias','Konfigurasi penghasilan','আয় কনফিগারেশন','کمائی کی ترتیب','إعدادات الأرباح'],
+    'Countries & reward rates':['देश और पुरस्कार दरें','Países e taxas de recompensa','Países y tasas de recompensa','Negara & tarif imbalan','দেশ ও পুরস্কারের হার','ممالک اور انعامی شرحیں','البلدان ومعدلات المكافآت'],
+    'Control local currency, per-message rewards, daily goals, and country availability.':['स्थानीय मुद्रा, प्रति संदेश पुरस्कार, दैनिक लक्ष्य और देश उपलब्धता नियंत्रित करें।','Controle moeda local, recompensa por mensagem, metas diárias e disponibilidade.','Controla moneda local, recompensa por mensaje, metas diarias y disponibilidad.','Atur mata uang, imbalan pesan, target harian, dan ketersediaan negara.','স্থানীয় মুদ্রা, বার্তা পুরস্কার, দৈনিক লক্ষ্য ও দেশ নিয়ন্ত্রণ করুন।','مقامی کرنسی، فی پیغام انعام، روزانہ ہدف اور ملک کی دستیابی کنٹرول کریں۔','تحكم في العملة والمكافأة لكل رسالة والأهداف اليومية وتوفر البلد.'],
+    'Add country':['देश जोड़ें','Adicionar país','Añadir país','Tambah negara','দেশ যোগ করুন','ملک شامل کریں','إضافة بلد'],
+    'Configured countries':['कॉन्फ़िगर किए गए देश','Países configurados','Países configurados','Negara dikonfigurasi','কনফিগার করা দেশ','ترتیب شدہ ممالک','البلدان المهيأة'],
+    'Country directory':['देश निर्देशिका','Diretório de países','Directorio de países','Direktori negara','দেশের তালিকা','ملک ڈائریکٹری','دليل البلدان'],
+    'Earning inventory':['कमाई सूची','Inventário de ganhos','Inventario de ganancias','Inventaris penghasilan','আয়ের তালিকা','کمائی کی فہرست','مخزون الأرباح'],
+    'Task management':['कार्य प्रबंधन','Gestão de tarefas','Gestión de tareas','Manajemen tugas','কাজ ব্যবস্থাপনা','کام کا انتظام','إدارة المهام'],
+    'Create global or country-specific WhatsApp tasks. Rewards come from country rates.':['वैश्विक या देश-विशिष्ट WhatsApp कार्य बनाएं। पुरस्कार देश की दर से मिलता है।','Crie tarefas globais ou por país. As recompensas seguem a taxa local.','Crea tareas globales o por país. Las recompensas siguen la tasa local.','Buat tugas global atau khusus negara. Imbalan mengikuti tarif negara.','বিশ্বব্যাপী বা দেশভিত্তিক WhatsApp কাজ তৈরি করুন।','عالمی یا ملک کے مخصوص WhatsApp کام بنائیں۔ انعام ملکی شرح کے مطابق ہے۔','أنشئ مهام WhatsApp عامة أو خاصة ببلد وتُحسب المكافآت حسب سعر البلد.'],
+    'Create task':['कार्य बनाएं','Criar tarefa','Crear tarea','Buat tugas','কাজ তৈরি করুন','کام بنائیں','إنشاء مهمة'],
+    'Task directory':['कार्य निर्देशिका','Diretório de tarefas','Directorio de tareas','Direktori tugas','কাজের তালিকা','کام ڈائریکٹری','دليل المهام'],
+    'Wallet operations':['वॉलेट संचालन','Operações da carteira','Operaciones de billetera','Operasi dompet','ওয়ালেট কার্যক্রম','والیٹ آپریشنز','عمليات المحفظة'],
+    'Withdrawals & payout channels':['निकासी और भुगतान चैनल','Saques e canais de pagamento','Retiros y canales de pago','Penarikan & kanal pembayaran','উত্তোলন ও পেমেন্ট চ্যানেল','رقم نکالنا اور ادائیگی چینلز','السحوبات وقنوات الدفع'],
+    'Add channel':['चैनल जोड़ें','Adicionar canal','Añadir canal','Tambah kanal','চ্যানেল যোগ করুন','چینل شامل کریں','إضافة قناة'],
+    'Payout channels':['भुगतान चैनल','Canais de pagamento','Canales de pago','Kanal pembayaran','পেমেন্ট চ্যানেল','ادائیگی چینلز','قنوات الدفع'],
+    'Withdrawal requests':['निकासी अनुरोध','Solicitações de saque','Solicitudes de retiro','Permintaan penarikan','উত্তোলন অনুরোধ','رقم نکالنے کی درخواستیں','طلبات السحب'],
+    'Individual bonus history':['व्यक्तिगत बोनस इतिहास','Histórico individual de bônus','Historial individual de bonos','Riwayat bonus individu','ব্যক্তিগত বোনাস ইতিহাস','انفرادی بونس ہسٹری','سجل المكافآت الفردية'],
+    'Portal campaigns':['पोर्टल अभियान','Campanhas do portal','Campañas del portal','Kampanye portal','পোর্টাল ক্যাম্পেইন','پورٹل مہمات','حملات البوابة'],
+    'Banner management':['बैनर प्रबंधन','Gestão de banners','Gestión de banners','Manajemen banner','ব্যানার ব্যবস্থাপনা','بینر مینجمنٹ','إدارة اللافتات'],
+    'Create banner':['बैनर बनाएं','Criar banner','Crear banner','Buat banner','ব্যানার তৈরি করুন','بینر بنائیں','إنشاء لافتة'],
+    'Country support access':['देश सहायता पहुंच','Acesso ao suporte por país','Acceso de soporte por país','Akses dukungan negara','দেশভিত্তিক সহায়তা অ্যাক্সেস','ملکی سپورٹ رسائی','وصول دعم البلد'],
+    'Customer service links':['ग्राहक सेवा लिंक','Links de atendimento','Enlaces de atención al cliente','Tautan layanan pelanggan','গ্রাহক সেবা লিংক','کسٹمر سروس لنکس','روابط خدمة العملاء'],
+    'Generate a separate restricted ticket-panel link for each country support team.':['हर देश की सहायता टीम के लिए अलग सीमित टिकट लिंक बनाएं।','Gere um link restrito separado para cada equipe de suporte nacional.','Genera un enlace restringido para cada equipo nacional de soporte.','Buat tautan tiket terbatas untuk setiap tim dukungan negara.','প্রতিটি দেশের সহায়তা দলের জন্য আলাদা সীমিত টিকিট লিংক তৈরি করুন।','ہر ملک کی سپورٹ ٹیم کے لیے الگ محدود ٹکٹ لنک بنائیں۔','أنشئ رابط لوحة تذاكر مقيّدًا لكل فريق دعم حسب البلد.'],
+    'Generate link':['लिंक बनाएं','Gerar link','Generar enlace','Buat tautan','লিংক তৈরি করুন','لنک بنائیں','إنشاء رابط'],
+    'Active links':['सक्रिय लिंक','Links ativos','Enlaces activos','Tautan aktif','সক্রিয় লিংক','فعال لنکس','الروابط النشطة'],
+    'Generate restricted link':['सीमित लिंक बनाएं','Gerar link restrito','Generar enlace restringido','Buat tautan terbatas','সীমিত লিংক তৈরি করুন','محدود لنک بنائیں','إنشاء رابط مقيّد'],
+    'Issued links':['जारी लिंक','Links emitidos','Enlaces emitidos','Tautan diterbitkan','ইস্যু করা লিংক','جاری کردہ لنکس','الروابط الصادرة'],
+    'Country':['देश','País','País','Negara','দেশ','ملک','البلد'],
+    'All countries':['सभी देश','Todos os países','Todos los países','Semua negara','সব দেশ','تمام ممالک','كل البلدان'],
+    'All statuses':['सभी स्थितियां','Todos os status','Todos los estados','Semua status','সব অবস্থা','تمام حالتیں','كل الحالات'],
+    'Active':['सक्रिय','Ativo','Activo','Aktif','সক্রিয়','فعال','نشط'],
+    'Suspended':['निलंबित','Suspenso','Suspendido','Ditangguhkan','স্থগিত','معطل','معلّق'],
+    'User':['उपयोगकर्ता','Usuário','Usuario','Pengguna','ব্যবহারকারী','صارف','المستخدم'],
+    'Users':['उपयोगकर्ता','Usuários','Usuarios','Pengguna','ব্যবহারকারী','صارفین','المستخدمون'],
+    'Balance':['बैलेंस','Saldo','Saldo','Saldo','ব্যালেন্স','بیلنس','الرصيد'],
+    'Total earning':['कुल कमाई','Ganhos totais','Ganancias totales','Total penghasilan','মোট আয়','کل کمائی','إجمالي الأرباح'],
+    'Messages':['संदेश','Mensagens','Mensajes','Pesan','বার্তা','پیغامات','الرسائل'],
+    'Accounts':['खाते','Contas','Cuentas','Akun','অ্যাকাউন্ট','اکاؤنٹس','الحسابات'],
+    'Joined':['शामिल हुए','Cadastro','Registro','Bergabung','যোগদান','شمولیت','تاريخ الانضمام'],
+    'Previous':['पिछला','Anterior','Anterior','Sebelumnya','আগের','پچھلا','السابق'],
+    'Display name':['प्रदर्शित नाम','Nome de exibição','Nombre visible','Nama tampilan','প্রদর্শিত নাম','ظاہری نام','اسم العرض'],
+    'Amount':['राशि','Valor','Importe','Jumlah','পরিমাণ','رقم','المبلغ'],
+    'Description':['विवरण','Descrição','Descripción','Deskripsi','বিবরণ','تفصیل','الوصف'],
+    'Internal reason':['आंतरिक कारण','Motivo interno','Motivo interno','Alasan internal','অভ্যন্তরীণ কারণ','اندرونی وجہ','السبب الداخلي'],
+    'Action':['कार्रवाई','Ação','Acción','Tindakan','কার্যক্রম','کارروائی','الإجراء'],
+    'Date':['तारीख','Data','Fecha','Tanggal','তারিখ','تاریخ','التاريخ'],
+    'Audience':['दर्शक','Público','Audiencia','Audiens','দর্শক','سامعین','الجمهور'],
+    'Recipient':['प्राप्तकर्ता','Destinatário','Destinatario','Penerima','প্রাপক','وصول کنندہ','المستلم'],
+    'Currency':['मुद्रा','Moeda','Moneda','Mata uang','মুদ্রা','کرنسی','العملة'],
+    'Timezone':['समय क्षेत्र','Fuso horário','Zona horaria','Zona waktu','সময় অঞ্চল','ٹائم زون','المنطقة الزمنية'],
+    'Daily goal':['दैनिक लक्ष्य','Meta diária','Meta diaria','Target harian','দৈনিক লক্ষ্য','روزانہ ہدف','الهدف اليومي'],
+    'Display order':['प्रदर्शन क्रम','Ordem de exibição','Orden de visualización','Urutan tampilan','প্রদর্শন ক্রম','نمائش ترتیب','ترتيب العرض'],
+    'Type':['प्रकार','Tipo','Tipo','Jenis','ধরন','قسم','النوع'],
+    'Wallet':['वॉलेट','Carteira','Billetera','Dompet','ওয়ালেট','والیٹ','المحفظة'],
+    'Bank':['बैंक','Banco','Banco','Bank','ব্যাংক','بینک','البنك'],
+    'Fee':['शुल्क','Taxa','Comisión','Biaya','ফি','فیس','الرسوم'],
+    'Minimum':['न्यूनतम','Mínimo','Mínimo','Minimum','সর্বনিম্ন','کم از کم','الحد الأدنى'],
+    'Status':['स्थिति','Status','Estado','Status','অবস্থা','حالت','الحالة'],
+    'Expires':['समाप्ति','Expira','Vence','Kedaluwarsa','মেয়াদ','میعاد','تنتهي'],
+    'Last used':['अंतिम उपयोग','Último uso','Último uso','Terakhir digunakan','শেষ ব্যবহার','آخری استعمال','آخر استخدام'],
+    'Team label':['टीम नाम','Nome da equipe','Nombre del equipo','Label tim','দলের নাম','ٹیم لیبل','اسم الفريق'],
+    'Copy link':['लिंक कॉपी करें','Copiar link','Copiar enlace','Salin tautan','লিংক কপি করুন','لنک کاپی کریں','نسخ الرابط'],
+    'Loading user…':['उपयोगकर्ता लोड हो रहा है…','Carregando usuário…','Cargando usuario…','Memuat pengguna…','ব্যবহারকারী লোড হচ্ছে…','صارف لوڈ ہو رہا ہے…','جارٍ تحميل المستخدم…'],
+    'Allow withdrawals for this user':['इस उपयोगकर्ता के लिए निकासी चालू करें','Permitir saques para este usuário','Permitir retiros para este usuario','Izinkan penarikan untuk pengguna ini','এই ব্যবহারকারীর জন্য উত্তোলন অনুমোদন করুন','اس صارف کے لیے رقم نکالنے کی اجازت دیں','السماح بالسحب لهذا المستخدم'],
+    'Issue temporary password':['अस्थायी पासवर्ड जारी करें','Emitir senha temporária','Emitir contraseña temporal','Buat kata sandi sementara','অস্থায়ী পাসওয়ার্ড দিন','عارضی پاس ورڈ جاری کریں','إصدار كلمة مرور مؤقتة'],
+    'Award bonus':['बोनस दें','Conceder bônus','Conceder bono','Berikan bonus','বোনাস দিন','بونس دیں','منح مكافأة'],
+    'Manual credit':['मैन्युअल क्रेडिट','Crédito manual','Crédito manual','Kredit manual','ম্যানুয়াল ক্রেডিট','دستی کریڈٹ','إضافة رصيد يدوية'],
+    'Manual debit':['मैन्युअल डेबिट','Débito manual','Débito manual','Debit manual','ম্যানুয়াল ডেবিট','دستی ڈیبٹ','خصم يدوي'],
+    'Public title':['सार्वजनिक शीर्षक','Título público','Título público','Judul publik','প্রকাশ্য শিরোনাম','عوامی عنوان','العنوان العام'],
+    'User-visible description':['उपयोगकर्ता को दिखने वाला विवरण','Descrição visível ao usuário','Descripción visible al usuario','Deskripsi yang dilihat pengguna','ব্যবহারকারীর দৃশ্যমান বিবরণ','صارف کو نظر آنے والی تفصیل','الوصف الظاهر للمستخدم'],
+    'Preview and confirm':['पूर्वावलोकन और पुष्टि','Visualizar e confirmar','Vista previa y confirmar','Pratinjau dan konfirmasi','প্রিভিউ ও নিশ্চিত করুন','پیش منظر اور تصدیق','معاينة وتأكيد'],
+    'Complete wallet history':['पूरा वॉलेट इतिहास','Histórico completo da carteira','Historial completo de la billetera','Riwayat dompet lengkap','সম্পূর্ণ ওয়ালেট ইতিহাস','مکمل والیٹ ہسٹری','سجل المحفظة الكامل'],
+    'Loading activity…':['गतिविधि लोड हो रही है…','Carregando atividade…','Cargando actividad…','Memuat aktivitas…','কার্যক্রম লোড হচ্ছে…','سرگرمی لوڈ ہو رہی ہے…','جارٍ تحميل النشاط…'],
+    'Active countries':['सक्रिय देश','Países ativos','Países activos','Negara aktif','সক্রিয় দেশ','فعال ممالک','البلدان النشطة'],
+    'Registered users':['पंजीकृत उपयोगकर्ता','Usuários cadastrados','Usuarios registrados','Pengguna terdaftar','নিবন্ধিত ব্যবহারকারী','رجسٹرڈ صارفین','المستخدمون المسجلون'],
+    'Choose a country':['देश चुनें','Escolha um país','Elige un país','Pilih negara','একটি দেশ বেছে নিন','ملک منتخب کریں','اختر بلدًا'],
+    'Earning timezone':['कमाई समय क्षेत्र','Fuso horário de ganhos','Zona horaria de ganancias','Zona waktu penghasilan','আয়ের সময় অঞ্চল','کمائی کا ٹائم زون','المنطقة الزمنية للأرباح'],
+    'Select a country first':['पहले देश चुनें','Selecione um país primeiro','Selecciona primero un país','Pilih negara terlebih dahulu','প্রথমে একটি দেশ বেছে নিন','پہلے ملک منتخب کریں','اختر بلدًا أولًا'],
+    'Reward per successful message':['हर सफल संदेश का पुरस्कार','Recompensa por mensagem bem-sucedida','Recompensa por mensaje exitoso','Imbalan per pesan berhasil','প্রতি সফল বার্তার পুরস্কার','فی کامیاب پیغام انعام','مكافأة لكل رسالة ناجحة'],
+    'Daily message goal':['दैनिक संदेश लक्ष्य','Meta diária de mensagens','Meta diaria de mensajes','Target pesan harian','দৈনিক বার্তার লক্ষ্য','روزانہ پیغامات کا ہدف','هدف الرسائل اليومي'],
+    'Save country':['देश सहेजें','Salvar país','Guardar país','Simpan negara','দেশ সংরক্ষণ করুন','ملک محفوظ کریں','حفظ البلد'],
+    'Message reward':['संदेश पुरस्कार','Recompensa por mensagem','Recompensa por mensaje','Imbalan pesan','বার্তার পুরস্কার','پیغام کا انعام','مكافأة الرسالة'],
+    'Task title':['कार्य शीर्षक','Título da tarefa','Título de la tarea','Judul tugas','কাজের শিরোনাম','کام کا عنوان','عنوان المهمة'],
+    'Global · all active countries':['वैश्विक · सभी सक्रिय देश','Global · todos os países ativos','Global · todos los países activos','Global · semua negara aktif','বিশ্বব্যাপী · সব সক্রিয় দেশ','عالمی · تمام فعال ممالک','عام · كل البلدان النشطة'],
+    'Target phone':['लक्षित फ़ोन','Telefone de destino','Teléfono de destino','Telepon tujuan','লক্ষ্য ফোন','ہدف فون','هاتف المستلم'],
+    'Save task':['कार्य सहेजें','Salvar tarefa','Guardar tarea','Simpan tugas','কাজ সংরক্ষণ করুন','کام محفوظ کریں','حفظ المهمة'],
+    'Task':['कार्य','Tarefa','Tarea','Tugas','কাজ','کام','المهمة'],
+    'Global withdrawal access':['वैश्विक निकासी पहुंच','Acesso global a saques','Acceso global a retiros','Akses penarikan global','বিশ্বব্যাপী উত্তোলন অ্যাক্সেস','عالمی رقم نکالنے کی رسائی','وصول السحب العام'],
+    'Configure payout channel':['भुगतान चैनल कॉन्फ़िगर करें','Configurar canal de pagamento','Configurar canal de pago','Atur kanal pembayaran','পেমেন্ট চ্যানেল কনফিগার করুন','ادائیگی چینل ترتیب دیں','تهيئة قناة الدفع'],
+    'Stable key':['स्थायी कुंजी','Chave estável','Clave estable','Kunci tetap','স্থায়ী কী','مستحکم کلید','المفتاح الثابت'],
+    'Required beneficiary fields (JSON)':['आवश्यक लाभार्थी फ़ील्ड (JSON)','Campos obrigatórios do beneficiário (JSON)','Campos obligatorios del beneficiario (JSON)','Kolom penerima wajib (JSON)','প্রয়োজনীয় সুবিধাভোগী ফিল্ড (JSON)','ضروری فائدہ اٹھانے والے فیلڈز (JSON)','حقول المستفيد المطلوبة (JSON)'],
+    'User instructions':['उपयोगकर्ता निर्देश','Instruções ao usuário','Instrucciones al usuario','Petunjuk pengguna','ব্যবহারকারীর নির্দেশনা','صارف ہدایات','تعليمات المستخدم'],
+    'Maximum (0 = none)':['अधिकतम (0 = कोई नहीं)','Máximo (0 = sem limite)','Máximo (0 = sin límite)','Maksimum (0 = tanpa batas)','সর্বোচ্চ (0 = সীমাহীন)','زیادہ سے زیادہ (0 = کوئی نہیں)','الحد الأقصى (0 = بلا حد)'],
+    'Fixed amount':['निश्चित राशि','Valor fixo','Importe fijo','Jumlah tetap','নির্দিষ্ট পরিমাণ','مقررہ رقم','مبلغ ثابت'],
+    'Percentage':['प्रतिशत','Percentual','Porcentaje','Persentase','শতাংশ','فیصد','النسبة المئوية'],
+    'Fee value':['शुल्क राशि','Valor da taxa','Valor de la comisión','Nilai biaya','ফি মূল্য','فیس کی رقم','قيمة الرسوم'],
+    'Save channel':['चैनल सहेजें','Salvar canal','Guardar canal','Simpan kanal','চ্যানেল সংরক্ষণ করুন','چینل محفوظ کریں','حفظ القناة'],
+    'Workflow':['कार्यप्रवाह','Fluxo de trabalho','Flujo de trabajo','Alur kerja','কর্মপ্রবাহ','ورک فلو','سير العمل'],
+    'Request':['अनुरोध','Solicitar','Solicitud','Permintaan','অনুরোধ','درخواست','الطلب'],
+    'Approve':['स्वीकृत करें','Aprovar','Aprobar','Setujui','অনুমোদন','منظور کریں','موافقة'],
+    'Process':['प्रक्रिया','Processar','Procesar','Proses','প্রক্রিয়া','عمل','معالجة'],
+    'Settle':['निपटान','Liquidar','Liquidar','Selesaikan','নিষ্পত্তি','تصفیہ','تسوية'],
+    'Channel':['चैनल','Canal','Canal','Kanal','চ্যানেল','چینل','القناة'],
+    'Requested':['अनुरोधित','Solicitado','Solicitado','Diminta','অনুরোধকৃত','درخواست کردہ','المطلوب'],
+    'Net payout':['शुद्ध भुगतान','Pagamento líquido','Pago neto','Pembayaran bersih','নিট পেমেন্ট','خالص ادائیگی','صافي الدفع'],
+    'Beneficiary':['लाभार्थी','Beneficiário','Beneficiario','Penerima','সুবিধাভোগী','فائدہ اٹھانے والا','المستفيد'],
+    'Choose a user':['उपयोगकर्ता चुनें','Escolha um usuário','Elige un usuario','Pilih pengguna','ব্যবহারকারী বেছে নিন','صارف منتخب کریں','اختر مستخدمًا'],
+    'State':['स्थिति','Situação','Estado','Kondisi','অবস্থা','کیفیت','الحالة'],
+    'Title':['शीर्षक','Título','Título','Judul','শিরোনাম','عنوان','العنوان'],
+    'Placement':['स्थान','Posicionamento','Ubicación','Penempatan','অবস্থান','جگہ','الموضع'],
+    'Register page':['पंजीकरण पृष्ठ','Página de cadastro','Página de registro','Halaman pendaftaran','নিবন্ধন পৃষ্ঠা','رجسٹریشن صفحہ','صفحة التسجيل'],
+    'Global · all countries':['वैश्विक · सभी देश','Global · todos os países','Global · todos los países','Global · semua negara','বিশ্বব্যাপী · সব দেশ','عالمی · تمام ممالک','عام · كل البلدان'],
+    'Body copy':['मुख्य विवरण','Texto principal','Texto principal','Isi teks','মূল লেখা','مرکزی متن','النص الرئيسي'],
+    'Artwork':['चित्र','Imagem','Imagen','Gambar','চিত্র','تصویر','الصورة'],
+    'Image alt text':['चित्र वैकल्पिक पाठ','Texto alternativo da imagem','Texto alternativo de imagen','Teks alternatif gambar','ছবির বিকল্প লেখা','تصویر کا متبادل متن','النص البديل للصورة'],
+    'Responsive preview':['उत्तरदायी पूर्वावलोकन','Prévia responsiva','Vista previa adaptable','Pratinjau responsif','রেসপনসিভ প্রিভিউ','ریسپانسیو پیش منظر','معاينة متجاوبة'],
+    'CTA label':['CTA लेबल','Texto do CTA','Etiqueta del CTA','Label CTA','CTA লেবেল','CTA لیبل','تسمية الإجراء'],
+    'CTA internal path':['CTA आंतरिक पथ','Caminho interno do CTA','Ruta interna del CTA','Jalur internal CTA','CTA অভ্যন্তরীণ পথ','CTA اندرونی راستہ','مسار الإجراء الداخلي'],
+    'Starts at':['आरंभ','Início','Comienza','Mulai','শুরু','شروع','يبدأ في'],
+    'Ends at':['समाप्ति','Término','Finaliza','Berakhir','শেষ','اختتام','ينتهي في'],
+    'Show after login':['लॉगिन के बाद दिखाएं','Mostrar após login','Mostrar después de iniciar sesión','Tampilkan setelah masuk','লগইনের পরে দেখান','لاگ ان کے بعد دکھائیں','إظهار بعد تسجيل الدخول'],
+    'Save campaign':['अभियान सहेजें','Salvar campanha','Guardar campaña','Simpan kampanye','ক্যাম্পেইন সংরক্ষণ করুন','مہم محفوظ کریں','حفظ الحملة'],
+    'Countries covered':['शामिल देश','Países atendidos','Países cubiertos','Negara tercakup','অন্তর্ভুক্ত দেশ','شامل ممالک','البلدان المشمولة'],
+    'Link expiry':['लिंक समाप्ति','Validade do link','Caducidad del enlace','Masa berlaku tautan','লিংকের মেয়াদ','لنک کی میعاد','انتهاء الرابط'],
+    '7 days':['7 दिन','7 dias','7 días','7 hari','৭ দিন','7 دن','7 أيام'],
+    '30 days':['30 दिन','30 dias','30 días','30 hari','৩০ দিন','30 دن','30 يومًا'],
+    '90 days':['90 दिन','90 dias','90 días','90 hari','৯০ দিন','90 دن','90 يومًا'],
+    '1 year':['1 वर्ष','1 ano','1 año','1 tahun','১ বছর','1 سال','سنة واحدة'],
+    'No expiry':['कोई समाप्ति नहीं','Sem validade','Sin caducidad','Tanpa kedaluwarsa','মেয়াদ নেই','کوئی میعاد نہیں','بلا انتهاء'],
+    'Generate secure link':['सुरक्षित लिंक बनाएं','Gerar link seguro','Generar enlace seguro','Buat tautan aman','নিরাপদ লিংক তৈরি করুন','محفوظ لنک بنائیں','إنشاء رابط آمن'],
+    'Copy this link now':['यह लिंक अभी कॉपी करें','Copie este link agora','Copia este enlace ahora','Salin tautan ini sekarang','এই লিংক এখনই কপি করুন','یہ لنک ابھی کاپی کریں','انسخ هذا الرابط الآن'],
+    '{count} matching users':['{count} मेल खाते उपयोगकर्ता','{count} usuários encontrados','{count} usuarios encontrados','{count} pengguna cocok','{count} জন ব্যবহারকারী মিলেছে','{count} مماثل صارفین','{count} مستخدمين مطابقين'],
+    'Page {page} of {total}':['पृष्ठ {page} / {total}','Página {page} de {total}','Página {page} de {total}','Halaman {page} dari {total}','পৃষ্ঠা {page} / {total}','صفحہ {page} از {total}','الصفحة {page} من {total}']
+  };
+  let recentPhraseIndex = 0;
+  for (const [english, values] of Object.entries(recentPagePhrases)) {
+    const key = `recent.${recentPhraseIndex++}`;
+    dictionaries.en[key] = english;
+    ['hi','pt','es','id','bn','ur','ar'].forEach((locale, index) => { dictionaries[locale][key] = values[index]; });
+  }
+
   const languageNames = { en:'English', hi:'हिन्दी', pt:'Português', es:'Español', id:'Bahasa Indonesia', bn:'বাংলা', ur:'اردو', ar:'العربية' };
   let language = localStorage.getItem('88task_lang') || 'en';
   if (!dictionaries[language]) language = 'en';
+  const englishLookup = new Map(Object.entries(en).map(([key, value]) => [value, key]));
+  const templateRules = Object.entries(en).filter(([, value]) => value.includes('{')).map(([key, source]) => {
+    const names = [...source.matchAll(/\{(\w+)\}/g)].map(match => match[1]);
+    const expression = '^' + source.split(/\{\w+\}/).map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('(.+?)') + '$';
+    return { key, names, regex: new RegExp(expression) };
+  });
 
   function interpolate(template, values) {
     if (!values || typeof values !== 'object') return template;
@@ -2705,6 +2873,43 @@
   }
 
   window.adminT = (key, values) => interpolate(dictionaries[language][key] || en[key] || (typeof values === 'string' ? values : key.split('.').pop().replaceAll('_',' ')), values);
+  const translateEnglish = source => {
+    const exactKey = englishLookup.get(source);
+    if (exactKey) return window.adminT(exactKey);
+    for (const rule of templateRules) {
+      const match = source.match(rule.regex);
+      if (!match) continue;
+      return window.adminT(rule.key, Object.fromEntries(rule.names.map((name, index) => [name, match[index + 1]])));
+    }
+    return source;
+  };
+  const translatePlainContent = root => {
+    if (language === 'en') return;
+    const translateNode = node => {
+      if (!node.nodeValue || ['SCRIPT','STYLE'].includes(node.parentElement?.tagName) || node.parentElement?.closest('[data-i18n],[data-admin-i18n-records],[data-admin-i18n-static]')) return;
+      const source = node.nodeValue.trim();
+      if (!source) return;
+      const translated = translateEnglish(source);
+      if (translated !== source) {
+        node.nodeValue = node.nodeValue.replace(source, translated);
+        node.parentElement.dataset.adminI18nStatic = 'true';
+      }
+    };
+    if (root.nodeType === Node.TEXT_NODE) translateNode(root);
+    else {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) translateNode(walker.currentNode);
+      const attributeSelector = '[placeholder],[aria-label],[title]';
+      const attributeElements = [...(root.matches?.(attributeSelector) ? [root] : []), ...(root.querySelectorAll?.(attributeSelector) || [])];
+      attributeElements.forEach(element => {
+        if (element.closest('[data-admin-i18n-records]')) return;
+        for (const attribute of ['placeholder','aria-label','title']) {
+          const value = element.getAttribute(attribute);
+          if (value) element.setAttribute(attribute, translateEnglish(value));
+        }
+      });
+    }
+  };
   window.adminTranslate = (root = document) => {
     root.querySelectorAll('[data-i18n]').forEach(element => {
       const key = element.dataset.i18n;
@@ -2718,6 +2923,7 @@
     });
     document.documentElement.lang = language;
     document.documentElement.dir = ['ar','ur'].includes(language) ? 'rtl' : 'ltr';
+    translatePlainContent(root);
   };
 
   function init() {
@@ -2730,6 +2936,7 @@
       });
     });
     window.adminTranslate(document);
+    new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(node => translatePlainContent(node)))).observe(document.body, { childList: true, subtree: true });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0d875a">
   <title>88Task • Create account</title>
-  <link rel="stylesheet" href="/user-ui.css?v=20260909.2">
+  <link rel="stylesheet" href="/user-ui.css?v=20260909.3">
 </head>
 <body>
 <main class="u-auth-page u-register-page">
@@ -42,6 +42,7 @@
           </div>
           <div class="u-field full"><label for="password">Password</label><input id="password" class="u-input" type="password" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters"></div>
           <div class="u-field full"><label for="ref">Referral code <span class="u-help">(optional)</span></label><input id="ref" class="u-input" autocomplete="off" placeholder="Enter an invite code"></div>
+          <label class="u-consent full" for="termsConsent"><input id="termsConsent" type="checkbox" required><span>I agree to the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="/terms" target="_blank" rel="noopener">Terms &amp; Conditions</a>.</span></label>
         </div>
         <button id="registerButton" class="u-btn primary block" type="submit" style="margin-top:18px">Create account</button>
         <div id="msg" class="u-help" role="alert" style="margin-top:12px"></div>
@@ -51,14 +52,14 @@
     </div>
   </section>
 </main>
-<script src="/user-ui.js?v=20260909.2"></script>
+<script src="/user-i18n.js?v=20260909.2"></script><script src="/user-ui.js?v=20260909.6"></script>
 <script>
-const params=new URLSearchParams(location.search),countryInput=document.getElementById('country'),countryButton=document.getElementById('countryTrigger'),nameInput=document.getElementById('name'),passwordInput=document.getElementById('password'),refInput=document.getElementById('ref');let countries=[];refInput.value=params.get('ref')||'';
+const params=new URLSearchParams(location.search),countryInput=document.getElementById('country'),countryButton=document.getElementById('countryTrigger'),nameInput=document.getElementById('name'),passwordInput=document.getElementById('password'),refInput=document.getElementById('ref'),termsConsent=document.getElementById('termsConsent'),invitedCountry=(params.get('country')||'').trim().toUpperCase();let countries=[];refInput.value=params.get('ref')||'';
 function selectCountry(selected){if(!selected)return;countryInput.value=selected.code;countryFlag.innerHTML=uCountryFlag(selected.code,selected.name);countryName.textContent=selected.name;countryMeta.textContent=selected.currency_code+' · '+uMoney(selected.reward_per_message,selected.currency_code)+' per message · Goal '+selected.daily_goal+'/day';countryButton.classList.remove('invalid')}
-async function loadCountries(){try{const data=await uApi('/api/public/countries');countries=data.countries||[];countryButton.disabled=!countries.length;if(!countries.length)countryMeta.textContent='No countries are currently available'}catch(error){countryButton.disabled=true;countryMeta.textContent='Countries are temporarily unavailable';msg.textContent=error.message}}
+async function loadCountries(){try{const data=await uApi('/api/public/countries');countries=data.countries||[];const invited=countries.find(country=>country.code===invitedCountry);if(invited){selectCountry(invited);countryButton.disabled=Boolean(refInput.value);if(refInput.value)countryMeta.textContent+=' · Country set by invite'}else countryButton.disabled=!countries.length;if(!countries.length)countryMeta.textContent='No countries are currently available'}catch(error){countryButton.disabled=true;countryMeta.textContent='Countries are temporarily unavailable';msg.textContent=error.message}}
 async function loadCampaign(){try{const data=await uApi('/api/public/banners?placement=register'),b=(data.banners||[])[0];if(!b)return;const url=uSafeURL(b.cta_url),html='<article><div><strong>'+uEscape(b.title)+'</strong><p>'+uEscape(b.body||'')+'</p>'+(url&&b.cta_label?'<a href="'+uEscape(url)+'">'+uEscape(b.cta_label)+'</a>':'')+'</div>'+(b.image_url?'<img src="'+uEscape(b.image_url)+'" alt="'+uEscape(b.alt_text||'')+'">':'')+'</article>';registerCampaignDesktop.innerHTML=html;registerCampaignMobile.innerHTML=html}catch(_){}}
 countryButton.onclick=async()=>selectCountry(await uCountryPicker(countries,countryInput.value));
-registerForm.onsubmit=async event=>{event.preventDefault();msg.textContent='';if(!registerForm.checkValidity()){registerForm.reportValidity();return}if(!countryInput.value){countryButton.classList.add('invalid');countryButton.focus();msg.textContent='Choose your earning country to continue.';return}registerButton.disabled=true;registerButton.textContent='Creating account…';try{const response=await fetch('/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:nameInput.value.trim(),password:passwordInput.value,referral_code:refInput.value.trim(),country_code:countryInput.value})});const data=await response.json().catch(()=>({}));if(!response.ok||data.status!=='success')throw new Error(data.message||'Registration failed');sessionStorage.removeItem('88task_seen_events');sessionStorage.removeItem('88task_seen_event');registerForm.hidden=true;successPanel.hidden=false;createdUserID.textContent=data.user_id;copyUserID.onclick=async()=>{try{await navigator.clipboard.writeText(data.user_id);uToast('User ID copied')}catch(_){uToast('Select and copy the User ID above','error')}};successPanel.querySelector('a').focus()}catch(error){msg.textContent=error.message;registerButton.disabled=false;registerButton.textContent='Create account'}};
+registerForm.onsubmit=async event=>{event.preventDefault();msg.textContent='';if(!registerForm.checkValidity()){registerForm.reportValidity();return}if(!countryInput.value){countryButton.classList.add('invalid');countryButton.focus();msg.textContent='Choose your earning country to continue.';return}registerButton.disabled=true;registerButton.textContent='Creating account…';try{const response=await fetch('/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:nameInput.value.trim(),password:passwordInput.value,referral_code:refInput.value.trim(),country_code:countryInput.value,accepted_terms:termsConsent.checked})});const data=await response.json().catch(()=>({}));if(!response.ok||data.status!=='success')throw new Error(data.message||'Registration failed');sessionStorage.removeItem('88task_seen_events');sessionStorage.removeItem('88task_seen_event');sessionStorage.removeItem('88task_profile_header');registerForm.hidden=true;successPanel.hidden=false;createdUserID.textContent=data.user_id;copyUserID.onclick=async()=>{try{await navigator.clipboard.writeText(data.user_id);uToast('User ID copied')}catch(_){uToast('Select and copy the User ID above','error')}};successPanel.querySelector('a').focus()}catch(error){msg.textContent=error.message;registerButton.disabled=false;registerButton.textContent='Create account'}};
 loadCountries();loadCampaign();
 </script>
 </body>
