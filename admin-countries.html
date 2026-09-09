@@ -26,7 +26,7 @@
         <select id="countryPreset" class="admin-select" required><option value="">Choose a country</option></select>
         <small>Countries already configured are unavailable when adding a new one.</small>
       </div>
-      <div id="countryPreview" class="admin-country-preview wide" hidden>
+      <div id="countryPreview" class="admin-country-preview wide" data-admin-i18n-records hidden>
         <img id="countryFlag" alt="" width="64" height="48">
         <div><strong id="countryPreviewName">—</strong><span id="countryPreviewMeta">—</span></div>
       </div>
@@ -48,11 +48,11 @@
   </article>
   <article class="admin-card flush">
     <div style="padding:20px 20px 0"><div class="admin-card-head"><div><h2>Country directory</h2><p>Currency cannot be changed after a reward has been credited.</p></div><button class="admin-btn" id="refreshButton">Refresh</button></div></div>
-    <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Country</th><th>Currency</th><th>Timezone</th><th>Message reward</th><th>Daily goal</th><th>Users</th><th>Tasks</th><th>Status</th><th>Actions</th></tr></thead><tbody id="rows"><tr><td colspan="9"><div class="admin-empty">Loading…</div></td></tr></tbody></table></div>
+    <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Country</th><th>Currency</th><th>Timezone</th><th>Message reward</th><th>Daily goal</th><th>Users</th><th>Tasks</th><th>Status</th><th>Actions</th></tr></thead><tbody id="rows" data-admin-i18n-records><tr><td colspan="9"><div class="admin-empty">Loading…</div></td></tr></tbody></table></div>
   </article>
 </main>
 <script src="/admin-ui.js?v=20260909.4"></script>
-<script src="/admin-i18n.js?v=20260909.4"></script>
+<script src="/admin-i18n.js?v=20260909.6"></script>
 <script src="/admin-country-catalog.js?v=20260909.1"></script>
 <script>
 let countries=[];

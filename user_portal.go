@@ -69,14 +69,20 @@ func userRegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Name         string `json:"name"`
-		Password     string `json:"password"`
-		ReferralCode string `json:"referral_code"`
-		CountryCode  string `json:"country_code"`
+		Name          string `json:"name"`
+		Password      string `json:"password"`
+		ReferralCode  string `json:"referral_code"`
+		CountryCode   string `json:"country_code"`
+		AcceptedTerms bool   `json:"accepted_terms"`
 	}
 	if json.NewDecoder(r.Body).Decode(&in) != nil || len(strings.TrimSpace(in.Name)) < 2 || len(in.Password) < 6 {
 		w.WriteHeader(http.StatusBadRequest)
 		userJSON(w, map[string]any{"status": "error", "message": "Name and password (minimum 6 characters) are required"})
+		return
+	}
+	if !in.AcceptedTerms {
+		w.WriteHeader(http.StatusBadRequest)
+		userJSON(w, map[string]any{"status": "error", "message": "Accept the Privacy Policy and Terms & Conditions to register"})
 		return
 	}
 	country, err := loadCountry(in.CountryCode, true)
@@ -93,10 +99,15 @@ func userRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	var refID *string
 	ref := strings.TrimSpace(in.ReferralCode)
 	if ref != "" {
-		var id string
-		if err = userDB.QueryRow(`SELECT id::text FROM public.app_users WHERE referral_code=$1 AND status='active'`, ref).Scan(&id); err != nil {
+		var id, referrerCountry string
+		if err = userDB.QueryRow(`SELECT id::text,country_code FROM public.app_users WHERE referral_code=$1 AND status='active'`, ref).Scan(&id, &referrerCountry); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			userJSON(w, map[string]any{"status": "error", "message": "Invalid referral code"})
+			return
+		}
+		if referrerCountry != country.Code {
+			w.WriteHeader(http.StatusBadRequest)
+			userJSON(w, map[string]any{"status": "error", "message": "This invite is only valid for the referrer's country"})
 			return
 		}
 		refID = &id
@@ -113,9 +124,9 @@ func userRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var dbID string
 	if refID == nil {
-		err = userDB.QueryRow(`INSERT INTO public.app_users(user_id,referral_code,password_hash,display_name,country_code) VALUES($1,$2,$3,$4,$5) RETURNING id`, uid, rcode, string(hash), strings.TrimSpace(in.Name), country.Code).Scan(&dbID)
+		err = userDB.QueryRow(`INSERT INTO public.app_users(user_id,referral_code,password_hash,display_name,country_code,terms_accepted_at,policy_version) VALUES($1,$2,$3,$4,$5,now(),'2026-09-09') RETURNING id`, uid, rcode, string(hash), strings.TrimSpace(in.Name), country.Code).Scan(&dbID)
 	} else {
-		err = userDB.QueryRow(`INSERT INTO public.app_users(user_id,referral_code,password_hash,display_name,referred_by,country_code) VALUES($1,$2,$3,$4,$5::uuid,$6) RETURNING id`, uid, rcode, string(hash), strings.TrimSpace(in.Name), *refID, country.Code).Scan(&dbID)
+		err = userDB.QueryRow(`INSERT INTO public.app_users(user_id,referral_code,password_hash,display_name,referred_by,country_code,terms_accepted_at,policy_version) VALUES($1,$2,$3,$4,$5::uuid,$6,now(),'2026-09-09') RETURNING id`, uid, rcode, string(hash), strings.TrimSpace(in.Name), *refID, country.Code).Scan(&dbID)
 	}
 	if err != nil {
 		w.WriteHeader(http.StatusConflict)
@@ -260,6 +271,9 @@ func init() {
 	http.HandleFunc("/password", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-password.html") })
 	http.HandleFunc("/withdrawals", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-withdrawals.html") })
 	http.HandleFunc("/support", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-support.html") })
+	http.HandleFunc("/privacy", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-privacy.html") })
+	http.HandleFunc("/terms", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "user-terms.html") })
 	http.HandleFunc("/user-ui.css", userUIHandler("user-ui.css", "text/css; charset=utf-8"))
 	http.HandleFunc("/user-ui.js", userUIHandler("user-ui.js", "application/javascript; charset=utf-8"))
+	http.HandleFunc("/user-i18n.js", userUIHandler("user-i18n.js", "application/javascript; charset=utf-8"))
 }

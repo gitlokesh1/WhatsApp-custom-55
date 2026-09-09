@@ -40,6 +40,8 @@ func initEarningPortalSchema() error {
 		ON CONFLICT(code) DO NOTHING;
 
 		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS country_code TEXT;
+		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;
+		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS policy_version TEXT NOT NULL DEFAULT '';
 		ALTER TABLE public.task_definitions ADD COLUMN IF NOT EXISTS country_code TEXT;
 		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS country_code TEXT;
 		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS currency_code TEXT;

@@ -38,6 +38,9 @@
     ['whatsapp', '/whatsapp', 'whatsapp', 'WhatsApp'], ['referrals', '/referrals', 'referrals', 'Referrals'],
     ['profile', '/profile', 'profile', 'Profile'], ['support', '/support', 'support', 'Support']
   ];
+  const translate = (source, values) => window.uT
+    ? window.uT(source, values)
+    : String(source).replace(/\{([^}]+)\}/g, (_, key) => values?.[key] ?? `{${key}}`);
   const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
   const icon = (name, label = '') => `<svg class="u-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${label ? `role="img" aria-label="${escapeHTML(label)}"` : 'aria-hidden="true"'}>${iconPaths[name] || iconPaths.sparkle}</svg>`;
   const hydrateIcons = (root = document) => root.querySelectorAll('[data-u-icon]').forEach(node => { node.innerHTML = icon(node.dataset.uIcon); });
@@ -48,15 +51,15 @@
     const request = { ...options, headers: { ...(options.headers || {}) } };
     if (request.body && typeof request.body !== 'string' && !(request.body instanceof FormData)) { request.body = JSON.stringify(request.body); request.headers['Content-Type'] = 'application/json'; }
     const response = await fetch(url, request); const data = await response.json().catch(() => ({}));
-    if (response.status === 401) { location.href = '/login'; throw new Error('Login required'); }
+    if (response.status === 401) { sessionStorage.removeItem('88task_profile_header'); location.href = '/login'; throw new Error('Login required'); }
     if (!response.ok || data.status === 'error') throw new Error(data.message || 'Something went wrong'); return data;
   };
   const toast = (message, type = '') => {
     let stack = document.querySelector('.u-toast-stack');
     if (!stack) { stack = document.createElement('div'); stack.className = 'u-toast-stack'; stack.setAttribute('aria-live', 'polite'); document.body.appendChild(stack); }
-    const item = document.createElement('div'); item.className = `u-toast ${type}`; item.textContent = message; stack.appendChild(item); setTimeout(() => item.remove(), 4200);
+    const item = document.createElement('div'); item.className = `u-toast ${type}`; item.textContent = translate(message); stack.appendChild(item); setTimeout(() => item.remove(), 4200);
   };
-  const empty = (iconName, title, copy = '') => `<div class="u-empty"><div class="u-empty-icon">${icon(iconName)}</div><strong>${escapeHTML(title)}</strong>${copy ? `<div>${escapeHTML(copy)}</div>` : ''}</div>`;
+  const empty = (iconName, title, copy = '') => `<div class="u-empty"><div class="u-empty-icon">${icon(iconName)}</div><strong>${escapeHTML(translate(title))}</strong>${copy ? `<div>${escapeHTML(translate(copy))}</div>` : ''}</div>`;
   const countryFlag = (code, name = '') => {
     const normalized = String(code || '').toLowerCase();
     return /^[a-z]{2}$/.test(normalized) ? `<img src="https://flagcdn.com/w80/${normalized}.png" alt="" loading="lazy" onerror="this.hidden=true">` : icon('globe', name ? `${name} country` : 'Country');
@@ -94,6 +97,20 @@
     try { const value = JSON.parse(sessionStorage.getItem(eventSeenKey) || '[]'); return new Set(Array.isArray(value) ? value.map(String) : []); } catch (_) { return new Set(); }
   };
   const clearSeenEvents = () => { sessionStorage.removeItem(eventSeenKey); sessionStorage.removeItem('88task_seen_event'); };
+  const profileHeaderKey = '88task_profile_header';
+  const readProfileHeader = () => {
+    try {
+      const value = JSON.parse(sessionStorage.getItem(profileHeaderKey) || '');
+      return value && typeof value.name === 'string' && typeof value.currency_code === 'string' ? value : null;
+    } catch (_) { return null; }
+  };
+  const saveProfileHeader = data => {
+    try { sessionStorage.setItem(profileHeaderKey, JSON.stringify({ name: data.name || '', balance: Number(data.balance) || 0, currency_code: data.currency_code || 'INR' })); } catch (_) { /* Storage is optional. */ }
+  };
+  const applyProfileHeader = data => {
+    const greeting = document.getElementById('uTopGreeting'); if (greeting) greeting.textContent = translate('Hello, {name}', { name: data.name });
+    const balance = document.getElementById('uTopBalance'); if (balance) balance.textContent = money(data.balance, data.currency_code);
+  };
   const showEvent = campaigns => {
     if (document.querySelector('.u-event-modal')) return false;
     const seen = readSeenEvents();
@@ -109,13 +126,16 @@
     };
     showNext(); return true;
   };
-  const logout = async () => { clearSeenEvents(); try { await fetch('/logout', { method: 'POST' }); } finally { location.href = '/login'; } };
+  const logout = async () => { clearSeenEvents(); sessionStorage.removeItem(profileHeaderKey); try { await fetch('/logout', { method: 'POST' }); } finally { location.href = '/login'; } };
 
   function shell(page) {
     const main = document.querySelector('main[data-user-page]'); if (!main || main.closest('.u-shell')) return;
     const links = nav.map(([key, href, iconName, label]) => `<a href="${href}" class="${key === page ? 'active' : ''}" ${key === page ? 'aria-current="page"' : ''}><span class="u-nav-icon">${icon(iconName)}</span><span>${label}</span></a>`).join('');
+    const cachedHeader = readProfileHeader();
+    const headerGreeting = cachedHeader ? escapeHTML(translate('Hello, {name}', { name: cachedHeader.name })) : '88Task';
+    const headerBalance = cachedHeader ? escapeHTML(money(cachedHeader.balance, cachedHeader.currency_code)) : '—';
     const shellRoot = document.createElement('div'); shellRoot.className = 'u-shell';
-    shellRoot.innerHTML = `<aside class="u-sidebar"><a class="u-brand" href="/dashboard"><span class="u-brand-mark">88</span><span><strong>88Task</strong><small>Earn with every task</small></span></a><nav class="u-nav" aria-label="Primary navigation">${links}</nav><div class="u-sidebar-foot"><p>Complete verified tasks, grow your streak, and build your rewards.</p><button class="u-logout" type="button">${icon('logout')}<span>Sign out</span></button></div></aside><section class="u-workspace"><header class="u-topbar" role="banner"><div class="u-topbar-copy"><strong id="uTopGreeting">88Task workspace</strong><span>Secure WhatsApp task rewards</span></div><div class="u-topbar-actions"><a class="u-wallet-pill" href="/wallet" aria-label="Open wallet">${icon('wallet')}<span id="uTopBalance">—</span></a><button class="u-top-logout" type="button" aria-label="Sign out" title="Sign out">${icon('logout')}</button></div></header></section><nav class="u-mobile-nav" aria-label="Mobile navigation">${links}</nav>`;
+    shellRoot.innerHTML = `<aside class="u-sidebar"><a class="u-brand" href="/dashboard"><span class="u-brand-mark">88</span><span><strong>88Task</strong><small>Earn with every task</small></span></a><nav class="u-nav" aria-label="Primary navigation">${links}</nav><div class="u-sidebar-foot"><p>Complete verified tasks, grow your streak, and build your rewards.</p><button class="u-logout" type="button">${icon('logout')}<span>Sign out</span></button></div></aside><section class="u-workspace"><header class="u-topbar" role="banner"><div class="u-topbar-copy"><strong id="uTopGreeting">${headerGreeting}</strong><span>Secure WhatsApp task rewards</span></div><div class="u-topbar-actions"><select class="u-language" data-user-language aria-label="Language"></select><a class="u-wallet-pill" href="/wallet" aria-label="Open wallet">${icon('wallet')}<span id="uTopBalance">${headerBalance}</span></a><button class="u-top-logout" type="button" aria-label="Sign out" title="Sign out">${icon('logout')}</button></div></header></section><nav class="u-mobile-nav" aria-label="Mobile navigation">${links}</nav>`;
     main.parentNode.insertBefore(shellRoot, main); shellRoot.querySelector('.u-workspace').appendChild(main); shellRoot.querySelectorAll('.u-logout,.u-top-logout').forEach(button => button.addEventListener('click', logout));
   }
 
@@ -125,8 +145,7 @@
   }
   async function profile(requireCountry = true) {
     let data = await api('/api/user/profile'); if (data.requires_country && requireCountry) { await chooseCountry(); data = await api('/api/user/profile'); }
-    const greeting = document.getElementById('uTopGreeting'); if (greeting) greeting.textContent = `Hello, ${data.name}`;
-    const balance = document.getElementById('uTopBalance'); if (balance) balance.textContent = money(data.balance, data.currency_code); window.userProfile = data; return data;
+    saveProfileHeader(data); applyProfileHeader(data); window.userProfile = data; return data;
   }
   function celebrate(reward, currency, gamification) {
     const root = document.createElement('div'); root.className = 'u-modal-root show'; root.innerHTML = `<div class="u-modal u-celebrate" role="dialog" aria-modal="true"><div class="u-celebrate-icon">${icon('sparkle')}</div><div class="u-eyebrow">Reward unlocked</div><h2>${money(reward, currency)} earned!</h2><p>Your verified message was sent successfully. You are now on a ${gamification?.streak_days || 0}-day streak.</p><button class="u-btn primary" type="button">Keep earning</button></div>`; document.body.appendChild(root); root.querySelector('button').onclick = () => root.remove(); root.querySelector('button').focus();
