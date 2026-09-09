@@ -5,60 +5,28 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0d875a">
   <title>88Task • Dashboard</title>
-  <link rel="stylesheet" href="/user-ui.css?v=20260909.8">
+  <link rel="stylesheet" href="/user-ui.css?v=20260909.7">
 </head>
 <body>
 <main class="u-content u-dashboard" data-user-page="dashboard">
-  <section id="banners" class="u-banner-wrap u-dashboard-banner" aria-label="Announcements">
-    <article class="u-dashboard-fallback">
-      <span class="u-feature-icon tone-banner"><span data-u-icon="announcement"></span></span>
-      <div class="u-dashboard-fallback-copy"><div class="u-eyebrow">Today at 88Task</div><h2>Ready for today’s rewards?</h2><p>Complete verified tasks and keep your streak growing.</p></div>
-      <a class="u-dashboard-cta" href="/tasks">View tasks <span data-u-icon="arrowRight"></span></a>
-    </article>
-  </section>
+  <section id="banners" class="u-banner-wrap u-dashboard-banner" aria-label="Announcements"></section>
   <div id="countryAlert"></div>
+  <section class="u-dashboard-focus" aria-label="Earning overview">
+    <article class="u-hero u-balance-hero">
+      <div class="u-hero-content">
+        <div class="u-hero-top"><div class="u-hero-label">Available balance</div><span id="country" class="u-hero-country">—</span></div>
+        <div id="balance" class="u-hero-balance">—</div>
+        <div class="u-hero-meta">
+          <div><b id="today">—</b><span>Earned today</span></div>
+          <div><b id="rate">—</b><span>Per task</span></div>
+          <div><b id="wa">—</b><span>WhatsApp linked</span></div>
+        </div>
+        <div class="u-actions u-hero-actions"><a class="u-btn" href="/tasks">View tasks</a><a class="u-btn" href="/withdrawals">Withdraw</a></div>
+      </div>
+    </article>
 
-  <section class="u-balance-card" aria-label="Earning overview">
-    <div class="u-balance-primary">
-      <div class="u-balance-title"><span class="u-feature-icon tone-balance"><span data-u-icon="coins"></span></span><div><span>Available balance</span><strong id="balance">—</strong></div></div>
-      <span id="country" class="u-hero-country">—</span>
-    </div>
-    <div class="u-balance-metrics">
-      <div><b id="today">—</b><span>Earned today</span></div>
-      <div><b id="rate">—</b><span>Per task</span></div>
-      <div><b id="wa">—</b><span>WhatsApp linked</span></div>
-    </div>
-  </section>
-
-  <section class="u-quick-section" aria-labelledby="quickActivitiesTitle">
-    <div class="u-section-heading"><div><div class="u-eyebrow">Your shortcuts</div><h2 id="quickActivitiesTitle">Quick activities</h2></div><p>Earn and manage rewards.</p></div>
-    <div class="u-activity-grid">
-      <a class="u-activity-tile" href="/tasks">
-        <span class="u-feature-icon tone-task"><span data-u-icon="taskStart"></span></span>
-        <span class="u-activity-copy"><strong>Complete tasks</strong><span><b id="activityRate" class="u-attention-value">—</b> per task</span></span>
-        <span class="u-activity-action">Start <span data-u-icon="arrowRight"></span></span>
-      </a>
-      <a class="u-activity-tile" href="/referrals">
-        <span class="u-feature-icon tone-invite"><span data-u-icon="invite"></span></span>
-        <span class="u-activity-copy"><strong>Invite friends</strong><span>Grow your referral network.</span></span>
-        <span class="u-activity-action">Invite <span data-u-icon="arrowRight"></span></span>
-      </a>
-      <a class="u-activity-tile" href="/whatsapp">
-        <span class="u-feature-icon tone-whatsapp"><span data-u-icon="whatsapp"></span></span>
-        <span class="u-activity-copy"><strong>WhatsApp</strong><span><b id="activityWhatsapp" class="u-attention-value">—</b> accounts linked</span></span>
-        <span class="u-activity-action">Manage <span data-u-icon="arrowRight"></span></span>
-      </a>
-      <a class="u-activity-tile" href="/withdrawals">
-        <span class="u-feature-icon tone-withdraw"><span data-u-icon="cashOut"></span></span>
-        <span class="u-activity-copy"><strong>Withdraw</strong><span>Available <b id="activityBalance" class="u-attention-value">—</b></span></span>
-        <span class="u-activity-action">Withdraw <span data-u-icon="arrowRight"></span></span>
-      </a>
-    </div>
-  </section>
-
-  <section class="u-dashboard-progress">
     <article class="u-card lift u-mission-card">
-      <div class="u-card-head"><div class="u-card-title-group"><span class="u-feature-icon tone-mission"><span data-u-icon="calendarCheck"></span></span><div><div class="u-eyebrow">Daily mission</div><h2>Finish today’s goal</h2></div></div><span id="goalBadge" class="u-badge">0 / 10</span></div>
+      <div class="u-card-head"><div><div class="u-eyebrow">Daily mission</div><h2>Finish today’s goal</h2></div><span id="goalBadge" class="u-badge">0 / 10</span></div>
       <div class="u-progress u-progress-large"><span id="goalProgress"></span></div>
       <p id="goalCopy" class="u-mission-copy">Each successful task counts.</p>
       <div class="u-mission-footer">
@@ -66,10 +34,13 @@
         <div><strong><span id="streak">0</span>-day streak</strong><span>Complete one task daily.</span></div>
       </div>
     </article>
+  </section>
 
+  <section class="u-dashboard-lower">
     <article class="u-card u-progress-hub">
       <div class="u-card-head">
-        <div class="u-card-title-group"><span class="u-feature-icon tone-level"><span data-u-icon="levelBadge"></span></span><div><div class="u-eyebrow">Lifetime journey</div><h2><span id="level">—</span> level</h2><p id="levelCopy">Complete tasks to level up.</p></div></div>
+        <div><div class="u-eyebrow">Lifetime journey</div><h2><span id="level">—</span> level</h2><p id="levelCopy">Complete tasks to level up.</p></div>
+        <span class="u-level-medal u-level-medal-small"><span data-u-icon="medal"></span></span>
       </div>
       <div class="u-progress"><span id="levelProgress"></span></div>
       <div class="u-progress-caption"><span id="levelNote">Building progress</span><strong id="levelPercent">0%</strong></div>
@@ -78,34 +49,33 @@
         <div class="u-actions"><button class="u-btn soft" id="copyReferral"><span data-u-icon="copy"></span>Copy invite</button><a class="u-btn" href="/referrals">Referral network</a></div>
       </div>
     </article>
-  </section>
 
-  <article class="u-card u-activity-card">
-    <div class="u-card-head"><div class="u-card-title-group"><span class="u-feature-icon tone-history"><span data-u-icon="receiptHistory"></span></span><div><div class="u-eyebrow">Wallet activity</div><h2>Recent transactions</h2></div></div><a class="u-btn small" href="/wallet">View all</a></div>
-    <div id="earnings"><div class="u-skeleton"></div></div>
-  </article>
+    <article class="u-card u-activity-card">
+      <div class="u-card-head"><div><div class="u-eyebrow">Wallet activity</div><h2>Recent transactions</h2></div><a class="u-btn small" href="/wallet">View all</a></div>
+      <div id="earnings"><div class="u-skeleton"></div></div>
+    </article>
+  </section>
 </main>
 
-<script src="/user-i18n.js?v=20260909.6"></script><script src="/user-ui.js?v=20260909.10"></script>
+<script src="/user-i18n.js?v=20260909.5"></script><script src="/user-ui.js?v=20260909.9"></script>
 <script>
 let bannerIndex=0,bannerTimer;
 function renderBanners(items){
   const root=document.getElementById('banners');
   items=items.filter(item=>item.image_url);
-  const fallback=()=>{clearInterval(bannerTimer);root.innerHTML='<article class="u-dashboard-fallback"><span class="u-feature-icon tone-banner">'+uIcon('announcement')+'</span><div class="u-dashboard-fallback-copy"><div class="u-eyebrow">'+uEscape(uT('Today at 88Task'))+'</div><h2>'+uEscape(uT('Ready for today’s rewards?'))+'</h2><p>'+uEscape(uT('Complete verified tasks and keep your streak growing.'))+'</p></div><a class="u-dashboard-cta" href="/tasks">'+uEscape(uT('View tasks'))+' '+uIcon('arrowRight')+'</a></article>'};
-  if(!items.length){fallback();return}
+  if(!items.length){root.innerHTML='';return}
   bannerIndex=Math.min(bannerIndex,items.length-1);
   const stop=()=>clearInterval(bannerTimer);
   const show=()=>{
     const b=items[bannerIndex],ctaURL=uSafeURL(b.cta_url),image='<img src="'+uEscape(b.image_url)+'" alt="'+uEscape(b.alt_text||b.title||'')+'" loading="lazy">';
-    root.innerHTML='<article class="u-banner u-banner-image-only">'+(ctaURL?'<a href="'+uEscape(ctaURL)+'" aria-label="'+uEscape(b.cta_label||b.alt_text||b.title||'Open banner')+'">'+image+'</a>':image)+'</article>'+(items.length>1?'<div class="u-banner-dots">'+items.map((_,i)=>'<button class="'+(i===bannerIndex?'active':'')+'" aria-label="'+uEscape(uT('Show banner {count}',{count:i+1}))+'" data-banner="'+i+'"></button>').join('')+'</div>':'');
-    root.querySelector('img')?.addEventListener('error',()=>{stop();items.splice(bannerIndex,1);bannerIndex=0;items.length?show():fallback()},{once:true});
+    root.innerHTML='<article class="u-banner u-banner-image-only">'+(ctaURL?'<a href="'+uEscape(ctaURL)+'" aria-label="'+uEscape(b.cta_label||b.alt_text||b.title||'Open banner')+'">'+image+'</a>':image)+'</article>'+(items.length>1?'<div class="u-banner-dots">'+items.map((_,i)=>'<button class="'+(i===bannerIndex?'active':'')+'" aria-label="Show banner '+(i+1)+'" data-banner="'+i+'"></button>').join('')+'</div>':'');
+    root.querySelector('img')?.addEventListener('error',()=>{stop();items.splice(bannerIndex,1);bannerIndex=0;items.length?show():root.replaceChildren()},{once:true});
     root.querySelectorAll('[data-banner]').forEach(x=>x.onclick=()=>{stop();bannerIndex=Number(x.dataset.banner);show()});
   };
   show();root.addEventListener('pointerenter',stop,{once:true});root.addEventListener('focusin',stop,{once:true});
   if(items.length>1&&!matchMedia('(prefers-reduced-motion: reduce)').matches)bannerTimer=setInterval(()=>{bannerIndex=(bannerIndex+1)%items.length;show()},6500);
 }
-async function load(){const [profileResult,walletResult,bannerResult]=await Promise.allSettled([uProfile(),uApi('/api/user/wallet?limit=3'),uApi('/api/user/banners')]);if(profileResult.status==='fulfilled'){const p=profileResult.value,g=p.gamification,balanceValue=uMoney(p.balance,p.currency_code),rateValue=uMoney(p.reward_per_message,p.currency_code),linkedValue=p.linked_whatsapp+'/'+p.max_whatsapp;balance.textContent=balanceValue;activityBalance.textContent=balanceValue;today.textContent=uMoney(p.today_earning,p.currency_code);rate.textContent=rateValue;activityRate.textContent=rateValue;country.textContent=p.country_name||uT('Country pending');wa.textContent=linkedValue;activityWhatsapp.textContent=linkedValue;lifetime.textContent=g.lifetime_messages;level.textContent=g.level;streak.textContent=g.streak_days;goalBadge.textContent=g.today_messages+' / '+g.daily_goal;goalProgress.style.width=g.goal_progress+'%';goalCopy.textContent=g.today_messages>=g.daily_goal?uT('Daily goal complete. Great work today!'):uT('{count} successful tasks left today.',{count:Math.max(0,g.daily_goal-g.today_messages)});levelProgress.style.width=g.level_progress+'%';levelPercent.textContent=g.level_progress+'%';levelNote.textContent=g.level==='Diamond'?uT('Highest level achieved'):uT('{count} tasks unlock the next level',{count:g.next_level_at});levelCopy.textContent=g.level==='Diamond'?uT('You reached the highest 88Task level.'):uT('{count} more successful tasks to advance.',{count:Math.max(0,g.next_level_at-g.lifetime_messages)});countryAlert.innerHTML=p.country_active?'':'<div class="u-alert">'+uEscape(uT('Earning is currently paused for {country}.',{country:p.country_name}))+'</div>';copyReferral.onclick=()=>{const url=new URL('/register',location.origin);url.searchParams.set('ref',p.referral_code);url.searchParams.set('country',p.country_code);navigator.clipboard.writeText(url.toString()).then(()=>uToast(uT('Referral link copied')))}}else uToast(profileResult.reason.message,'error');if(walletResult.status==='fulfilled'){const list=walletResult.value.transactions||[];earnings.innerHTML=list.length?list.map(x=>'<div class="u-row"><div class="u-row-main"><strong>'+uEscape(x.description)+'</strong><span>'+uEscape((x.source_type||'transaction').replaceAll('_',' '))+' · '+uDate(x.created_at)+'</span></div><strong class="u-reward '+(x.direction==='debit'?'debit':'')+'">'+(x.direction==='debit'?'−':'+')+uMoney(x.amount,x.currency_code)+'</strong></div>').join(''):uEmpty('sparkle',uT('No wallet activity'),uT('Your transactions will appear here.'))}else earnings.innerHTML=uEmpty('alert',uT('Wallet unavailable'),uT('Other dashboard features remain available.'));if(bannerResult.status==='fulfilled'){renderBanners(bannerResult.value.banners||[]);uShowEvent((bannerResult.value.banners||[]).filter(item=>item.show_as_popup))}else renderBanners([])}
+async function load(){const [profileResult,walletResult,bannerResult]=await Promise.allSettled([uProfile(),uApi('/api/user/wallet?limit=3'),uApi('/api/user/banners')]);if(profileResult.status==='fulfilled'){const p=profileResult.value,g=p.gamification;balance.textContent=uMoney(p.balance,p.currency_code);today.textContent=uMoney(p.today_earning,p.currency_code);rate.textContent=uMoney(p.reward_per_message,p.currency_code);country.textContent=p.country_name||uT('Country pending');wa.textContent=p.linked_whatsapp+'/'+p.max_whatsapp;lifetime.textContent=g.lifetime_messages;level.textContent=g.level;streak.textContent=g.streak_days;goalBadge.textContent=g.today_messages+' / '+g.daily_goal;goalProgress.style.width=g.goal_progress+'%';goalCopy.textContent=g.today_messages>=g.daily_goal?uT('Daily goal complete. Great work today!'):uT('{count} successful tasks left today.',{count:Math.max(0,g.daily_goal-g.today_messages)});levelProgress.style.width=g.level_progress+'%';levelPercent.textContent=g.level_progress+'%';levelNote.textContent=g.level==='Diamond'?uT('Highest level achieved'):uT('{count} tasks unlock the next level',{count:g.next_level_at});levelCopy.textContent=g.level==='Diamond'?uT('You reached the highest 88Task level.'):uT('{count} more successful tasks to advance.',{count:Math.max(0,g.next_level_at-g.lifetime_messages)});countryAlert.innerHTML=p.country_active?'':'<div class="u-alert">'+uEscape(uT('Earning is currently paused for {country}.',{country:p.country_name}))+'</div>';copyReferral.onclick=()=>{const url=new URL('/register',location.origin);url.searchParams.set('ref',p.referral_code);url.searchParams.set('country',p.country_code);navigator.clipboard.writeText(url.toString()).then(()=>uToast(uT('Referral link copied')))}}else uToast(profileResult.reason.message,'error');if(walletResult.status==='fulfilled'){const list=walletResult.value.transactions||[];earnings.innerHTML=list.length?list.map(x=>'<div class="u-row"><div class="u-row-main"><strong>'+uEscape(x.description)+'</strong><span>'+uEscape((x.source_type||'transaction').replaceAll('_',' '))+' · '+uDate(x.created_at)+'</span></div><strong class="u-reward '+(x.direction==='debit'?'debit':'')+'">'+(x.direction==='debit'?'−':'+')+uMoney(x.amount,x.currency_code)+'</strong></div>').join(''):uEmpty('sparkle',uT('No wallet activity'),uT('Your transactions will appear here.'))}else earnings.innerHTML=uEmpty('alert',uT('Wallet unavailable'),uT('Other dashboard features remain available.'));if(bannerResult.status==='fulfilled'){renderBanners(bannerResult.value.banners||[]);uShowEvent((bannerResult.value.banners||[]).filter(item=>item.show_as_popup))}}
 load();setInterval(()=>uProfile().catch(()=>{}),30000);
 </script>
 </body>
