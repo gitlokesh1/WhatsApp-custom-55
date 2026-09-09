@@ -542,12 +542,15 @@ func adminBannersHandler(w http.ResponseWriter, r *http.Request) {
 	if placement == "" {
 		placement = "dashboard"
 	}
-	if placement != "dashboard" && placement != "register" {
+	if placement != "dashboard" && placement != "register" && placement != "login" {
 		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Invalid banner placement"})
 		return
 	}
-	if placement == "register" {
+	if placement == "register" || placement == "login" {
 		showAsPopup = false
+	}
+	if placement == "login" {
+		country = ""
 	}
 	if title == "" || alt == "" || len(title) > 160 || len(body) > 600 || len(alt) > 200 || len(label) > 60 || len(cta) > 200 || !validateCTAURL(cta) {
 		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Check the banner text lengths and use a safe internal CTA link"})

@@ -73,6 +73,7 @@ func userRegisterHandler(w http.ResponseWriter, r *http.Request) {
 		Password      string `json:"password"`
 		ReferralCode  string `json:"referral_code"`
 		CountryCode   string `json:"country_code"`
+		MobileNumber  string `json:"mobile_number"`
 		AcceptedTerms bool   `json:"accepted_terms"`
 	}
 	if json.NewDecoder(r.Body).Decode(&in) != nil || len(strings.TrimSpace(in.Name)) < 2 || len(in.Password) < 6 {
@@ -83,6 +84,22 @@ func userRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if !in.AcceptedTerms {
 		w.WriteHeader(http.StatusBadRequest)
 		userJSON(w, map[string]any{"status": "error", "message": "Accept the Privacy Policy and Terms & Conditions to register"})
+		return
+	}
+	mobileNumber, validMobile := normalizeMobileNumber(in.MobileNumber)
+	if !validMobile {
+		w.WriteHeader(http.StatusBadRequest)
+		userJSON(w, map[string]any{"status": "error", "message": "Enter a valid international mobile number including the country code."})
+		return
+	}
+	var mobileExists bool
+	if err := userDB.QueryRow(`SELECT EXISTS(SELECT 1 FROM public.app_users WHERE mobile_number=$1)`, mobileNumber).Scan(&mobileExists); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if mobileExists {
+		w.WriteHeader(http.StatusConflict)
+		userJSON(w, map[string]any{"status": "error", "message": "This mobile number is already registered"})
 		return
 	}
 	country, err := loadCountry(in.CountryCode, true)
@@ -124,9 +141,9 @@ func userRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var dbID string
 	if refID == nil {
-		err = userDB.QueryRow(`INSERT INTO public.app_users(user_id,referral_code,password_hash,display_name,country_code,terms_accepted_at,policy_version) VALUES($1,$2,$3,$4,$5,now(),'2026-09-09') RETURNING id`, uid, rcode, string(hash), strings.TrimSpace(in.Name), country.Code).Scan(&dbID)
+		err = userDB.QueryRow(`INSERT INTO public.app_users(user_id,referral_code,password_hash,display_name,country_code,mobile_number,terms_accepted_at,policy_version) VALUES($1,$2,$3,$4,$5,$6,now(),'2026-09-09') RETURNING id`, uid, rcode, string(hash), strings.TrimSpace(in.Name), country.Code, mobileNumber).Scan(&dbID)
 	} else {
-		err = userDB.QueryRow(`INSERT INTO public.app_users(user_id,referral_code,password_hash,display_name,referred_by,country_code,terms_accepted_at,policy_version) VALUES($1,$2,$3,$4,$5::uuid,$6,now(),'2026-09-09') RETURNING id`, uid, rcode, string(hash), strings.TrimSpace(in.Name), *refID, country.Code).Scan(&dbID)
+		err = userDB.QueryRow(`INSERT INTO public.app_users(user_id,referral_code,password_hash,display_name,referred_by,country_code,mobile_number,terms_accepted_at,policy_version) VALUES($1,$2,$3,$4,$5::uuid,$6,$7,now(),'2026-09-09') RETURNING id`, uid, rcode, string(hash), strings.TrimSpace(in.Name), *refID, country.Code, mobileNumber).Scan(&dbID)
 	}
 	if err != nil {
 		w.WriteHeader(http.StatusConflict)
@@ -144,6 +161,29 @@ func userRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, &http.Cookie{Name: "lumo_session", Value: token, Path: "/", HttpOnly: true, Secure: r.TLS != nil || strings.HasPrefix(os.Getenv("PUBLIC_BASE_URL"), "https://"), SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
 	userJSON(w, map[string]any{"status": "success", "user_id": uid, "referral_code": rcode, "country": country, "message": "Registration successful"})
+}
+
+func normalizeMobileNumber(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" || value[0] != '+' {
+		return "", false
+	}
+	digits := make([]byte, 0, len(value)-1)
+	for i := 1; i < len(value); i++ {
+		switch value[i] {
+		case ' ', '-', '(', ')', '.':
+			continue
+		default:
+			if value[i] < '0' || value[i] > '9' {
+				return "", false
+			}
+			digits = append(digits, value[i])
+		}
+	}
+	if len(digits) < 8 || len(digits) > 15 || digits[0] == '0' {
+		return "", false
+	}
+	return "+" + string(digits), true
 }
 
 func userLoginHandler(w http.ResponseWriter, r *http.Request) {
