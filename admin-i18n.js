@@ -2688,6 +2688,12 @@
     dictionaries[locale]['nav.withdrawals'] = labels.withdrawals;
     dictionaries[locale]['nav.bonuses'] = labels.bonuses;
   }
+  const messageSafetyNavigation = {
+    en:'Message Safety',hi:'संदेश सुरक्षा',pt:'Segurança de mensagens',es:'Seguridad de mensajes',id:'Keamanan pesan',bn:'বার্তা নিরাপত্তা',ur:'پیغام کی حفاظت',ar:'أمان الرسائل'
+  };
+  for (const [locale, label] of Object.entries(messageSafetyNavigation)) dictionaries[locale]['nav.message_safety'] = label;
+  dictionaries.en['settings.applies_title'] = 'Applies to every outbound message';
+  dictionaries.en['settings.applies_help'] = 'These safeguards cover user earning tasks, automated replies, bulk campaigns, test sends, and post-pairing messages.';
 
   const languageNames = { en:'English', hi:'हिन्दी', pt:'Português', es:'Español', id:'Bahasa Indonesia', bn:'বাংলা', ur:'اردو', ar:'العربية' };
   let language = localStorage.getItem('88task_lang') || 'en';

@@ -35,6 +35,7 @@
       { key: 'health', href: '/admin/account-health', label: 'nav.health', icon: 'health' }
     ] },
     { label: 'nav.messaging', items: [
+      { key: 'settings', href: '/admin/settings', label: 'nav.message_safety', title: 'Message Safety', icon: 'settings' },
       { key: 'control', href: '/admin/control', label: 'nav.conversations', icon: 'conversations' },
       { key: 'bulk', href: '/admin/bulk', label: 'nav.bulk', icon: 'bulk' },
       { key: 'logs', href: '/admin/send-logs', label: 'nav.logs', icon: 'logs' },
@@ -49,7 +50,6 @@
       { key: 'withdrawals', href: '/admin/withdrawals', label: 'nav.withdrawals', title: 'Withdrawals', icon: 'withdrawals' }
     ] },
     { label: 'nav.system', items: [
-      { key: 'settings', href: '/admin/settings', label: 'nav.settings', icon: 'settings' },
       { key: 'schema', href: '/admin/schema', label: 'nav.schema', icon: 'schema' }
     ] }
   ];
@@ -86,6 +86,7 @@
     shell.querySelector('[data-admin-nav-close]').addEventListener('click', () => shell.classList.remove('nav-open'));
     shell.querySelectorAll('.admin-nav a').forEach(link => link.addEventListener('click', () => shell.classList.remove('nav-open')));
     shell.querySelector('[data-admin-logout]').addEventListener('click', window.adminLogout);
+    requestAnimationFrame(() => shell.querySelector('.admin-nav a.active')?.scrollIntoView({ block: 'center' }));
   }
 
   window.adminLogout = () => {
