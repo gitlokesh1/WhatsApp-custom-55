@@ -207,7 +207,23 @@
     'Each successful task counts.': ['हर सफल कार्य मायने रखता है।','Cada tarefa concluída conta.','Cada tarea completada cuenta.','Setiap tugas yang berhasil dihitung.','প্রতিটি সফল কাজ গুরুত্বপূর্ণ।','ہر کامیاب کام اہم ہے۔','كل مهمة ناجحة لها أثر.'],
     'Complete one task daily.': ['रोज़ एक कार्य पूरा करें।','Conclua uma tarefa por dia.','Completa una tarea al día.','Selesaikan satu tugas setiap hari.','প্রতিদিন একটি কাজ শেষ করুন।','روزانہ ایک کام مکمل کریں۔','أكمل مهمة واحدة يوميًا.'],
     'Complete tasks to level up.': ['स्तर बढ़ाने के लिए कार्य पूरे करें।','Conclua tarefas para subir de nível.','Completa tareas para subir de nivel.','Selesaikan tugas untuk naik level.','স্তর বাড়াতে কাজ শেষ করুন।','سطح بڑھانے کے لیے کام مکمل کریں۔','أكمل المهام للارتقاء بالمستوى.'],
-    'Use the User ID you received when you created your account.': ['खाता बनाते समय मिली उपयोगकर्ता आईडी का उपयोग करें।','Use o ID de usuário recebido ao criar sua conta.','Usa el ID de usuario que recibiste al crear tu cuenta.','Gunakan ID pengguna yang diterima saat membuat akun.','অ্যাকাউন্ট তৈরির সময় পাওয়া ব্যবহারকারী আইডি ব্যবহার করুন।','اکاؤنٹ بناتے وقت ملنے والی صارف آئی ڈی استعمال کریں۔','استخدم معرّف المستخدم الذي تلقيته عند إنشاء حسابك.']
+    'Use the User ID you received when you created your account.': ['खाता बनाते समय मिली उपयोगकर्ता आईडी का उपयोग करें।','Use o ID de usuário recebido ao criar sua conta.','Usa el ID de usuario que recibiste al crear tu cuenta.','Gunakan ID pengguna yang diterima saat membuat akun.','অ্যাকাউন্ট তৈরির সময় পাওয়া ব্যবহারকারী আইডি ব্যবহার করুন।','اکاؤنٹ بناتے وقت ملنے والی صارف آئی ڈی استعمال کریں۔','استخدم معرّف المستخدم الذي تلقيته عند إنشاء حسابك.'],
+    'Today at 88Task': ['आज 88Task पर','Hoje na 88Task','Hoy en 88Task','Hari ini di 88Task','আজ 88Task-এ','آج 88Task پر','اليوم في 88Task'],
+    'Ready for today’s rewards?': ['आज के पुरस्कारों के लिए तैयार हैं?','Pronto para as recompensas de hoje?','¿Listo para las recompensas de hoy?','Siap untuk imbalan hari ini?','আজকের পুরস্কারের জন্য প্রস্তুত?','آج کے انعامات کے لیے تیار ہیں؟','هل أنت مستعد لمكافآت اليوم؟'],
+    'Complete verified tasks and keep your streak growing.': ['सत्यापित कार्य पूरे करें और अपनी स्ट्रीक बढ़ाते रहें।','Conclua tarefas verificadas e continue aumentando sua sequência.','Completa tareas verificadas y sigue aumentando tu racha.','Selesaikan tugas terverifikasi dan terus tingkatkan rentetan Anda.','যাচাইকৃত কাজ শেষ করুন এবং ধারাবাহিকতা বাড়াতে থাকুন।','تصدیق شدہ کام مکمل کریں اور اپنا سلسلہ بڑھاتے رہیں۔','أكمل المهام الموثقة وواصل تنمية سلسلتك.'],
+    'Your shortcuts': ['आपके शॉर्टकट','Seus atalhos','Tus accesos directos','Pintasan Anda','আপনার শর্টকাট','آپ کے شارٹ کٹس','اختصاراتك'],
+    'Quick activities': ['त्वरित गतिविधियां','Atividades rápidas','Actividades rápidas','Aktivitas cepat','দ্রুত কার্যক্রম','فوری سرگرمیاں','أنشطة سريعة'],
+    'Earn and manage rewards.': ['पुरस्कार कमाएं और प्रबंधित करें।','Ganhe e gerencie recompensas.','Gana y administra recompensas.','Raih dan kelola imbalan.','পুরস্কার অর্জন ও পরিচালনা করুন।','انعامات کمائیں اور سنبھالیں۔','اكسب المكافآت وأدرها.'],
+    'Complete tasks': ['कार्य पूरे करें','Concluir tarefas','Completar tareas','Selesaikan tugas','কাজ শেষ করুন','کام مکمل کریں','أكمل المهام'],
+    'Start': ['शुरू करें','Começar','Empezar','Mulai','শুরু করুন','شروع کریں','ابدأ'],
+    'Invite friends': ['मित्रों को आमंत्रित करें','Convidar amigos','Invitar amigos','Undang teman','বন্ধুদের আমন্ত্রণ জানান','دوستوں کو مدعو کریں','ادعُ الأصدقاء'],
+    'Grow your referral network.': ['अपना रेफ़रल नेटवर्क बढ़ाएं।','Amplie sua rede de indicações.','Amplía tu red de referidos.','Kembangkan jaringan referensi Anda.','আপনার রেফারেল নেটওয়ার্ক বাড়ান।','اپنا ریفرل نیٹ ورک بڑھائیں۔','نمِّ شبكة إحالاتك.'],
+    'Invite': ['आमंत्रित करें','Convidar','Invitar','Undang','আমন্ত্রণ','مدعو کریں','دعوة'],
+    'accounts linked': ['खाते जुड़े हैं','contas conectadas','cuentas vinculadas','akun terhubung','অ্যাকাউন্ট যুক্ত','اکاؤنٹس منسلک','حسابات مرتبطة'],
+    'Manage': ['प्रबंधित करें','Gerenciar','Gestionar','Kelola','পরিচালনা','منظم کریں','إدارة'],
+    'Available': ['उपलब्ध','Disponível','Disponible','Tersedia','উপলভ্য','دستیاب','متاح'],
+    'per task': ['प्रति कार्य','por tarefa','por tarea','per tugas','প্রতি কাজ','فی کام','لكل مهمة'],
+    'Show banner {count}': ['बैनर {count} दिखाएं','Mostrar banner {count}','Mostrar banner {count}','Tampilkan banner {count}','ব্যানার {count} দেখান','بینر {count} دکھائیں','اعرض اللافتة {count}']
   };
 
   const dictionaries = { en: {} };
