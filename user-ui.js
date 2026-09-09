@@ -45,7 +45,9 @@
   const money = (amount, currency = 'INR') => { try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'INR', maximumFractionDigits: 2 }).format(Number(amount) || 0); } catch (_) { return `${currency || ''} ${(Number(amount) || 0).toFixed(2)}`; } };
   const date = value => value ? new Date(value).toLocaleString() : '—';
   const api = async (url, options = {}) => {
-    const response = await fetch(url, options); const data = await response.json().catch(() => ({}));
+    const request = { ...options, headers: { ...(options.headers || {}) } };
+    if (request.body && typeof request.body !== 'string' && !(request.body instanceof FormData)) { request.body = JSON.stringify(request.body); request.headers['Content-Type'] = 'application/json'; }
+    const response = await fetch(url, request); const data = await response.json().catch(() => ({}));
     if (response.status === 401) { location.href = '/login'; throw new Error('Login required'); }
     if (!response.ok || data.status === 'error') throw new Error(data.message || 'Something went wrong'); return data;
   };

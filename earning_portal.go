@@ -10,14 +10,15 @@ import (
 )
 
 type countryConfig struct {
-	Code         string  `json:"code"`
-	Name         string  `json:"name"`
-	CurrencyCode string  `json:"currency_code"`
-	Timezone     string  `json:"timezone"`
-	Reward       float64 `json:"reward_per_message"`
-	DailyGoal    int     `json:"daily_goal"`
-	Active       bool    `json:"active"`
-	DisplayOrder int     `json:"display_order"`
+	Code               string  `json:"code"`
+	Name               string  `json:"name"`
+	CurrencyCode       string  `json:"currency_code"`
+	Timezone           string  `json:"timezone"`
+	Reward             float64 `json:"reward_per_message"`
+	DailyGoal          int     `json:"daily_goal"`
+	Active             bool    `json:"active"`
+	DisplayOrder       int     `json:"display_order"`
+	WithdrawalsEnabled bool    `json:"withdrawals_enabled"`
 }
 
 func initEarningPortalSchema() error {
@@ -106,11 +107,11 @@ func isUpperAlphaCode(value string, length int) bool {
 
 func loadCountry(code string, activeOnly bool) (countryConfig, error) {
 	var c countryConfig
-	query := `SELECT code,name,currency_code,timezone,reward_per_message,daily_goal,active,display_order FROM public.earning_countries WHERE code=$1`
+	query := `SELECT code,name,currency_code,timezone,reward_per_message,daily_goal,active,display_order,withdrawals_enabled FROM public.earning_countries WHERE code=$1`
 	if activeOnly {
 		query += ` AND active=true`
 	}
-	err := userDB.QueryRow(query, normalizeCountryCode(code)).Scan(&c.Code, &c.Name, &c.CurrencyCode, &c.Timezone, &c.Reward, &c.DailyGoal, &c.Active, &c.DisplayOrder)
+	err := userDB.QueryRow(query, normalizeCountryCode(code)).Scan(&c.Code, &c.Name, &c.CurrencyCode, &c.Timezone, &c.Reward, &c.DailyGoal, &c.Active, &c.DisplayOrder, &c.WithdrawalsEnabled)
 	return c, err
 }
 
@@ -119,7 +120,7 @@ func publicCountriesHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	rows, err := userDB.Query(`SELECT code,name,currency_code,timezone,reward_per_message,daily_goal,active,display_order FROM public.earning_countries WHERE active=true ORDER BY display_order,name`)
+	rows, err := userDB.Query(`SELECT code,name,currency_code,timezone,reward_per_message,daily_goal,active,display_order,withdrawals_enabled FROM public.earning_countries WHERE active=true ORDER BY display_order,name`)
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": "Could not load countries"})
 		return
@@ -128,7 +129,7 @@ func publicCountriesHandler(w http.ResponseWriter, r *http.Request) {
 	countries := []countryConfig{}
 	for rows.Next() {
 		var c countryConfig
-		if rows.Scan(&c.Code, &c.Name, &c.CurrencyCode, &c.Timezone, &c.Reward, &c.DailyGoal, &c.Active, &c.DisplayOrder) == nil {
+		if rows.Scan(&c.Code, &c.Name, &c.CurrencyCode, &c.Timezone, &c.Reward, &c.DailyGoal, &c.Active, &c.DisplayOrder, &c.WithdrawalsEnabled) == nil {
 			countries = append(countries, c)
 		}
 	}
@@ -157,7 +158,7 @@ func userCountrySelectionHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Choose an available country"})
 		return
 	}
-	result, err := userDB.Exec(`UPDATE public.app_users u SET country_code=$1,updated_at=now() WHERE id=$2::uuid AND country_code IS NULL AND COALESCE(balance,0)=0 AND NOT EXISTS(SELECT 1 FROM public.earning_ledger e WHERE e.user_id=u.id)`, country.Code, id)
+	result, err := userDB.Exec(`UPDATE public.app_users u SET country_code=$1,updated_at=now() WHERE id=$2::uuid AND country_code IS NULL AND COALESCE(balance,0)=0 AND NOT EXISTS(SELECT 1 FROM public.wallet_transactions e WHERE e.user_id=u.id)`, country.Code, id)
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": "Could not save country"})
 		return
@@ -249,7 +250,7 @@ func userBannersHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error"})
 		return
 	}
-	rows, err := userDB.Query(`SELECT id,title,body,alt_text,image_url,cta_label,cta_url,show_as_popup FROM public.portal_banners WHERE active=true AND (country_code IS NULL OR country_code=$1) AND (starts_at IS NULL OR starts_at<=now()) AND (ends_at IS NULL OR ends_at>=now()) ORDER BY display_order,created_at DESC`, country.String)
+	rows, err := userDB.Query(`SELECT id,title,body,alt_text,image_url,cta_label,cta_url,show_as_popup FROM public.portal_banners WHERE active=true AND placement='dashboard' AND (country_code IS NULL OR country_code=$1) AND (starts_at IS NULL OR starts_at<=now()) AND (ends_at IS NULL OR ends_at>=now()) ORDER BY display_order,created_at DESC`, country.String)
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": "Could not load banners"})
 		return
@@ -266,6 +267,27 @@ func userBannersHandler(w http.ResponseWriter, r *http.Request) {
 	userFeaturesJSON(w, 200, map[string]any{"status": "success", "banners": out})
 }
 
+func publicBannersHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet || r.URL.Query().Get("placement") != "register" {
+		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Unsupported banner placement"})
+		return
+	}
+	rows, err := userDB.Query(`SELECT id,title,body,alt_text,image_url,cta_label,cta_url FROM public.portal_banners WHERE active=true AND placement='register' AND country_code IS NULL AND (starts_at IS NULL OR starts_at<=now()) AND (ends_at IS NULL OR ends_at>=now()) ORDER BY display_order,created_at DESC`)
+	if err != nil {
+		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": "Could not load banners"})
+		return
+	}
+	defer rows.Close()
+	out := []map[string]any{}
+	for rows.Next() {
+		var id, title, body, alt, image, label, url string
+		if rows.Scan(&id, &title, &body, &alt, &image, &label, &url) == nil {
+			out = append(out, map[string]any{"id": id, "title": title, "body": body, "alt_text": alt, "image_url": image, "cta_label": label, "cta_url": url})
+		}
+	}
+	userFeaturesJSON(w, 200, map[string]any{"status": "success", "banners": out})
+}
+
 func validateTimezone(value string) bool { _, err := time.LoadLocation(value); return err == nil }
 func validateCTAURL(value string) bool {
 	return value == "" || (strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "//"))
@@ -276,6 +298,7 @@ func rewardCreditKey(userID, claimID string) string {
 
 func init() {
 	http.HandleFunc("/api/public/countries", publicCountriesHandler)
+	http.HandleFunc("/api/public/banners", publicBannersHandler)
 	http.HandleFunc("/api/user/country", userCountrySelectionHandler)
 	http.HandleFunc("/api/user/banners", userBannersHandler)
 }

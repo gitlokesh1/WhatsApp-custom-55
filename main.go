@@ -1,48 +1,446 @@
 package main
 
 import (
- "context"
- "encoding/json"
- "net/http"
- "os"
- "strings"
- "time"
- "fmt"
- "database/sql"
- "sync"
- _ "github.com/jackc/pgx/v5/stdlib"
- "go.mau.fi/whatsmeow"
- "go.mau.fi/whatsmeow/store/sqlstore"
- "go.mau.fi/whatsmeow/types"
- waLog "go.mau.fi/whatsmeow/util/log"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/store/sqlstore"
+	"go.mau.fi/whatsmeow/types"
+	waLog "go.mau.fi/whatsmeow/util/log"
+	"net/http"
+	"os"
+	"strings"
+	"sync"
+	"time"
 )
 
-type Session struct { client *whatsmeow.Client; mu sync.Mutex }
-type SessionManager struct { mu sync.RWMutex; sessions map[string]*Session; pending map[string]*Session }
+type Session struct {
+	client *whatsmeow.Client
+	mu     sync.Mutex
+}
+type SessionManager struct {
+	mu       sync.RWMutex
+	sessions map[string]*Session
+	pending  map[string]*Session
+}
+
 var manager = &SessionManager{sessions: make(map[string]*Session), pending: make(map[string]*Session)}
 var userDB *sql.DB
 var waContainer *sqlstore.Container
 
-type APIResponse struct { Status string `json:"status"`; Message string `json:"message,omitempty"`; Connected bool `json:"connected,omitempty"`; Code string `json:"code,omitempty"` }
-type StatusResponse struct { UserID string `json:"user_id"`; LoggedIn bool `json:"logged_in"`; Connected bool `json:"connected"`; State string `json:"state"`; ServerTime string `json:"server_time"` }
-type DeviceInfo struct { UserID string `json:"user_id"`; Phone string `json:"phone,omitempty"`; Connected bool `json:"connected"`; LoggedIn bool `json:"logged_in"`; State string `json:"state"`; UpdatedAt string `json:"updated_at,omitempty"` }
-func enableCORS(w http.ResponseWriter) { w.Header().Set("Access-Control-Allow-Origin","*"); w.Header().Set("Access-Control-Allow-Methods","GET, POST, OPTIONS"); w.Header().Set("Access-Control-Allow-Headers","Content-Type, X-User-ID, X-Admin-Token") }
-func getUserID(r *http.Request) string { id:=strings.TrimSpace(r.URL.Query().Get("user_id")); if id=="" { id=strings.TrimSpace(r.Header.Get("X-User-ID")) }; return id }
-func requireUserID(w http.ResponseWriter,r *http.Request)(string,bool){id:=getUserID(r);if id==""{w.WriteHeader(http.StatusBadRequest);_=json.NewEncoder(w).Encode(APIResponse{Status:"error",Message:"user_id is required"});return "",false};return id,true}
-func getSession(userID string)*Session{manager.mu.RLock();defer manager.mu.RUnlock();if s:=manager.sessions[userID];s!=nil{return s};return manager.pending[userID]}
-func createPendingSession(userID string,s *Session)bool{manager.mu.Lock();defer manager.mu.Unlock();if manager.sessions[userID]!=nil||manager.pending[userID]!=nil{return false};manager.pending[userID]=s;return true}
-func setActive(userID string,s *Session){manager.mu.Lock();delete(manager.pending,userID);manager.sessions[userID]=s;manager.mu.Unlock();if s!=nil&&s.client!=nil{registerConversationPipeline(userID,s.client)}}
-func removeSession(userID string)*Session{manager.mu.Lock();defer manager.mu.Unlock();s:=manager.sessions[userID];delete(manager.sessions,userID);delete(manager.pending,userID);return s}
-func saveUserSession(userID string,jid types.JID)error{now:=time.Now().UTC();if _,err:=userDB.Exec(`INSERT INTO user_sessions(user_id,jid,updated_at) VALUES($1,$2,$3) ON CONFLICT(user_id) DO UPDATE SET jid=excluded.jid,updated_at=excluded.updated_at`,userID,jid.String(),now);err!=nil{return err};_,err:=userDB.Exec(`INSERT INTO public.whatsapp_sessions(user_id,jid,phone,state,connected,logged_in,last_seen_at,updated_at) VALUES($1,$2,$3,'ready',true,true,$4,$4) ON CONFLICT(user_id) DO UPDATE SET jid=excluded.jid,phone=excluded.phone,state=excluded.state,connected=excluded.connected,logged_in=excluded.logged_in,last_seen_at=excluded.last_seen_at,updated_at=excluded.updated_at`,userID,jid.String(),jid.User,now);return err}
-func deleteUserSession(userID string)error{if _,err:=userDB.Exec(`DELETE FROM user_sessions WHERE user_id=$1`,userID);err!=nil{return err};_,err:=userDB.Exec(`DELETE FROM public.whatsapp_sessions WHERE user_id=$1`,userID);return err}
-func loadSessions(ctx context.Context)error{rows,err:=userDB.Query(`SELECT user_id,jid FROM user_sessions`);if err!=nil{return err};defer rows.Close();for rows.Next(){var uid,jidString string;if err:=rows.Scan(&uid,&jidString);err!=nil{return err};jid,err:=types.ParseJID(jidString);if err!=nil{continue};device,err:=waContainer.GetDevice(ctx,jid);if err!=nil||device==nil{continue};client:=whatsmeow.NewClient(device,waLog.Stdout("Client-"+uid,"INFO",true));registerConversationPipeline(uid,client);if err:=client.Connect();err!=nil{continue};manager.mu.Lock();manager.sessions[uid]=&Session{client:client};manager.mu.Unlock()};return rows.Err()}
-func initSupabaseTables()error{_,err:=userDB.Exec(`CREATE TABLE IF NOT EXISTS public.user_sessions(user_id TEXT PRIMARY KEY,jid TEXT NOT NULL UNIQUE,updated_at TIMESTAMPTZ NOT NULL DEFAULT now()); CREATE TABLE IF NOT EXISTS public.pairing_links(token TEXT PRIMARY KEY,user_id TEXT NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT now(),expires_at TIMESTAMPTZ NOT NULL,used BOOLEAN NOT NULL DEFAULT false); CREATE INDEX IF NOT EXISTS pairing_links_user_idx ON public.pairing_links(user_id); CREATE INDEX IF NOT EXISTS pairing_links_expires_idx ON public.pairing_links(expires_at);`);return err}
-func main(){ctx:=context.Background();dbLog:=waLog.Stdout("Database","WARN",true);dbURL:=strings.TrimSpace(os.Getenv("SUPABASE_DB_URL"));if dbURL==""{panic("SUPABASE_DB_URL is required. Add the Supabase Postgres connection string to Render.")};var err error;waContainer,err=sqlstore.New(ctx,"pgx",dbURL,dbLog);if err!=nil{panic(err)};userDB,err=sql.Open("pgx",dbURL);if err!=nil{panic(err)};userDB.SetMaxOpenConns(10);userDB.SetMaxIdleConns(5);userDB.SetConnMaxLifetime(30*time.Minute);if err=userDB.PingContext(ctx);err!=nil{panic(err)};if err=initSupabaseTables();err!=nil{panic(err)};if err=initEarningPortalSchema();err!=nil{panic(err)};if err=migrateLegacySQLite(ctx);err!=nil{panic(err)};if err=loadSessions(ctx);err!=nil{panic(err)};http.HandleFunc("/favicon.ico",faviconHandler);http.HandleFunc("/",rootHandler);http.HandleFunc("/pairing",pairingPageHandler);http.HandleFunc("/pair",pairHandler);http.HandleFunc("/send",sendHandler);http.HandleFunc("/status",statusHandler);http.HandleFunc("/devices",devicesHandler);fmt.Println("Multi-user WhatsApp API Server running on port 3000 with Supabase PostgreSQL session storage...");if err=http.ListenAndServe(":3000",nil);err!=nil{panic(err)}}
-func faviconHandler(w http.ResponseWriter,r *http.Request){w.WriteHeader(http.StatusNoContent)}
-func pairingPageHandler(w http.ResponseWriter,r *http.Request){if r.Method!=http.MethodGet{w.WriteHeader(http.StatusMethodNotAllowed);return};http.ServeFile(w,r,"pairing.html")}
-func statusHandler(w http.ResponseWriter,r *http.Request){enableCORS(w);w.Header().Set("Content-Type","application/json");if r.Method==http.MethodOptions{w.WriteHeader(http.StatusNoContent);return};if r.Method!=http.MethodGet{w.WriteHeader(http.StatusMethodNotAllowed);return};uid,ok:=requireUserID(w,r);if !ok{return};s:=getSession(uid);response:=StatusResponse{UserID:uid,State:"not_found",ServerTime:time.Now().UTC().Format(time.RFC3339Nano)};if s!=nil&&s.client!=nil{response.LoggedIn=s.client.IsLoggedIn();response.Connected=s.client.IsConnected();switch{case response.LoggedIn&&response.Connected:response.State="ready";case response.Connected:response.State="connected";case response.LoggedIn:response.State="logged_in";default:response.State="disconnected"};if response.LoggedIn&&s.client.Store!=nil&&s.client.Store.ID!=nil{if err:=saveUserSession(uid,*s.client.Store.ID);err==nil{setActive(uid,s)}}};statusCode:=http.StatusServiceUnavailable;if response.Connected{statusCode=http.StatusOK};w.WriteHeader(statusCode);_=json.NewEncoder(w).Encode(response)}
-func devicesHandler(w http.ResponseWriter,r *http.Request){enableCORS(w);w.Header().Set("Content-Type","application/json");if r.Method==http.MethodOptions{w.WriteHeader(http.StatusNoContent);return};if r.Method!=http.MethodGet{w.WriteHeader(http.StatusMethodNotAllowed);return};rows,err:=userDB.Query(`SELECT user_id,jid,updated_at FROM user_sessions ORDER BY updated_at DESC`);if err!=nil{w.WriteHeader(http.StatusInternalServerError);_=json.NewEncoder(w).Encode(APIResponse{Status:"error",Message:err.Error()});return};defer rows.Close();devices:=make([]DeviceInfo,0);for rows.Next(){var uid,jidString string;var updated time.Time;if err:=rows.Scan(&uid,&jidString,&updated);err!=nil{continue};info:=DeviceInfo{UserID:uid,UpdatedAt:updated.UTC().Format(time.RFC3339)};if jid,err:=types.ParseJID(jidString);err==nil{info.Phone=jid.User};if s:=getSession(uid);s!=nil&&s.client!=nil{info.LoggedIn=s.client.IsLoggedIn();info.Connected=s.client.IsConnected();switch{case info.LoggedIn&&info.Connected:info.State="ready";case info.Connected:info.State="connected";case info.LoggedIn:info.State="logged_in";default:info.State="disconnected"}}else{info.State="offline"};devices=append(devices,info)};_=json.NewEncoder(w).Encode(map[string]any{"status":"success","devices":devices})}
-func rootHandler(w http.ResponseWriter,r *http.Request){enableCORS(w);w.Header().Set("Content-Type","application/json");if r.Method==http.MethodOptions{w.WriteHeader(http.StatusNoContent);return};uid,ok:=requireUserID(w,r);if !ok{return};s:=getSession(uid);connected:=s!=nil&&s.client!=nil&&s.client.IsConnected();loggedIn:=s!=nil&&s.client!=nil&&s.client.IsLoggedIn();status:="Not Logged In";if loggedIn&&connected{status="Logged In & Ready"}else if loggedIn{status="Logged In but Disconnected"};_=json.NewEncoder(w).Encode(APIResponse{Status:"success",Message:"API is running. State: "+status,Connected:connected})}
-func pairHandler(w http.ResponseWriter,r *http.Request){enableCORS(w);w.Header().Set("Content-Type","application/json");if r.Method==http.MethodOptions{w.WriteHeader(http.StatusNoContent);return};if r.Method!=http.MethodGet{w.WriteHeader(http.StatusMethodNotAllowed);return};uid,ok:=requireUserID(w,r);if !ok{return};phone:=strings.TrimSpace(r.URL.Query().Get("phone"));if phone==""{_=json.NewEncoder(w).Encode(APIResponse{Status:"error",Message:"Invalid phone"});return};if existing:=getSession(uid);existing!=nil{if existing.client!=nil&&existing.client.IsLoggedIn(){_=json.NewEncoder(w).Encode(APIResponse{Status:"error",Message:"Already paired! Use the admin/user logout flow to reset.",Connected:existing.client.IsConnected()});return};_=json.NewEncoder(w).Encode(APIResponse{Status:"error",Message:"Pairing already in progress"});return};device:=waContainer.NewDevice();client:=whatsmeow.NewClient(device,waLog.Stdout("Client-"+uid,"INFO",true));registerConversationPipeline(uid,client);if err:=client.Connect();err!=nil{_=json.NewEncoder(w).Encode(APIResponse{Status:"error",Message:err.Error()});return};s:=&Session{client:client};if !createPendingSession(uid,s){_=json.NewEncoder(w).Encode(APIResponse{Status:"error",Message:"Pairing already in progress"});return};code,err:=client.PairPhone(context.Background(),phone,true,whatsmeow.PairClientChrome,"Chrome (Linux)");if err!=nil{removeSession(uid);_=json.NewEncoder(w).Encode(APIResponse{Status:"error",Message:err.Error(),Connected:client.IsConnected()});return};_=json.NewEncoder(w).Encode(APIResponse{Status:"success",Code:code,Connected:client.IsConnected(),Message:"Pairing started. Poll /status with the same user_id."})}
-func sendHandler(w http.ResponseWriter,r *http.Request){enableCORS(w);w.Header().Set("Content-Type","application/json");if r.Method==http.MethodOptions{w.WriteHeader(http.StatusNoContent);return};if r.Method!=http.MethodGet{w.WriteHeader(http.StatusMethodNotAllowed);return};uid,ok:=requireUserID(w,r);if !ok{return};s:=getSession(uid);if s==nil||s.client==nil||!s.client.IsLoggedIn()||!s.client.IsConnected(){_=json.NewEncoder(w).Encode(APIResponse{Status:"error",Message:"Bot is not connected",Connected:false});return};phone:=strings.TrimSpace(r.URL.Query().Get("phone"));text:=r.URL.Query().Get("text");if phone==""||text==""{_=json.NewEncoder(w).Encode(APIResponse{Status:"error",Message:"Phone and text are required",Connected:true});return};s.mu.Lock();defer s.mu.Unlock();err:=safeSendMessage(uid,s.client,types.JID{User:phone,Server:types.DefaultUserServer},text);if err!=nil{_=json.NewEncoder(w).Encode(APIResponse{Status:"error",Message:err.Error(),Connected:s.client.IsConnected()});return};_=json.NewEncoder(w).Encode(APIResponse{Status:"success",Message:"Message sent with ban-safety controls!",Connected:s.client.IsConnected()})}
-func settingInt(key string,def,min,max int)int{v:=getAdminSetting(key,fmt.Sprint(def));var n int;if _,err:=fmt.Sscanf(v,"%d",&n);err!=nil||n<min{return def};if n>max{return max};return n}
+type APIResponse struct {
+	Status    string `json:"status"`
+	Message   string `json:"message,omitempty"`
+	Connected bool   `json:"connected,omitempty"`
+	Code      string `json:"code,omitempty"`
+}
+type StatusResponse struct {
+	UserID     string `json:"user_id"`
+	LoggedIn   bool   `json:"logged_in"`
+	Connected  bool   `json:"connected"`
+	State      string `json:"state"`
+	ServerTime string `json:"server_time"`
+}
+type DeviceInfo struct {
+	UserID    string `json:"user_id"`
+	Phone     string `json:"phone,omitempty"`
+	Connected bool   `json:"connected"`
+	LoggedIn  bool   `json:"logged_in"`
+	State     string `json:"state"`
+	UpdatedAt string `json:"updated_at,omitempty"`
+}
+
+func enableCORS(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-User-ID, X-Admin-Token")
+}
+func getUserID(r *http.Request) string {
+	id := strings.TrimSpace(r.URL.Query().Get("user_id"))
+	if id == "" {
+		id = strings.TrimSpace(r.Header.Get("X-User-ID"))
+	}
+	return id
+}
+func requireUserID(w http.ResponseWriter, r *http.Request) (string, bool) {
+	id := getUserID(r)
+	if id == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: "user_id is required"})
+		return "", false
+	}
+	return id, true
+}
+func getSession(userID string) *Session {
+	manager.mu.RLock()
+	defer manager.mu.RUnlock()
+	if s := manager.sessions[userID]; s != nil {
+		return s
+	}
+	return manager.pending[userID]
+}
+func createPendingSession(userID string, s *Session) bool {
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	if manager.sessions[userID] != nil || manager.pending[userID] != nil {
+		return false
+	}
+	manager.pending[userID] = s
+	return true
+}
+func setActive(userID string, s *Session) {
+	manager.mu.Lock()
+	delete(manager.pending, userID)
+	manager.sessions[userID] = s
+	manager.mu.Unlock()
+	if s != nil && s.client != nil {
+		registerConversationPipeline(userID, s.client)
+	}
+}
+func removeSession(userID string) *Session {
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	s := manager.sessions[userID]
+	delete(manager.sessions, userID)
+	delete(manager.pending, userID)
+	return s
+}
+func saveUserSession(userID string, jid types.JID) error {
+	now := time.Now().UTC()
+	if _, err := userDB.Exec(`INSERT INTO user_sessions(user_id,jid,updated_at) VALUES($1,$2,$3) ON CONFLICT(user_id) DO UPDATE SET jid=excluded.jid,updated_at=excluded.updated_at`, userID, jid.String(), now); err != nil {
+		return err
+	}
+	_, err := userDB.Exec(`INSERT INTO public.whatsapp_sessions(user_id,jid,phone,state,connected,logged_in,last_seen_at,updated_at) VALUES($1,$2,$3,'ready',true,true,$4,$4) ON CONFLICT(user_id) DO UPDATE SET jid=excluded.jid,phone=excluded.phone,state=excluded.state,connected=excluded.connected,logged_in=excluded.logged_in,last_seen_at=excluded.last_seen_at,updated_at=excluded.updated_at`, userID, jid.String(), jid.User, now)
+	return err
+}
+func deleteUserSession(userID string) error {
+	if _, err := userDB.Exec(`DELETE FROM user_sessions WHERE user_id=$1`, userID); err != nil {
+		return err
+	}
+	_, err := userDB.Exec(`DELETE FROM public.whatsapp_sessions WHERE user_id=$1`, userID)
+	return err
+}
+func loadSessions(ctx context.Context) error {
+	rows, err := userDB.Query(`SELECT user_id,jid FROM user_sessions`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var uid, jidString string
+		if err := rows.Scan(&uid, &jidString); err != nil {
+			return err
+		}
+		jid, err := types.ParseJID(jidString)
+		if err != nil {
+			continue
+		}
+		device, err := waContainer.GetDevice(ctx, jid)
+		if err != nil || device == nil {
+			continue
+		}
+		client := whatsmeow.NewClient(device, waLog.Stdout("Client-"+uid, "INFO", true))
+		registerConversationPipeline(uid, client)
+		if err := client.Connect(); err != nil {
+			continue
+		}
+		manager.mu.Lock()
+		manager.sessions[uid] = &Session{client: client}
+		manager.mu.Unlock()
+	}
+	return rows.Err()
+}
+func initSupabaseTables() error {
+	_, err := userDB.Exec(`CREATE TABLE IF NOT EXISTS public.user_sessions(user_id TEXT PRIMARY KEY,jid TEXT NOT NULL UNIQUE,updated_at TIMESTAMPTZ NOT NULL DEFAULT now()); CREATE TABLE IF NOT EXISTS public.pairing_links(token TEXT PRIMARY KEY,user_id TEXT NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT now(),expires_at TIMESTAMPTZ NOT NULL,used BOOLEAN NOT NULL DEFAULT false); CREATE INDEX IF NOT EXISTS pairing_links_user_idx ON public.pairing_links(user_id); CREATE INDEX IF NOT EXISTS pairing_links_expires_idx ON public.pairing_links(expires_at);`)
+	return err
+}
+func main() {
+	ctx := context.Background()
+	dbLog := waLog.Stdout("Database", "WARN", true)
+	dbURL := strings.TrimSpace(os.Getenv("SUPABASE_DB_URL"))
+	if dbURL == "" {
+		panic("SUPABASE_DB_URL is required. Add the Supabase Postgres connection string to Render.")
+	}
+	var err error
+	waContainer, err = sqlstore.New(ctx, "pgx", dbURL, dbLog)
+	if err != nil {
+		panic(err)
+	}
+	userDB, err = sql.Open("pgx", dbURL)
+	if err != nil {
+		panic(err)
+	}
+	userDB.SetMaxOpenConns(10)
+	userDB.SetMaxIdleConns(5)
+	userDB.SetConnMaxLifetime(30 * time.Minute)
+	if err = userDB.PingContext(ctx); err != nil {
+		panic(err)
+	}
+	if err = initSupabaseTables(); err != nil {
+		panic(err)
+	}
+	if err = initEarningPortalSchema(); err != nil {
+		panic(err)
+	}
+	if err = initWalletSchema(); err != nil {
+		panic(err)
+	}
+	if err = migrateLegacySQLite(ctx); err != nil {
+		panic(err)
+	}
+	if err = loadSessions(ctx); err != nil {
+		panic(err)
+	}
+	http.HandleFunc("/favicon.ico", faviconHandler)
+	http.HandleFunc("/", adminHandler(rootHandler))
+	http.HandleFunc("/pairing", pairingPageHandler)
+	http.HandleFunc("/pair", adminHandler(pairHandler))
+	http.HandleFunc("/send", adminHandler(sendHandler))
+	http.HandleFunc("/status", adminHandler(statusHandler))
+	http.HandleFunc("/devices", adminHandler(devicesHandler))
+	fmt.Println("Multi-user WhatsApp API Server running on port 3000 with Supabase PostgreSQL session storage...")
+	if err = http.ListenAndServe(":3000", requestSizeLimits(securityHeaders(http.DefaultServeMux))); err != nil {
+		panic(err)
+	}
+}
+
+func requestSizeLimits(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		limit := int64(2 << 20)
+		if r.URL.Path == "/admin/banners/data" {
+			limit = 6 << 20
+		}
+		http.MaxBytesHandler(next, limit).ServeHTTP(w, r)
+	})
+}
+
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		w.Header().Set("X-Frame-Options", "DENY")
+		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/admin/") {
+			w.Header().Set("Cache-Control", "no-store")
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+func faviconHandler(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) }
+func pairingPageHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	http.ServeFile(w, r, "pairing.html")
+}
+func statusHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	uid, ok := requireUserID(w, r)
+	if !ok {
+		return
+	}
+	s := getSession(uid)
+	response := StatusResponse{UserID: uid, State: "not_found", ServerTime: time.Now().UTC().Format(time.RFC3339Nano)}
+	if s != nil && s.client != nil {
+		response.LoggedIn = s.client.IsLoggedIn()
+		response.Connected = s.client.IsConnected()
+		switch {
+		case response.LoggedIn && response.Connected:
+			response.State = "ready"
+		case response.Connected:
+			response.State = "connected"
+		case response.LoggedIn:
+			response.State = "logged_in"
+		default:
+			response.State = "disconnected"
+		}
+		if response.LoggedIn && s.client.Store != nil && s.client.Store.ID != nil {
+			if err := saveUserSession(uid, *s.client.Store.ID); err == nil {
+				setActive(uid, s)
+			}
+		}
+	}
+	statusCode := http.StatusServiceUnavailable
+	if response.Connected {
+		statusCode = http.StatusOK
+	}
+	w.WriteHeader(statusCode)
+	_ = json.NewEncoder(w).Encode(response)
+}
+func devicesHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	rows, err := userDB.Query(`SELECT user_id,jid,updated_at FROM user_sessions ORDER BY updated_at DESC`)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: err.Error()})
+		return
+	}
+	defer rows.Close()
+	devices := make([]DeviceInfo, 0)
+	for rows.Next() {
+		var uid, jidString string
+		var updated time.Time
+		if err := rows.Scan(&uid, &jidString, &updated); err != nil {
+			continue
+		}
+		info := DeviceInfo{UserID: uid, UpdatedAt: updated.UTC().Format(time.RFC3339)}
+		if jid, err := types.ParseJID(jidString); err == nil {
+			info.Phone = jid.User
+		}
+		if s := getSession(uid); s != nil && s.client != nil {
+			info.LoggedIn = s.client.IsLoggedIn()
+			info.Connected = s.client.IsConnected()
+			switch {
+			case info.LoggedIn && info.Connected:
+				info.State = "ready"
+			case info.Connected:
+				info.State = "connected"
+			case info.LoggedIn:
+				info.State = "logged_in"
+			default:
+				info.State = "disconnected"
+			}
+		} else {
+			info.State = "offline"
+		}
+		devices = append(devices, info)
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{"status": "success", "devices": devices})
+}
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	uid, ok := requireUserID(w, r)
+	if !ok {
+		return
+	}
+	s := getSession(uid)
+	connected := s != nil && s.client != nil && s.client.IsConnected()
+	loggedIn := s != nil && s.client != nil && s.client.IsLoggedIn()
+	status := "Not Logged In"
+	if loggedIn && connected {
+		status = "Logged In & Ready"
+	} else if loggedIn {
+		status = "Logged In but Disconnected"
+	}
+	_ = json.NewEncoder(w).Encode(APIResponse{Status: "success", Message: "API is running. State: " + status, Connected: connected})
+}
+func pairHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	uid, ok := requireUserID(w, r)
+	if !ok {
+		return
+	}
+	phone := strings.TrimSpace(r.URL.Query().Get("phone"))
+	if phone == "" {
+		_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: "Invalid phone"})
+		return
+	}
+	if existing := getSession(uid); existing != nil {
+		if existing.client != nil && existing.client.IsLoggedIn() {
+			_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: "Already paired! Use the admin/user logout flow to reset.", Connected: existing.client.IsConnected()})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: "Pairing already in progress"})
+		return
+	}
+	device := waContainer.NewDevice()
+	client := whatsmeow.NewClient(device, waLog.Stdout("Client-"+uid, "INFO", true))
+	registerConversationPipeline(uid, client)
+	if err := client.Connect(); err != nil {
+		_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: err.Error()})
+		return
+	}
+	s := &Session{client: client}
+	if !createPendingSession(uid, s) {
+		_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: "Pairing already in progress"})
+		return
+	}
+	code, err := client.PairPhone(context.Background(), phone, true, whatsmeow.PairClientChrome, "Chrome (Linux)")
+	if err != nil {
+		removeSession(uid)
+		_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: err.Error(), Connected: client.IsConnected()})
+		return
+	}
+	_ = json.NewEncoder(w).Encode(APIResponse{Status: "success", Code: code, Connected: client.IsConnected(), Message: "Pairing started. Poll /status with the same user_id."})
+}
+func sendHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	uid, ok := requireUserID(w, r)
+	if !ok {
+		return
+	}
+	s := getSession(uid)
+	if s == nil || s.client == nil || !s.client.IsLoggedIn() || !s.client.IsConnected() {
+		_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: "Bot is not connected", Connected: false})
+		return
+	}
+	phone := strings.TrimSpace(r.URL.Query().Get("phone"))
+	text := r.URL.Query().Get("text")
+	if phone == "" || text == "" {
+		_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: "Phone and text are required", Connected: true})
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	err := safeSendMessage(uid, s.client, types.JID{User: phone, Server: types.DefaultUserServer}, text)
+	if err != nil {
+		_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: err.Error(), Connected: s.client.IsConnected()})
+		return
+	}
+	_ = json.NewEncoder(w).Encode(APIResponse{Status: "success", Message: "Message sent with ban-safety controls!", Connected: s.client.IsConnected()})
+}
+func settingInt(key string, def, min, max int) int {
+	v := getAdminSetting(key, fmt.Sprint(def))
+	var n int
+	if _, err := fmt.Sscanf(v, "%d", &n); err != nil || n < min {
+		return def
+	}
+	if n > max {
+		return max
+	}
+	return n
+}
