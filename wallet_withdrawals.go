@@ -50,7 +50,7 @@ func initWalletSchema() error {
 		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false;
 		ALTER TABLE public.earning_countries ADD COLUMN IF NOT EXISTS withdrawals_enabled BOOLEAN NOT NULL DEFAULT false;
 		ALTER TABLE public.portal_banners ADD COLUMN IF NOT EXISTS placement TEXT NOT NULL DEFAULT 'dashboard';
-		UPDATE public.portal_banners SET placement='dashboard' WHERE placement IS NULL OR placement NOT IN ('dashboard','register');
+		UPDATE public.portal_banners SET placement='dashboard' WHERE placement IS NULL OR placement NOT IN ('dashboard','register','login');
 
 		CREATE TABLE IF NOT EXISTS public.wallet_transactions (
 			id UUID PRIMARY KEY,

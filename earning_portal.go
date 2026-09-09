@@ -42,6 +42,7 @@ func initEarningPortalSchema() error {
 		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS country_code TEXT;
 		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;
 		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS policy_version TEXT NOT NULL DEFAULT '';
+		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS mobile_number TEXT;
 		ALTER TABLE public.task_definitions ADD COLUMN IF NOT EXISTS country_code TEXT;
 		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS country_code TEXT;
 		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS currency_code TEXT;
@@ -50,6 +51,7 @@ func initEarningPortalSchema() error {
 		ALTER TABLE public.earning_ledger ADD COLUMN IF NOT EXISTS credit_key TEXT;
 		CREATE UNIQUE INDEX IF NOT EXISTS earning_ledger_credit_key_idx ON public.earning_ledger(credit_key) WHERE credit_key IS NOT NULL;
 		CREATE INDEX IF NOT EXISTS app_users_country_idx ON public.app_users(country_code,status);
+		CREATE UNIQUE INDEX IF NOT EXISTS app_users_mobile_number_unique_idx ON public.app_users(mobile_number) WHERE mobile_number IS NOT NULL;
 		CREATE INDEX IF NOT EXISTS task_definitions_country_idx ON public.task_definitions(country_code,active);
 
 		UPDATE public.earning_ledger SET currency_code='INR',country_code='IN'
@@ -270,16 +272,26 @@ func userBannersHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func publicBannersHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet || r.URL.Query().Get("placement") != "register" {
+	placement := strings.TrimSpace(r.URL.Query().Get("placement"))
+	if r.Method != http.MethodGet || (placement != "register" && placement != "login") {
 		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Unsupported banner placement"})
 		return
 	}
-	country := normalizeCountryCode(r.URL.Query().Get("country"))
+	country := ""
+	if placement == "register" {
+		country = normalizeCountryCode(r.URL.Query().Get("country"))
+	}
 	if country != "" && !isUpperAlphaCode(country, 2) {
 		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Invalid country code"})
 		return
 	}
-	rows, err := userDB.Query(`SELECT id,title,body,alt_text,image_url,cta_label,cta_url FROM public.portal_banners WHERE active=true AND placement='register' AND (country_code IS NULL OR ($1<>'' AND country_code=$1)) AND (starts_at IS NULL OR starts_at<=now()) AND (ends_at IS NULL OR ends_at>=now()) ORDER BY CASE WHEN country_code=$1 THEN 0 ELSE 1 END,display_order,created_at DESC`, country)
+	query := `SELECT id,title,body,alt_text,image_url,cta_label,cta_url FROM public.portal_banners WHERE active=true AND placement='register' AND (country_code IS NULL OR ($1<>'' AND country_code=$1)) AND (starts_at IS NULL OR starts_at<=now()) AND (ends_at IS NULL OR ends_at>=now()) ORDER BY CASE WHEN country_code=$1 THEN 0 ELSE 1 END,display_order,created_at DESC`
+	args := []any{country}
+	if placement == "login" {
+		query = `SELECT id,title,body,alt_text,image_url,cta_label,cta_url FROM public.portal_banners WHERE active=true AND placement='login' AND country_code IS NULL AND (starts_at IS NULL OR starts_at<=now()) AND (ends_at IS NULL OR ends_at>=now()) ORDER BY display_order,created_at DESC`
+		args = nil
+	}
+	rows, err := userDB.Query(query, args...)
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": "Could not load banners"})
 		return
