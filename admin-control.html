@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>88Task • Conversation Control</title><link rel="stylesheet" href="/admin-ui.css?v=20260909.4"></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>88Task • Conversation Control</title><link rel="stylesheet" href="/admin-ui.css?v=20260909.5"></head><body>
 <main data-admin-page="control">
   <header class="admin-page-head"><div><div class="admin-eyebrow" data-i18n="control.eyebrow">Conversation operations</div><h1 data-i18n="control.title">Conversation control</h1><p data-i18n="control.subtitle">Manage automated replies, handoffs, consent, outbound queues, and operator responses.</p></div><button id="refreshButton" class="admin-btn" type="button" data-i18n="common.refresh">Refresh</button></header>
   <section class="admin-stats"><article class="admin-stat"><div class="admin-stat-label" data-i18n="control.conversations">Conversations</div><div id="conversationCount" class="admin-stat-value">—</div></article><article class="admin-stat warning"><div class="admin-stat-label" data-i18n="dashboard.handoffs">Human handoffs</div><div id="handoffCount" class="admin-stat-value">—</div></article><article class="admin-stat warning"><div class="admin-stat-label" data-i18n="status.queued">Queued</div><div id="queueCount" class="admin-stat-value">—</div></article><article class="admin-stat"><div class="admin-stat-label" data-i18n="status.delivered">Delivered</div><div id="deliveredCount" class="admin-stat-value">—</div></article><article class="admin-stat danger"><div class="admin-stat-label" data-i18n="status.failed">Failed</div><div id="failedCount" class="admin-stat-value">—</div></article></section>
@@ -14,7 +14,7 @@
     </div>
   </section>
 </main>
-<script src="/admin-ui.js?v=20260909.4"></script><script src="/admin-i18n.js?v=20260909.7"></script>
+<script src="/admin-ui.js?v=20260909.5"></script><script src="/admin-i18n.js?v=20260909.8"></script>
 <script>
 let controlState={conversations:[],queue:[],accounts:[],audit:[],stats:{}},controlLoadID=0;
 async function controlAction(payload){return adminApi('/admin/control/action',{method:'POST',body:JSON.stringify(payload)})}

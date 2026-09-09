@@ -547,7 +547,6 @@ func adminBannersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if placement == "register" {
-		country = ""
 		showAsPopup = false
 	}
 	if title == "" || alt == "" || len(title) > 160 || len(body) > 600 || len(alt) > 200 || len(label) > 60 || len(cta) > 200 || !validateCTAURL(cta) {

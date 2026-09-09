@@ -274,7 +274,12 @@ func publicBannersHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Unsupported banner placement"})
 		return
 	}
-	rows, err := userDB.Query(`SELECT id,title,body,alt_text,image_url,cta_label,cta_url FROM public.portal_banners WHERE active=true AND placement='register' AND country_code IS NULL AND (starts_at IS NULL OR starts_at<=now()) AND (ends_at IS NULL OR ends_at>=now()) ORDER BY display_order,created_at DESC`)
+	country := normalizeCountryCode(r.URL.Query().Get("country"))
+	if country != "" && !isUpperAlphaCode(country, 2) {
+		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Invalid country code"})
+		return
+	}
+	rows, err := userDB.Query(`SELECT id,title,body,alt_text,image_url,cta_label,cta_url FROM public.portal_banners WHERE active=true AND placement='register' AND (country_code IS NULL OR ($1<>'' AND country_code=$1)) AND (starts_at IS NULL OR starts_at<=now()) AND (ends_at IS NULL OR ends_at>=now()) ORDER BY CASE WHEN country_code=$1 THEN 0 ELSE 1 END,display_order,created_at DESC`, country)
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": "Could not load banners"})
 		return
