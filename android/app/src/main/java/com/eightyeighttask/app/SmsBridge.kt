@@ -47,6 +47,9 @@ class SmsBridge(
                 return@runOnUiThread
             }
             if (waitingTask != null || !SmsResultStore.canStart(activity)) {
+                if (SmsResultStore.pending(activity) == null) {
+                    activity.showMessage("SMS task in progress", "Wait for the current SMS task to finish.")
+                }
                 deliverPending()
                 return@runOnUiThread
             }
