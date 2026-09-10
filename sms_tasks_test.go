@@ -23,7 +23,7 @@ func TestAndroidSMSResultSignature(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	payload := smsResultPayload("claim", "nonce", "sent", 2, 1234)
+	payload := smsResultPayload("claim", "nonce", "installation", "sent", 2, 1234, "")
 	digest := sha256.Sum256([]byte(payload))
 	signature, err := ecdsa.SignASN1(rand.Reader, privateKey, digest[:])
 	if err != nil {
@@ -33,8 +33,14 @@ func TestAndroidSMSResultSignature(t *testing.T) {
 	if !verifySMSResultSignature(publicKey, payload, encoded) {
 		t.Fatal("expected signature to verify")
 	}
-	if verifySMSResultSignature(publicKey, smsResultPayload("claim", "nonce", "failed", 2, 1234), encoded) {
+	if verifySMSResultSignature(publicKey, smsResultPayload("claim", "nonce", "installation", "failed", 2, 1234, ""), encoded) {
 		t.Fatal("signature must not verify after result tampering")
+	}
+	if verifySMSResultSignature(publicKey, smsResultPayload("claim", "nonce", "other-installation", "sent", 2, 1234, ""), encoded) {
+		t.Fatal("signature must bind the installation")
+	}
+	if verifySMSResultSignature(publicKey, smsResultPayload("claim", "nonce", "installation", "sent", 2, 1234, "changed"), encoded) {
+		t.Fatal("signature must bind the failure reason")
 	}
 }
 

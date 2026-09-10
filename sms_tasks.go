@@ -35,8 +35,8 @@ func parseAndroidPublicKey(encoded string) (*ecdsa.PublicKey, []byte, error) {
 	return publicKey, der, nil
 }
 
-func smsResultPayload(claimID, nonce, result string, parts int, timestamp int64) string {
-	return strings.Join([]string{claimID, nonce, result, strconv.Itoa(parts), strconv.FormatInt(timestamp, 10)}, "\n")
+func smsResultPayload(claimID, nonce, installationID, result string, parts int, timestamp int64, failureReason string) string {
+	return strings.Join([]string{claimID, nonce, installationID, result, strconv.Itoa(parts), strconv.FormatInt(timestamp, 10), failureReason}, "\n")
 }
 
 func verifySMSResultSignature(publicKey *ecdsa.PublicKey, payload, encodedSignature string) bool {
@@ -133,11 +133,23 @@ func userSMSTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var installationPublicKey []byte
-	if err = tx.QueryRow(`SELECT public_key_der FROM public.android_installations WHERE id=$1::uuid AND user_id=$2::uuid AND active=true`, in.InstallationID, userID).Scan(&installationPublicKey); err != nil {
+	if err = tx.QueryRow(`SELECT public_key_der FROM public.android_installations WHERE id=$1::uuid AND user_id=$2::uuid AND active=true FOR UPDATE`, in.InstallationID, userID).Scan(&installationPublicKey); err != nil {
 		userFeaturesJSON(w, http.StatusForbidden, map[string]any{"status": "error", "message": "Register this Android installation first"})
 		return
 	}
-	_, _ = tx.Exec(`UPDATE public.task_claims SET status='expired',updated_at=now() WHERE task_id=$1::uuid AND user_id=$2::uuid AND channel='sms' AND status='sending' AND expires_at<=now()`, in.TaskID, userID)
+	if _, err = tx.Exec(`UPDATE public.task_claims SET status='expired',updated_at=now() WHERE android_installation_id=$1::uuid AND channel='sms' AND status='sending' AND expires_at<=now()`, in.InstallationID); err != nil {
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error"})
+		return
+	}
+	var installationBusy bool
+	if err = tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM public.task_claims WHERE android_installation_id=$1::uuid AND channel='sms' AND status='sending')`, in.InstallationID).Scan(&installationBusy); err != nil {
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error"})
+		return
+	}
+	if installationBusy {
+		userFeaturesJSON(w, http.StatusConflict, map[string]any{"status": "error", "message": "Finish the pending SMS task on this device first"})
+		return
+	}
 	var title, message, target string
 	if err = tx.QueryRow(`SELECT title,message,target_phone FROM public.task_definitions WHERE id=$1::uuid AND channel='sms' AND active=true AND (country_code IS NULL OR country_code=$2)`, in.TaskID, country).Scan(&title, &message, &target); err != nil || strings.TrimSpace(target) == "" {
 		userFeaturesJSON(w, http.StatusNotFound, map[string]any{"status": "error", "message": "SMS task unavailable for your country"})
@@ -204,20 +216,26 @@ func userSMSTaskResultHandler(w http.ResponseWriter, r *http.Request) {
 	var publicKeyDER []byte
 	var expiresAt time.Time
 	var reward float64
-	err := userDB.QueryRow(`SELECT c.sms_nonce_hash,c.status,c.expires_at,c.reward,c.country_code,c.currency_code,c.sms_public_key_der FROM public.task_claims c WHERE c.id=$1::uuid AND c.user_id=$2::uuid AND c.channel='sms' AND c.android_installation_id=$3::uuid`, in.ClaimID, userID, in.InstallationID).Scan(&storedNonceHash, &status, &expiresAt, &reward, &country, &currency, &publicKeyDER)
+	tx, err := userDB.Begin()
+	if err != nil {
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error"})
+		return
+	}
+	defer tx.Rollback()
+	err = tx.QueryRow(`SELECT c.sms_nonce_hash,c.status,c.expires_at,c.reward,c.country_code,c.currency_code,c.sms_public_key_der FROM public.task_claims c WHERE c.id=$1::uuid AND c.user_id=$2::uuid AND c.channel='sms' AND c.android_installation_id=$3::uuid FOR UPDATE`, in.ClaimID, userID, in.InstallationID).Scan(&storedNonceHash, &status, &expiresAt, &reward, &country, &currency, &publicKeyDER)
 	if err != nil || storedNonceHash != smsNonceHash(in.Nonce) {
 		userFeaturesJSON(w, http.StatusNotFound, map[string]any{"status": "error", "message": "SMS claim not found"})
 		return
 	}
 	parsed, err := x509.ParsePKIXPublicKey(publicKeyDER)
 	publicKey, validKey := parsed.(*ecdsa.PublicKey)
-	payload := smsResultPayload(in.ClaimID, in.Nonce, in.Result, in.Parts, in.Timestamp)
+	payload := smsResultPayload(in.ClaimID, in.Nonce, in.InstallationID, in.Result, in.Parts, in.Timestamp, in.FailureReason)
 	if err != nil || !validKey || !verifySMSResultSignature(publicKey, payload, in.Signature) {
 		userFeaturesJSON(w, http.StatusForbidden, map[string]any{"status": "error", "message": "SMS result signature is invalid"})
 		return
 	}
 	if status == "sent" {
-		userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "already_credited": true, "reward": reward, "currency_code": currency})
+		userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "credited": true, "already_credited": true, "reward": reward, "currency_code": currency})
 		return
 	}
 	if status != "sending" {
@@ -225,7 +243,10 @@ func userSMSTaskResultHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !time.Now().UTC().Before(expiresAt) {
-		_, _ = userDB.Exec(`UPDATE public.task_claims SET status='expired',updated_at=now() WHERE id=$1::uuid AND status='sending'`, in.ClaimID)
+		if _, err = tx.Exec(`UPDATE public.task_claims SET status='expired',updated_at=now() WHERE id=$1::uuid AND status='sending'`, in.ClaimID); err != nil || tx.Commit() != nil {
+			userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error"})
+			return
+		}
 		userFeaturesJSON(w, http.StatusGone, map[string]any{"status": "error", "message": "SMS claim expired; start the task again"})
 		return
 	}
@@ -236,22 +257,29 @@ func userSMSTaskResultHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Result == "failed" {
 		reason := strings.TrimSpace(in.FailureReason)
-		if len(reason) > 200 {
-			reason = reason[:200]
+		reasonRunes := []rune(reason)
+		if len(reasonRunes) > 200 {
+			reason = string(reasonRunes[:200])
 		}
-		_, _ = userDB.Exec(`UPDATE public.task_claims SET status='failed',sms_parts=$2,failure_reason=$3,updated_at=now() WHERE id=$1::uuid AND status='sending'`, in.ClaimID, in.Parts, reason)
+		if _, err = tx.Exec(`UPDATE public.task_claims SET status='failed',sms_parts=$2,failure_reason=$3,updated_at=now() WHERE id=$1::uuid AND status='sending'`, in.ClaimID, in.Parts, reason); err != nil || tx.Commit() != nil {
+			userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error"})
+			return
+		}
 		userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "credited": false})
 		return
 	}
-	if _, err = userDB.Exec(`UPDATE public.task_claims SET sms_parts=$2,updated_at=now() WHERE id=$1::uuid AND status='sending'`, in.ClaimID, in.Parts); err != nil {
+	if _, err = tx.Exec(`UPDATE public.task_claims SET sms_parts=$2,updated_at=now() WHERE id=$1::uuid AND status='sending'`, in.ClaimID, in.Parts); err != nil {
 		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not record SMS result"})
 		return
 	}
-	if err = creditTaskReward(userID, "", in.ClaimID, reward, country, currency, "sms"); err != nil {
+	if err = creditTaskRewardInTx(tx, userID, "", in.ClaimID, reward, country, currency, "sms"); err != nil {
 		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "SMS sent, but reward processing needs attention"})
 		return
 	}
-	_, _ = userDB.Exec(`UPDATE public.android_installations SET last_seen_at=now() WHERE id=$1::uuid AND user_id=$2::uuid`, in.InstallationID, userID)
+	if _, err = tx.Exec(`UPDATE public.android_installations SET last_seen_at=now() WHERE id=$1::uuid AND user_id=$2::uuid`, in.InstallationID, userID); err != nil || tx.Commit() != nil {
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "SMS sent, but reward processing needs attention"})
+		return
+	}
 	gamification := userGamification(userID, mustCountryTimezone(country), mustCountryGoal(country))
 	userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "credited": true, "reward": reward, "currency_code": currency, "gamification": gamification})
 }

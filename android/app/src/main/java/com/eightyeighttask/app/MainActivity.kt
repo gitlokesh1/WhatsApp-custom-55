@@ -54,10 +54,6 @@ class MainActivity : Activity() {
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 if (!isPortalUrl(request.url)) return true
-                if (request.isForMainFrame && request.url.fragment != "$BRIDGE_FRAGMENT=$bridgeToken") {
-                    view.loadUrl(withBridgeToken(request.url).toString())
-                    return true
-                }
                 return false
             }
 

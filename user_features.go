@@ -228,6 +228,14 @@ func creditTaskReward(userID, accountID, claimID string, reward float64, country
 		return err
 	}
 	defer tx.Rollback()
+	if err = creditTaskRewardInTx(tx, userID, accountID, claimID, reward, country, currency, channel); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func creditTaskRewardInTx(tx *sql.Tx, userID, accountID, claimID string, reward float64, country, currency, channel string) error {
+	var err error
 	var status string
 	if err = tx.QueryRow(`SELECT status FROM public.task_claims WHERE id=$1::uuid FOR UPDATE`, claimID).Scan(&status); err != nil {
 		return err
@@ -243,12 +251,12 @@ func creditTaskReward(userID, accountID, claimID string, reward float64, country
 	}
 	if reward <= 0 {
 		if channel != "whatsapp" {
-			return tx.Commit()
+			return nil
 		}
 		if _, err = tx.Exec(`UPDATE public.user_whatsapp_accounts SET current_send_total=current_send_total+1,today_send_total=today_send_total+1,last_seen_at=now(),updated_at=now() WHERE id=$1::uuid`, accountID); err != nil {
 			return err
 		}
-		return tx.Commit()
+		return nil
 	}
 	description := "WhatsApp task reward"
 	if channel == "sms" {
@@ -304,7 +312,7 @@ func creditTaskReward(userID, accountID, claimID string, reward float64, country
 		}
 		parent = refID
 	}
-	return tx.Commit()
+	return nil
 }
 
 func userReferralsHandler(w http.ResponseWriter, r *http.Request) {

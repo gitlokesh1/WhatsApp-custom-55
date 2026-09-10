@@ -126,11 +126,20 @@ object SmsResultStore {
         failureReason: String,
     ): String {
         val timestamp = System.currentTimeMillis() / 1000
-        val payload = listOf(claimId, nonce, result, parts.toString(), timestamp.toString()).joinToString("\n")
+        val installationId = installationId(context)
+        val payload = listOf(
+            claimId,
+            nonce,
+            installationId,
+            result,
+            parts.toString(),
+            timestamp.toString(),
+            failureReason,
+        ).joinToString("\n")
         val receipt = JSONObject()
             .put("claim_id", claimId)
             .put("nonce", nonce)
-            .put("installation_id", installationId(context))
+            .put("installation_id", installationId)
             .put("result", result)
             .put("parts", parts)
             .put("timestamp", timestamp)
