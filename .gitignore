@@ -4,7 +4,7 @@ store.db-wal
 users.db
 users.db-shm
 users.db-wal
-app
+/app
 android/.gradle/
 android/local.properties
 android/**/build/
