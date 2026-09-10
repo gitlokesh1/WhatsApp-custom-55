@@ -1,4 +1,18 @@
 (() => {
+  const nativeSMS = window.AndroidSMSNative;
+  const fragmentToken = new URLSearchParams(location.hash.slice(1)).get('android_sms_token');
+  if (fragmentToken) { sessionStorage.setItem('88task_android_sms_token', fragmentToken); history.replaceState(null, '', location.pathname + location.search); }
+  const androidSMSToken = fragmentToken || sessionStorage.getItem('88task_android_sms_token');
+  if (nativeSMS && androidSMSToken) {
+    Object.defineProperty(window, 'AndroidSMS', { configurable: false, value: Object.freeze({
+      isAvailable: () => nativeSMS.isAvailable(androidSMSToken),
+      canSend: () => nativeSMS.canSend(androidSMSToken),
+      getInstallation: () => nativeSMS.getInstallation(androidSMSToken),
+      sendTask: value => nativeSMS.sendTask(androidSMSToken, value),
+      resumePending: () => nativeSMS.resumePending(androidSMSToken),
+      acknowledgeResult: claimID => nativeSMS.acknowledgeResult(androidSMSToken, claimID)
+    }) });
+  }
   const iconPaths = {
     home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10M9.5 20v-6h5v6"/>',
     tasks: '<rect x="4" y="3" width="16" height="18" rx="3"/><path d="m8 9 1.5 1.5L12 8M8 15l1.5 1.5L12 14M14 9h2M14 15h2"/>',
@@ -52,7 +66,7 @@
     if (request.body && typeof request.body !== 'string' && !(request.body instanceof FormData)) { request.body = JSON.stringify(request.body); request.headers['Content-Type'] = 'application/json'; }
     const response = await fetch(url, request); const data = await response.json().catch(() => ({}));
     if (response.status === 401) { sessionStorage.removeItem('88task_profile_header'); location.href = '/login'; throw new Error('Login required'); }
-    if (!response.ok || data.status === 'error') throw new Error(data.message || 'Something went wrong'); return data;
+    if (!response.ok || data.status === 'error') { const error = new Error(data.message || 'Something went wrong'); error.status = response.status; throw error; } return data;
   };
   const toast = (message, type = '') => {
     let stack = document.querySelector('.u-toast-stack');
