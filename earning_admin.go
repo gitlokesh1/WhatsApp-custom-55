@@ -21,7 +21,7 @@ import (
 
 func adminCountriesHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		rows, err := userDB.Query(`SELECT c.code,c.name,c.currency_code,c.timezone,c.reward_per_message,c.daily_goal,c.active,c.display_order,c.withdrawals_enabled,count(DISTINCT u.id),count(DISTINCT t.id) FROM public.earning_countries c LEFT JOIN public.app_users u ON u.country_code=c.code LEFT JOIN public.task_definitions t ON t.country_code=c.code GROUP BY c.code ORDER BY c.display_order,c.name`)
+		rows, err := userDB.Query(`SELECT c.code,c.name,c.currency_code,c.timezone,c.reward_per_message,c.sms_reward_per_message,c.daily_goal,c.active,c.display_order,c.withdrawals_enabled,count(DISTINCT u.id),count(DISTINCT t.id) FROM public.earning_countries c LEFT JOIN public.app_users u ON u.country_code=c.code LEFT JOIN public.task_definitions t ON t.country_code=c.code GROUP BY c.code ORDER BY c.display_order,c.name`)
 		if err != nil {
 			userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": err.Error()})
 			return
@@ -31,8 +31,8 @@ func adminCountriesHandler(w http.ResponseWriter, r *http.Request) {
 		for rows.Next() {
 			var c countryConfig
 			var users, tasks int
-			if rows.Scan(&c.Code, &c.Name, &c.CurrencyCode, &c.Timezone, &c.Reward, &c.DailyGoal, &c.Active, &c.DisplayOrder, &c.WithdrawalsEnabled, &users, &tasks) == nil {
-				out = append(out, map[string]any{"code": c.Code, "name": c.Name, "currency_code": c.CurrencyCode, "timezone": c.Timezone, "reward_per_message": c.Reward, "daily_goal": c.DailyGoal, "active": c.Active, "display_order": c.DisplayOrder, "withdrawals_enabled": c.WithdrawalsEnabled, "users": users, "tasks": tasks})
+			if rows.Scan(&c.Code, &c.Name, &c.CurrencyCode, &c.Timezone, &c.Reward, &c.SMSReward, &c.DailyGoal, &c.Active, &c.DisplayOrder, &c.WithdrawalsEnabled, &users, &tasks) == nil {
+				out = append(out, map[string]any{"code": c.Code, "name": c.Name, "currency_code": c.CurrencyCode, "timezone": c.Timezone, "reward_per_message": c.Reward, "sms_reward_per_message": c.SMSReward, "daily_goal": c.DailyGoal, "active": c.Active, "display_order": c.DisplayOrder, "withdrawals_enabled": c.WithdrawalsEnabled, "users": users, "tasks": tasks})
 			}
 		}
 		userFeaturesJSON(w, 200, map[string]any{"status": "success", "countries": out})
@@ -49,6 +49,7 @@ func adminCountriesHandler(w http.ResponseWriter, r *http.Request) {
 		CurrencyCode       string  `json:"currency_code"`
 		Timezone           string  `json:"timezone"`
 		Reward             float64 `json:"reward"`
+		SMSReward          float64 `json:"sms_reward"`
 		DailyGoal          int     `json:"daily_goal"`
 		DisplayOrder       int     `json:"display_order"`
 		Active             bool    `json:"active"`
@@ -90,7 +91,7 @@ func adminCountriesHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, 200, map[string]any{"status": "success"})
 		return
 	}
-	if !isUpperAlphaCode(in.CurrencyCode, 3) || in.Name == "" || !validateTimezone(in.Timezone) || in.Reward < 0 || in.DailyGoal < 1 || in.DailyGoal > 10000 {
+	if !isUpperAlphaCode(in.CurrencyCode, 3) || in.Name == "" || !validateTimezone(in.Timezone) || in.Reward < 0 || in.SMSReward < 0 || in.DailyGoal < 1 || in.DailyGoal > 10000 {
 		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Use valid ISO codes, timezone, reward, and daily goal"})
 		return
 	}
@@ -104,7 +105,7 @@ func adminCountriesHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	_, err = userDB.Exec(`INSERT INTO public.earning_countries(code,name,currency_code,timezone,reward_per_message,daily_goal,active,display_order,withdrawals_enabled,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,now()) ON CONFLICT(code) DO UPDATE SET name=excluded.name,currency_code=excluded.currency_code,timezone=excluded.timezone,reward_per_message=excluded.reward_per_message,daily_goal=excluded.daily_goal,active=excluded.active,display_order=excluded.display_order,withdrawals_enabled=excluded.withdrawals_enabled,updated_at=now()`, in.Code, in.Name, in.CurrencyCode, in.Timezone, in.Reward, in.DailyGoal, in.Active, in.DisplayOrder, in.WithdrawalsEnabled)
+	_, err = userDB.Exec(`INSERT INTO public.earning_countries(code,name,currency_code,timezone,reward_per_message,sms_reward_per_message,daily_goal,active,display_order,withdrawals_enabled,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now()) ON CONFLICT(code) DO UPDATE SET name=excluded.name,currency_code=excluded.currency_code,timezone=excluded.timezone,reward_per_message=excluded.reward_per_message,sms_reward_per_message=excluded.sms_reward_per_message,daily_goal=excluded.daily_goal,active=excluded.active,display_order=excluded.display_order,withdrawals_enabled=excluded.withdrawals_enabled,updated_at=now()`, in.Code, in.Name, in.CurrencyCode, in.Timezone, in.Reward, in.SMSReward, in.DailyGoal, in.Active, in.DisplayOrder, in.WithdrawalsEnabled)
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": err.Error()})
 		return
@@ -339,7 +340,7 @@ func adminUserActionHandler(w http.ResponseWriter, r *http.Request) {
 
 func adminTasksHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		rows, err := userDB.Query(`SELECT t.id,t.title,t.message,t.target_phone,t.country_code,c.name,t.active,t.created_at FROM public.task_definitions t LEFT JOIN public.earning_countries c ON c.code=t.country_code ORDER BY t.created_at DESC LIMIT 500`)
+		rows, err := userDB.Query(`SELECT t.id,t.title,t.message,t.target_phone,t.country_code,c.name,t.channel,t.active,t.created_at FROM public.task_definitions t LEFT JOIN public.earning_countries c ON c.code=t.country_code ORDER BY t.created_at DESC LIMIT 500`)
 		if err != nil {
 			userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": err.Error()})
 			return
@@ -347,12 +348,12 @@ func adminTasksHandler(w http.ResponseWriter, r *http.Request) {
 		defer rows.Close()
 		out := []map[string]any{}
 		for rows.Next() {
-			var id, title, message, target string
+			var id, title, message, target, channel string
 			var country, name sql.NullString
 			var active bool
 			var created time.Time
-			if rows.Scan(&id, &title, &message, &target, &country, &name, &active, &created) == nil {
-				out = append(out, map[string]any{"id": id, "title": title, "message": message, "target_phone": target, "country_code": country.String, "country_name": name.String, "active": active, "created_at": created})
+			if rows.Scan(&id, &title, &message, &target, &country, &name, &channel, &active, &created) == nil {
+				out = append(out, map[string]any{"id": id, "title": title, "message": message, "target_phone": target, "country_code": country.String, "country_name": name.String, "channel": channel, "active": active, "created_at": created})
 			}
 		}
 		userFeaturesJSON(w, 200, map[string]any{"status": "success", "tasks": out})
@@ -368,6 +369,7 @@ func adminTasksHandler(w http.ResponseWriter, r *http.Request) {
 		Message     string `json:"message"`
 		TargetPhone string `json:"target_phone"`
 		CountryCode string `json:"country_code"`
+		Channel     string `json:"channel"`
 		Action      string `json:"action"`
 		Active      bool   `json:"active"`
 	}
@@ -393,6 +395,14 @@ func adminTasksHandler(w http.ResponseWriter, r *http.Request) {
 	in.Message = strings.TrimSpace(in.Message)
 	in.TargetPhone = strings.NewReplacer("+", "", " ", "", "-", "").Replace(in.TargetPhone)
 	in.CountryCode = normalizeCountryCode(in.CountryCode)
+	in.Channel = strings.ToLower(strings.TrimSpace(in.Channel))
+	if in.Channel == "" {
+		in.Channel = "whatsapp"
+	}
+	if in.Channel != "whatsapp" && in.Channel != "sms" {
+		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Channel must be whatsapp or sms"})
+		return
+	}
 	if in.Title == "" || in.Message == "" || len(in.TargetPhone) < 7 || len(in.TargetPhone) > 15 {
 		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Title, message, and a valid target number are required"})
 		return
@@ -417,13 +427,13 @@ func adminTasksHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.ID == "" {
 		in.ID = uuid.NewString()
-		_, err := userDB.Exec(`INSERT INTO public.task_definitions(id,title,message,target_phone,reward,country_code,active) VALUES($1::uuid,$2,$3,$4,0.5,$5,$6)`, in.ID, in.Title, in.Message, in.TargetPhone, country, in.Active)
+		_, err := userDB.Exec(`INSERT INTO public.task_definitions(id,title,message,target_phone,reward,country_code,channel,active) VALUES($1::uuid,$2,$3,$4,0.5,$5,$6,$7)`, in.ID, in.Title, in.Message, in.TargetPhone, country, in.Channel, in.Active)
 		if err != nil {
 			userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": err.Error()})
 			return
 		}
 	} else {
-		result, err := userDB.Exec(`UPDATE public.task_definitions SET title=$1,message=$2,target_phone=$3,country_code=$4,active=$5 WHERE id=$6::uuid`, in.Title, in.Message, in.TargetPhone, country, in.Active, in.ID)
+		result, err := userDB.Exec(`UPDATE public.task_definitions SET title=$1,message=$2,target_phone=$3,country_code=$4,channel=$5,active=$6,updated_at=now() WHERE id=$7::uuid`, in.Title, in.Message, in.TargetPhone, country, in.Channel, in.Active, in.ID)
 		if err != nil {
 			userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": err.Error()})
 			return

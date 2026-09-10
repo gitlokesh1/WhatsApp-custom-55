@@ -14,6 +14,19 @@ Banner uploads require these server-side environment variables:
 
 Create the banner bucket as a public bucket before enabling uploads. The admin endpoint accepts JPEG, PNG, and WebP images up to 5 MB.
 
+## Android SMS tasks
+
+Set a separate SMS reward for each country, then create tasks with the **SMS · Android app** channel. SMS tasks remain visible but disabled in ordinary browsers; direct SIM sending is available only through the private Android client in `android/`.
+
+Build the APK with the deployed HTTPS portal origin. This value controls both the initial WebView URL and the only origin allowed to use the native SMS bridge:
+
+```bash
+cd android
+./gradlew assembleRelease -PportalUrl=https://tasks.example.com
+```
+
+Supply release signing outside the repository. The app requests `SEND_SMS` and `READ_PHONE_STATE`, shows the selected SIM and carrier-charge warning, and credits a reward after all Android sent callbacks succeed. A sent callback confirms carrier submission, not recipient delivery. This direct-SMS build is intended for private APK distribution and is not presented as Google Play compatible.
+
 ## Payout gateway
 
 Withdrawals remain visibly disabled until all three server-only values are present:
