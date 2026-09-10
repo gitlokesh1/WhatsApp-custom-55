@@ -242,7 +242,8 @@ func userProfileHandler(w http.ResponseWriter, r *http.Request) {
 	var goal sql.NullInt64
 	var countryActive sql.NullBool
 	var mustChange bool
-	err := userDB.QueryRow(`SELECT u.id::text,u.display_name,u.referral_code,u.balance,u.total_earning,u.country_code,c.name,c.currency_code,c.timezone,c.reward_per_message,c.daily_goal,c.active,u.must_change_password FROM public.app_users u LEFT JOIN public.earning_countries c ON c.code=u.country_code WHERE u.user_id=$1`, uid).Scan(&id, &name, &rcode, &balance, &total, &countryCode, &countryName, &currency, &timezone, &reward, &goal, &countryActive, &mustChange)
+	var smsReward sql.NullFloat64
+	err := userDB.QueryRow(`SELECT u.id::text,u.display_name,u.referral_code,u.balance,u.total_earning,u.country_code,c.name,c.currency_code,c.timezone,c.reward_per_message,c.sms_reward_per_message,c.daily_goal,c.active,u.must_change_password FROM public.app_users u LEFT JOIN public.earning_countries c ON c.code=u.country_code WHERE u.user_id=$1`, uid).Scan(&id, &name, &rcode, &balance, &total, &countryCode, &countryName, &currency, &timezone, &reward, &smsReward, &goal, &countryActive, &mustChange)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -262,7 +263,7 @@ func userProfileHandler(w http.ResponseWriter, r *http.Request) {
 	if countryCode.Valid {
 		_ = userDB.QueryRow(`SELECT COALESCE(sum(amount),0) FROM public.wallet_transactions WHERE user_id=$1::uuid AND type IN ('task_reward','referral_commission','bonus') AND (created_at AT TIME ZONE $2)::date=(now() AT TIME ZONE $2)::date`, id, zone).Scan(&todayEarning)
 	}
-	userJSON(w, map[string]any{"status": "success", "user_id": uid, "name": name, "referral_code": rcode, "balance": balance, "today_earning": todayEarning, "total_earning": total, "linked_whatsapp": linked, "max_whatsapp": 3, "requires_country": !countryCode.Valid, "country_code": countryCode.String, "country_name": countryName.String, "currency_code": currency.String, "timezone": zone, "reward_per_message": reward.Float64, "country_active": countryActive.Bool, "must_change_password": mustChange, "gamification": gamification})
+	userJSON(w, map[string]any{"status": "success", "user_id": uid, "name": name, "referral_code": rcode, "balance": balance, "today_earning": todayEarning, "total_earning": total, "linked_whatsapp": linked, "max_whatsapp": 3, "requires_country": !countryCode.Valid, "country_code": countryCode.String, "country_name": countryName.String, "currency_code": currency.String, "timezone": zone, "reward_per_message": reward.Float64, "sms_reward_per_message": smsReward.Float64, "country_active": countryActive.Bool, "must_change_password": mustChange, "gamification": gamification})
 }
 
 func userPage(w http.ResponseWriter, r *http.Request, file string) {

@@ -5,3 +5,8 @@ users.db
 users.db-shm
 users.db-wal
 app
+android/.gradle/
+android/local.properties
+android/**/build/
+android/*.jks
+android/*.keystore

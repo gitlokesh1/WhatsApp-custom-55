@@ -71,6 +71,7 @@ func initPortalBaseSchema() error {
 			created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 			updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 		);
+		ALTER TABLE public.task_definitions ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT 'whatsapp';
 
 		CREATE TABLE IF NOT EXISTS public.task_claims (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -87,11 +88,40 @@ func initPortalBaseSchema() error {
 		);
 		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'claimed';
 		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
+		ALTER TABLE public.task_claims ALTER COLUMN whatsapp_account_id DROP NOT NULL;
+		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT 'whatsapp';
+		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS android_installation_id UUID;
+		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS sms_nonce_hash TEXT;
+		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS sms_public_key_der BYTEA;
+		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS sms_parts INTEGER;
+		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS failure_reason TEXT NOT NULL DEFAULT '';
 		CREATE UNIQUE INDEX IF NOT EXISTS task_claims_active_user_task_idx
 		ON public.task_claims(task_id,user_id)
 		WHERE status IN ('claimed','sending','sent');
 		CREATE INDEX IF NOT EXISTS task_claims_user_idx
 		ON public.task_claims(user_id,created_at DESC);
+
+		CREATE TABLE IF NOT EXISTS public.android_installations (
+			id UUID PRIMARY KEY,
+			user_id UUID NOT NULL REFERENCES public.app_users(id) ON DELETE CASCADE,
+			public_key_der BYTEA NOT NULL,
+			active BOOLEAN NOT NULL DEFAULT true,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+			last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now()
+		);
+		CREATE INDEX IF NOT EXISTS android_installations_user_idx ON public.android_installations(user_id,active);
+		DO $$ BEGIN
+			IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='task_claims_android_installation_fk') THEN
+				ALTER TABLE public.task_claims ADD CONSTRAINT task_claims_android_installation_fk FOREIGN KEY(android_installation_id) REFERENCES public.android_installations(id);
+			END IF;
+			IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='task_definitions_channel_check') THEN
+				ALTER TABLE public.task_definitions ADD CONSTRAINT task_definitions_channel_check CHECK(channel IN ('whatsapp','sms'));
+			END IF;
+			IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='task_claims_channel_check') THEN
+				ALTER TABLE public.task_claims ADD CONSTRAINT task_claims_channel_check CHECK(channel IN ('whatsapp','sms'));
+			END IF;
+		END $$;
 
 		CREATE TABLE IF NOT EXISTS public.earning_ledger (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

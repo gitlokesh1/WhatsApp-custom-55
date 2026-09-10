@@ -38,17 +38,18 @@ func userTasksHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var country, currency string
-	var reward float64
+	var reward, smsReward float64
 	var countryActive bool
-	if err := userDB.QueryRow(`SELECT c.code,c.currency_code,c.reward_per_message,c.active FROM public.app_users u JOIN public.earning_countries c ON c.code=u.country_code WHERE u.id=$1::uuid`, id).Scan(&country, &currency, &reward, &countryActive); err != nil {
+	if err := userDB.QueryRow(`SELECT c.code,c.currency_code,c.reward_per_message,c.sms_reward_per_message,c.active FROM public.app_users u JOIN public.earning_countries c ON c.code=u.country_code WHERE u.id=$1::uuid`, id).Scan(&country, &currency, &reward, &smsReward, &countryActive); err != nil {
 		userFeaturesJSON(w, 409, map[string]any{"status": "error", "message": "Select your country before earning", "requires_country": true})
 		return
 	}
 	if !countryActive {
-		userFeaturesJSON(w, 200, map[string]any{"status": "success", "earning_paused": true, "message": "Earning is paused for your country", "currency_code": currency, "reward_per_message": reward, "tasks": []any{}})
+		userFeaturesJSON(w, 200, map[string]any{"status": "success", "earning_paused": true, "message": "Earning is paused for your country", "currency_code": currency, "reward_per_message": reward, "sms_reward_per_message": smsReward, "tasks": []any{}})
 		return
 	}
-	rows, err := userDB.Query(`SELECT t.id,t.title,t.message,t.target_phone,t.country_code FROM public.task_definitions t WHERE t.active=true AND (t.country_code IS NULL OR t.country_code=$2) AND NOT EXISTS(SELECT 1 FROM public.task_claims c WHERE c.task_id=t.id AND c.user_id=$1::uuid AND c.status IN ('claimed','sending','sent')) ORDER BY t.created_at DESC`, id, country)
+	_, _ = userDB.Exec(`UPDATE public.task_claims SET status='expired',updated_at=now() WHERE user_id=$1::uuid AND channel='sms' AND status='sending' AND expires_at<=now()`, id)
+	rows, err := userDB.Query(`SELECT t.id,t.title,t.message,t.target_phone,t.country_code,t.channel FROM public.task_definitions t WHERE t.active=true AND (t.country_code IS NULL OR t.country_code=$2) AND NOT EXISTS(SELECT 1 FROM public.task_claims c WHERE c.task_id=t.id AND c.user_id=$1::uuid AND c.status IN ('claimed','sending','sent')) ORDER BY t.created_at DESC`, id, country)
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": "Could not load tasks"})
 		return
@@ -56,13 +57,20 @@ func userTasksHandler(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	out := []map[string]any{}
 	for rows.Next() {
-		var tid, title, msg, target string
+		var tid, title, msg, target, channel string
 		var taskCountry sql.NullString
-		if rows.Scan(&tid, &title, &msg, &target, &taskCountry) == nil {
-			out = append(out, map[string]any{"id": tid, "title": title, "message": msg, "target_phone": target, "country_code": taskCountry.String, "reward": reward, "currency_code": currency})
+		if rows.Scan(&tid, &title, &msg, &target, &taskCountry, &channel) == nil {
+			taskReward := reward
+			if channel == "sms" {
+				if smsReward <= 0 {
+					continue
+				}
+				taskReward = smsReward
+			}
+			out = append(out, map[string]any{"id": tid, "title": title, "message": msg, "target_phone": target, "country_code": taskCountry.String, "channel": channel, "reward": taskReward, "currency_code": currency})
 		}
 	}
-	userFeaturesJSON(w, 200, map[string]any{"status": "success", "country_code": country, "currency_code": currency, "reward_per_message": reward, "tasks": out})
+	userFeaturesJSON(w, 200, map[string]any{"status": "success", "country_code": country, "currency_code": currency, "reward_per_message": reward, "sms_reward_per_message": smsReward, "tasks": out})
 }
 
 func userWhatsAppHandler(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +168,7 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var title, msg, target string
-	if err = tx.QueryRow(`SELECT title,message,target_phone FROM public.task_definitions WHERE id=$1::uuid AND active=true AND (country_code IS NULL OR country_code=$2)`, in.TaskID, country).Scan(&title, &msg, &target); err != nil || strings.TrimSpace(target) == "" {
+	if err = tx.QueryRow(`SELECT title,message,target_phone FROM public.task_definitions WHERE id=$1::uuid AND channel='whatsapp' AND active=true AND (country_code IS NULL OR country_code=$2)`, in.TaskID, country).Scan(&title, &msg, &target); err != nil || strings.TrimSpace(target) == "" {
 		userFeaturesJSON(w, 404, map[string]any{"status": "error", "message": "Task unavailable for your country"})
 		return
 	}
@@ -175,7 +183,7 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var claimID string
-	if err = tx.QueryRow(`INSERT INTO public.task_claims(task_id,user_id,whatsapp_account_id,target_phone,message,status,reward,country_code,currency_code) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5,'sending',$6,$7,$8) RETURNING id`, in.TaskID, id, in.AccountID, target, msg, reward, country, currency).Scan(&claimID); err != nil {
+	if err = tx.QueryRow(`INSERT INTO public.task_claims(task_id,user_id,whatsapp_account_id,target_phone,message,status,reward,country_code,currency_code,channel) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5,'sending',$6,$7,$8,'whatsapp') RETURNING id`, in.TaskID, id, in.AccountID, target, msg, reward, country, currency).Scan(&claimID); err != nil {
 		userFeaturesJSON(w, 409, map[string]any{"status": "error", "message": "Task already claimed or unavailable"})
 		return
 	}
@@ -191,7 +199,7 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, 502, map[string]any{"status": "error", "message": sendErr.Error()})
 		return
 	}
-	if err = creditTaskReward(id, in.AccountID, claimID, reward, country, currency); err != nil {
+	if err = creditTaskReward(id, in.AccountID, claimID, reward, country, currency, "whatsapp"); err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": "Message sent, but reward processing needs attention"})
 		return
 	}
@@ -214,7 +222,7 @@ func mustCountryGoal(code string) int {
 	return c.DailyGoal
 }
 
-func creditTaskReward(userID, accountID, claimID string, reward float64, country, currency string) error {
+func creditTaskReward(userID, accountID, claimID string, reward float64, country, currency, channel string) error {
 	tx, err := userDB.Begin()
 	if err != nil {
 		return err
@@ -234,12 +242,19 @@ func creditTaskReward(userID, accountID, claimID string, reward float64, country
 		return err
 	}
 	if reward <= 0 {
+		if channel != "whatsapp" {
+			return tx.Commit()
+		}
 		if _, err = tx.Exec(`UPDATE public.user_whatsapp_accounts SET current_send_total=current_send_total+1,today_send_total=today_send_total+1,last_seen_at=now(),updated_at=now() WHERE id=$1::uuid`, accountID); err != nil {
 			return err
 		}
 		return tx.Commit()
 	}
-	result, err := tx.Exec(`INSERT INTO public.wallet_transactions(id,user_id,amount,currency_code,type,description,source_id,idempotency_key) VALUES($1::uuid,$2::uuid,$3,$4,'task_reward','WhatsApp task reward',$5,$6) ON CONFLICT(idempotency_key) DO NOTHING`, uuid.NewString(), userID, reward, currency, claimID, rewardCreditKey(userID, claimID))
+	description := "WhatsApp task reward"
+	if channel == "sms" {
+		description = "SMS task reward"
+	}
+	result, err := tx.Exec(`INSERT INTO public.wallet_transactions(id,user_id,amount,currency_code,type,description,source_id,idempotency_key) VALUES($1::uuid,$2::uuid,$3,$4,'task_reward',$5,$6,$7) ON CONFLICT(idempotency_key) DO NOTHING`, uuid.NewString(), userID, reward, currency, description, claimID, rewardCreditKey(userID, claimID))
 	if err != nil {
 		return err
 	}
@@ -250,8 +265,10 @@ func creditTaskReward(userID, accountID, claimID string, reward float64, country
 	if _, err = tx.Exec(`UPDATE public.app_users SET balance=balance+$1,today_earning=today_earning+$1,total_earning=total_earning+$1,updated_at=now() WHERE id=$2::uuid`, reward, userID); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(`UPDATE public.user_whatsapp_accounts SET current_send_total=current_send_total+1,today_send_total=today_send_total+1,last_seen_at=now(),updated_at=now() WHERE id=$1::uuid`, accountID); err != nil {
-		return err
+	if channel == "whatsapp" {
+		if _, err = tx.Exec(`UPDATE public.user_whatsapp_accounts SET current_send_total=current_send_total+1,today_send_total=today_send_total+1,last_seen_at=now(),updated_at=now() WHERE id=$1::uuid`, accountID); err != nil {
+			return err
+		}
 	}
 	parent := userID
 	for level := 1; level <= 10; level++ {
@@ -267,7 +284,7 @@ func creditTaskReward(userID, accountID, claimID string, reward float64, country
 		}
 		var refRate float64
 		var refCountry, refCurrency string
-		if err = tx.QueryRow(`SELECT c.reward_per_message,c.code,c.currency_code FROM public.app_users u JOIN public.earning_countries c ON c.code=u.country_code WHERE u.id=$1::uuid AND u.status='active' AND c.active=true`, refID).Scan(&refRate, &refCountry, &refCurrency); err != nil {
+		if err = tx.QueryRow(`SELECT CASE WHEN $2='sms' THEN c.sms_reward_per_message ELSE c.reward_per_message END,c.code,c.currency_code FROM public.app_users u JOIN public.earning_countries c ON c.code=u.country_code WHERE u.id=$1::uuid AND u.status='active' AND c.active=true`, refID, channel).Scan(&refRate, &refCountry, &refCurrency); err != nil {
 			parent = refID
 			continue
 		}
