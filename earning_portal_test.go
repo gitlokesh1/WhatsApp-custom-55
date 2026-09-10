@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"strings"
+	"testing"
+)
 
 func TestLevelForBoundaries(t *testing.T) {
 	tests := []struct {
@@ -42,5 +46,26 @@ func TestValidateTimezone(t *testing.T) {
 	}
 	if validateTimezone("Not/A_Zone") {
 		t.Fatal("expected an invalid timezone to be rejected")
+	}
+}
+
+func TestSMSStartEntryPoints(t *testing.T) {
+	tests := []struct {
+		file     string
+		expected []string
+	}{
+		{"user-dashboard.html", []string{`href="/tasks?channel=sms"`, "Start SMS task"}},
+		{"user-tasks.html", []string{`data-task-filter="sms"`, "No SMS tasks available"}},
+	}
+	for _, test := range tests {
+		contents, err := os.ReadFile(test.file)
+		if err != nil {
+			t.Fatalf("read %s: %v", test.file, err)
+		}
+		for _, expected := range test.expected {
+			if !strings.Contains(string(contents), expected) {
+				t.Errorf("%s does not contain %q", test.file, expected)
+			}
+		}
 	}
 }
