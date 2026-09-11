@@ -218,7 +218,7 @@ func adminUserActionHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer tx.Rollback()
 		var currentCountry sql.NullString
-		if err = tx.QueryRow(`SELECT country_code FROM public.app_users WHERE id=$1::uuid FOR UPDATE`, in.UserID).Scan(&currentCountry); err != nil {
+		if err = tx.QueryRow(`SELECT country_code FROM public.app_users WHERE id::text=$1 OR user_id=$1 FOR UPDATE`, in.UserID).Scan(&currentCountry); err != nil {
 			if err == sql.ErrNoRows {
 				userFeaturesJSON(w, 404, map[string]any{"status": "error", "message": "User not found"})
 			} else {
@@ -247,12 +247,12 @@ func adminUserActionHandler(w http.ResponseWriter, r *http.Request) {
 		if countryCode != "" {
 			countryValue = countryCode
 		}
-		if _, err = tx.Exec(`UPDATE public.app_users SET display_name=$1,status=$2,country_code=$3,withdrawals_enabled=$4,updated_at=now() WHERE id=$5::uuid`, name, in.Status, countryValue, *in.Enabled, in.UserID); err != nil {
+		if _, err = tx.Exec(`UPDATE public.app_users SET display_name=$1,status=$2,country_code=$3,withdrawals_enabled=$4,updated_at=now() WHERE id::text=$5 OR user_id=$5`, name, in.Status, countryValue, *in.Enabled, in.UserID); err != nil {
 			userFeaturesJSON(w, 500, map[string]any{"status": "error"})
 			return
 		}
 		if in.Status == "suspended" {
-			_, _ = tx.Exec(`DELETE FROM public.user_sessions_auth WHERE user_id=$1::uuid`, in.UserID)
+			_, _ = tx.Exec(`DELETE FROM public.user_sessions_auth WHERE user_id IN (SELECT id FROM public.app_users WHERE id::text=$1 OR user_id=$1)`, in.UserID)
 		}
 		detail, _ := json.Marshal(map[string]any{"action": in.Action, "country_code": countryCode, "name": name, "status": in.Status, "enabled": *in.Enabled})
 		_, _ = tx.Exec(`INSERT INTO public.admin_audit_log(id,action,target_type,target_id,detail) VALUES($1::uuid,'user_update','user',$2,$3::jsonb)`, uuid.NewString(), in.UserID, string(detail))
@@ -268,7 +268,7 @@ func adminUserActionHandler(w http.ResponseWriter, r *http.Request) {
 			userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Name must be between 2 and 100 characters"})
 			return
 		}
-		result, err := userDB.Exec(`UPDATE public.app_users SET display_name=$1,updated_at=now() WHERE id=$2::uuid`, name, in.UserID)
+		result, err := userDB.Exec(`UPDATE public.app_users SET display_name=$1,updated_at=now() WHERE id::text=$2 OR user_id=$2`, name, in.UserID)
 		if err != nil {
 			userFeaturesJSON(w, 500, map[string]any{"status": "error"})
 			return
@@ -282,7 +282,7 @@ func adminUserActionHandler(w http.ResponseWriter, r *http.Request) {
 			userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Enabled state is required"})
 			return
 		}
-		result, err := userDB.Exec(`UPDATE public.app_users SET withdrawals_enabled=$1,updated_at=now() WHERE id=$2::uuid`, *in.Enabled, in.UserID)
+		result, err := userDB.Exec(`UPDATE public.app_users SET withdrawals_enabled=$1,updated_at=now() WHERE id::text=$2 OR user_id=$2`, *in.Enabled, in.UserID)
 		if err != nil {
 			userFeaturesJSON(w, 500, map[string]any{"status": "error"})
 			return
@@ -296,9 +296,9 @@ func adminUserActionHandler(w http.ResponseWriter, r *http.Request) {
 		if in.Action == "suspend" {
 			state = "suspended"
 		}
-		result, err := userDB.Exec(`UPDATE public.app_users SET status=$1,updated_at=now() WHERE id=$2::uuid`, state, in.UserID)
+		result, err := userDB.Exec(`UPDATE public.app_users SET status=$1,updated_at=now() WHERE id::text=$2 OR user_id=$2`, state, in.UserID)
 		if err != nil {
-			userFeaturesJSON(w, 500, map[string]any{"status": "error"})
+			userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": err.Error()})
 			return
 		}
 		n, _ := result.RowsAffected()
@@ -307,7 +307,7 @@ func adminUserActionHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if in.Action == "suspend" {
-			_, _ = userDB.Exec(`DELETE FROM public.user_sessions_auth WHERE user_id=$1::uuid`, in.UserID)
+			_, _ = userDB.Exec(`DELETE FROM public.user_sessions_auth WHERE user_id IN (SELECT id FROM public.app_users WHERE id::text=$1 OR user_id=$1)`, in.UserID)
 		}
 	case "country":
 		country, err := loadCountry(in.CountryCode, false)
