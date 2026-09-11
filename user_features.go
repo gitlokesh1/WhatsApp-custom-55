@@ -31,6 +31,21 @@ func userDBID(r *http.Request) (string, bool) {
 	return id, true
 }
 
+func expireTaskClaimLeases() error {
+	statements := []string{
+		`UPDATE public.task_claims SET status='expired',updated_at=now() WHERE channel='sms' AND status='sending' AND expires_at<=now()`,
+		`UPDATE public.task_claims SET status='expired',failure_reason='WhatsApp claim expired before sending began',updated_at=now() WHERE channel='whatsapp' AND status='claimed' AND expires_at<=now()`,
+		`UPDATE public.task_claims SET status='delivery_unknown',failure_reason='WhatsApp send lease expired; admin delivery review required',updated_at=now() WHERE channel='whatsapp' AND status='sending' AND expires_at<=now()`,
+	}
+	var firstErr error
+	for _, statement := range statements {
+		if _, err := userDB.Exec(statement); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
+
 func userTasksHandler(w http.ResponseWriter, r *http.Request) {
 	id, ok := userDBID(r)
 	if !ok {
@@ -48,8 +63,11 @@ func userTasksHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, 200, map[string]any{"status": "success", "earning_paused": true, "message": "Earning is paused for your country", "currency_code": currency, "reward_per_message": reward, "sms_reward_per_message": smsReward, "tasks": []any{}})
 		return
 	}
-	_, _ = userDB.Exec(`UPDATE public.task_claims SET status='expired',updated_at=now() WHERE user_id=$1::uuid AND channel='sms' AND status='sending' AND expires_at<=now()`, id)
-	rows, err := userDB.Query(`SELECT t.id,t.title,t.message,t.target_phone,t.country_code,t.channel FROM public.task_definitions t WHERE t.active=true AND (t.country_code IS NULL OR t.country_code=$2) AND NOT EXISTS(SELECT 1 FROM public.task_claims c WHERE c.task_id=t.id AND c.user_id=$1::uuid AND c.status IN ('claimed','sending','sent')) ORDER BY t.created_at DESC`, id, country)
+	if err := expireTaskClaimLeases(); err != nil {
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not refresh task availability"})
+		return
+	}
+	rows, err := userDB.Query(`SELECT t.id,t.title,t.message,t.target_phone,t.country_code,t.channel FROM public.task_definitions t WHERE t.active=true AND (t.country_code IS NULL OR t.country_code=$1) AND NOT EXISTS(SELECT 1 FROM public.task_claims c WHERE c.task_id=t.id AND c.status IN ('claimed','sending','delivery_unknown','sent')) ORDER BY t.created_at DESC`, country)
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": "Could not load tasks"})
 		return
@@ -146,6 +164,10 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "task_id and whatsapp_account_id are required"})
 		return
 	}
+	if err := expireTaskClaimLeases(); err != nil {
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not refresh task availability"})
+		return
+	}
 	tx, err := userDB.Begin()
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error"})
@@ -168,7 +190,7 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var title, msg, target string
-	if err = tx.QueryRow(`SELECT title,message,target_phone FROM public.task_definitions WHERE id=$1::uuid AND channel='whatsapp' AND active=true AND (country_code IS NULL OR country_code=$2)`, in.TaskID, country).Scan(&title, &msg, &target); err != nil || strings.TrimSpace(target) == "" {
+	if err = tx.QueryRow(`SELECT t.title,t.message,t.target_phone FROM public.task_definitions t WHERE t.id=$1::uuid AND t.channel='whatsapp' AND t.active=true AND (t.country_code IS NULL OR t.country_code=$2) AND NOT EXISTS(SELECT 1 FROM public.task_claims c WHERE c.task_id=t.id AND c.status IN ('claimed','sending','delivery_unknown','sent')) FOR UPDATE OF t`, in.TaskID, country).Scan(&title, &msg, &target); err != nil || strings.TrimSpace(target) == "" {
 		userFeaturesJSON(w, 404, map[string]any{"status": "error", "message": "Task unavailable for your country"})
 		return
 	}
@@ -183,7 +205,7 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var claimID string
-	if err = tx.QueryRow(`INSERT INTO public.task_claims(task_id,user_id,whatsapp_account_id,target_phone,message,status,reward,country_code,currency_code,channel) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5,'sending',$6,$7,$8,'whatsapp') RETURNING id`, in.TaskID, id, in.AccountID, target, msg, reward, country, currency).Scan(&claimID); err != nil {
+	if err = tx.QueryRow(`INSERT INTO public.task_claims(task_id,user_id,whatsapp_account_id,target_phone,message,status,reward,country_code,currency_code,channel,expires_at) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5,'claimed',$6,$7,$8,'whatsapp',now()+interval '15 minutes') RETURNING id`, in.TaskID, id, in.AccountID, target, msg, reward, country, currency).Scan(&claimID); err != nil {
 		userFeaturesJSON(w, 409, map[string]any{"status": "error", "message": "Task already claimed or unavailable"})
 		return
 	}
@@ -191,15 +213,34 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error"})
 		return
 	}
-	s.mu.Lock()
-	sendErr := safeSendMessage(waid, s.client, types.JID{User: target, Server: types.DefaultUserServer}, msg)
-	s.mu.Unlock()
-	if sendErr != nil {
-		_, _ = userDB.Exec(`UPDATE public.task_claims SET status='failed' WHERE id=$1::uuid AND status='sending'`, claimID)
-		userFeaturesJSON(w, 502, map[string]any{"status": "error", "message": sendErr.Error()})
+	deliveryCtx, cancelDelivery := context.WithTimeout(r.Context(), 14*time.Minute)
+	defer cancelDelivery()
+	result, err := userDB.ExecContext(deliveryCtx, `UPDATE public.task_claims SET status='sending',expires_at=now()+interval '15 minutes',updated_at=now() WHERE id=$1::uuid AND status='claimed' AND expires_at>now()`, claimID)
+	if err != nil {
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not start task delivery"})
 		return
 	}
-	if err = creditTaskReward(id, in.AccountID, claimID, reward, country, currency, "whatsapp"); err != nil {
+	started, _ := result.RowsAffected()
+	if started != 1 {
+		userFeaturesJSON(w, http.StatusConflict, map[string]any{"status": "error", "message": "Task reservation expired before sending began"})
+		return
+	}
+	s.mu.Lock()
+	if deliveryCtx.Err() != nil {
+		s.mu.Unlock()
+		_, _ = userDB.Exec(`UPDATE public.task_claims SET status='failed',failure_reason='WhatsApp delivery deadline elapsed before sending began',updated_at=now() WHERE id=$1::uuid AND status IN ('sending','delivery_unknown')`, claimID)
+		userFeaturesJSON(w, http.StatusGatewayTimeout, map[string]any{"status": "error", "message": "Task delivery timed out before sending began. Please try again."})
+		return
+	}
+	sendErr := safeSendMessageContext(deliveryCtx, waid, s.client, types.JID{User: target, Server: types.DefaultUserServer}, msg)
+	s.mu.Unlock()
+	if sendErr != nil {
+		_, _ = userDB.Exec(`UPDATE public.task_claims SET status='delivery_unknown',failure_reason='WhatsApp send returned an error; admin delivery review required',updated_at=now() WHERE id=$1::uuid AND status='sending'`, claimID)
+		userFeaturesJSON(w, http.StatusBadGateway, map[string]any{"status": "error", "message": "WhatsApp delivery could not be confirmed. An admin must review it before this task can be retried."})
+		return
+	}
+	if err = creditTaskRewardContext(deliveryCtx, id, in.AccountID, claimID, reward, country, currency, "whatsapp"); err != nil {
+		_, _ = userDB.Exec(`UPDATE public.task_claims SET status='delivery_unknown',failure_reason='WhatsApp sent but reward processing failed; admin review required',updated_at=now() WHERE id=$1::uuid AND status='sending'`, claimID)
 		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": "Message sent, but reward processing needs attention"})
 		return
 	}
@@ -223,37 +264,51 @@ func mustCountryGoal(code string) int {
 }
 
 func creditTaskReward(userID, accountID, claimID string, reward float64, country, currency, channel string) error {
-	tx, err := userDB.Begin()
+	return creditTaskRewardContext(context.Background(), userID, accountID, claimID, reward, country, currency, channel)
+}
+
+func creditTaskRewardContext(ctx context.Context, userID, accountID, claimID string, reward float64, country, currency, channel string) error {
+	tx, err := userDB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if err = creditTaskRewardInTx(tx, userID, accountID, claimID, reward, country, currency, channel); err != nil {
+	if err = creditTaskRewardInTxContext(ctx, tx, userID, accountID, claimID, reward, country, currency, channel); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
 func creditTaskRewardInTx(tx *sql.Tx, userID, accountID, claimID string, reward float64, country, currency, channel string) error {
+	return creditTaskRewardInTxContext(context.Background(), tx, userID, accountID, claimID, reward, country, currency, channel)
+}
+
+func creditTaskRewardInTxContext(ctx context.Context, tx *sql.Tx, userID, accountID, claimID string, reward float64, country, currency, channel string) error {
 	var err error
 	var status string
-	if err = tx.QueryRow(`SELECT status FROM public.task_claims WHERE id=$1::uuid FOR UPDATE`, claimID).Scan(&status); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT status FROM public.task_claims WHERE id=$1::uuid FOR UPDATE`, claimID).Scan(&status); err != nil {
 		return err
 	}
 	if status == "sent" {
 		return nil
 	}
-	if status != "sending" {
+	if status != "sending" && status != "delivery_unknown" {
 		return fmt.Errorf("claim is not awaiting credit")
 	}
-	if _, err = tx.Exec(`UPDATE public.task_claims SET status='sent',sent_at=now() WHERE id=$1::uuid`, claimID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE public.task_claims SET status='sent',sent_at=now() WHERE id=$1::uuid`, claimID); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE public.task_definitions SET active=false,updated_at=now() WHERE id=(SELECT task_id FROM public.task_claims WHERE id=$1::uuid)`, claimID); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE public.advertiser_campaigns c SET status='completed',updated_at=now() WHERE c.id=(SELECT t.campaign_id FROM public.task_definitions t JOIN public.task_claims tc ON tc.task_id=t.id WHERE tc.id=$1::uuid) AND NOT EXISTS(SELECT 1 FROM public.task_definitions t WHERE t.campaign_id=c.id AND NOT EXISTS(SELECT 1 FROM public.task_claims tc WHERE tc.task_id=t.id AND tc.status='sent'))`, claimID); err != nil {
 		return err
 	}
 	if reward <= 0 {
 		if channel != "whatsapp" {
 			return nil
 		}
-		if _, err = tx.Exec(`UPDATE public.user_whatsapp_accounts SET current_send_total=current_send_total+1,today_send_total=today_send_total+1,last_seen_at=now(),updated_at=now() WHERE id=$1::uuid`, accountID); err != nil {
+		if _, err = tx.ExecContext(ctx, `UPDATE public.user_whatsapp_accounts SET current_send_total=current_send_total+1,today_send_total=today_send_total+1,last_seen_at=now(),updated_at=now() WHERE id=$1::uuid`, accountID); err != nil {
 			return err
 		}
 		return nil
@@ -262,7 +317,7 @@ func creditTaskRewardInTx(tx *sql.Tx, userID, accountID, claimID string, reward 
 	if channel == "sms" {
 		description = "SMS task reward"
 	}
-	result, err := tx.Exec(`INSERT INTO public.wallet_transactions(id,user_id,amount,currency_code,type,description,source_id,idempotency_key) VALUES($1::uuid,$2::uuid,$3,$4,'task_reward',$5,$6,$7) ON CONFLICT(idempotency_key) DO NOTHING`, uuid.NewString(), userID, reward, currency, description, claimID, rewardCreditKey(userID, claimID))
+	result, err := tx.ExecContext(ctx, `INSERT INTO public.wallet_transactions(id,user_id,amount,currency_code,type,description,source_id,idempotency_key) VALUES($1::uuid,$2::uuid,$3,$4,'task_reward',$5,$6,$7) ON CONFLICT(idempotency_key) DO NOTHING`, uuid.NewString(), userID, reward, currency, description, claimID, rewardCreditKey(userID, claimID))
 	if err != nil {
 		return err
 	}
@@ -270,29 +325,29 @@ func creditTaskRewardInTx(tx *sql.Tx, userID, accountID, claimID string, reward 
 	if inserted != 1 {
 		return fmt.Errorf("reward was already credited")
 	}
-	if _, err = tx.Exec(`UPDATE public.app_users SET balance=balance+$1,today_earning=today_earning+$1,total_earning=total_earning+$1,updated_at=now() WHERE id=$2::uuid`, reward, userID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE public.app_users SET balance=balance+$1,today_earning=today_earning+$1,total_earning=total_earning+$1,updated_at=now() WHERE id=$2::uuid`, reward, userID); err != nil {
 		return err
 	}
 	if channel == "whatsapp" {
-		if _, err = tx.Exec(`UPDATE public.user_whatsapp_accounts SET current_send_total=current_send_total+1,today_send_total=today_send_total+1,last_seen_at=now(),updated_at=now() WHERE id=$1::uuid`, accountID); err != nil {
+		if _, err = tx.ExecContext(ctx, `UPDATE public.user_whatsapp_accounts SET current_send_total=current_send_total+1,today_send_total=today_send_total+1,last_seen_at=now(),updated_at=now() WHERE id=$1::uuid`, accountID); err != nil {
 			return err
 		}
 	}
 	parent := userID
 	for level := 1; level <= 10; level++ {
 		var refID string
-		if err = tx.QueryRow(`SELECT referred_by::text FROM public.app_users WHERE id=$1::uuid`, parent).Scan(&refID); err != nil || refID == "" {
+		if err = tx.QueryRowContext(ctx, `SELECT referred_by::text FROM public.app_users WHERE id=$1::uuid`, parent).Scan(&refID); err != nil || refID == "" {
 			break
 		}
 		var pct float64
 		var active bool
-		if err = tx.QueryRow(`SELECT commission_percent,active FROM public.mlm_settings WHERE level=$1`, level).Scan(&pct, &active); err != nil || !active || pct <= 0 {
+		if err = tx.QueryRowContext(ctx, `SELECT commission_percent,active FROM public.mlm_settings WHERE level=$1`, level).Scan(&pct, &active); err != nil || !active || pct <= 0 {
 			parent = refID
 			continue
 		}
 		var refRate float64
 		var refCountry, refCurrency string
-		if err = tx.QueryRow(`SELECT CASE WHEN $2='sms' THEN c.sms_reward_per_message ELSE c.reward_per_message END,c.code,c.currency_code FROM public.app_users u JOIN public.earning_countries c ON c.code=u.country_code WHERE u.id=$1::uuid AND u.status='active' AND c.active=true`, refID, channel).Scan(&refRate, &refCountry, &refCurrency); err != nil {
+		if err = tx.QueryRowContext(ctx, `SELECT CASE WHEN $2='sms' THEN c.sms_reward_per_message ELSE c.reward_per_message END,c.code,c.currency_code FROM public.app_users u JOIN public.earning_countries c ON c.code=u.country_code WHERE u.id=$1::uuid AND u.status='active' AND c.active=true`, refID, channel).Scan(&refRate, &refCountry, &refCurrency); err != nil {
 			parent = refID
 			continue
 		}
@@ -300,13 +355,13 @@ func creditTaskRewardInTx(tx *sql.Tx, userID, accountID, claimID string, reward 
 		if commission > 0 {
 			description := "Level " + strconv.Itoa(level) + " referral commission"
 			key := fmt.Sprintf("referral:%s:%s:%d", claimID, refID, level)
-			if _, err = tx.Exec(`INSERT INTO public.referral_commissions(referrer_id,referred_user_id,task_claim_id,amount,level) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5)`, refID, parent, claimID, commission, level); err != nil {
+			if _, err = tx.ExecContext(ctx, `INSERT INTO public.referral_commissions(referrer_id,referred_user_id,task_claim_id,amount,level) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5)`, refID, parent, claimID, commission, level); err != nil {
 				return err
 			}
-			if _, err = tx.Exec(`INSERT INTO public.wallet_transactions(id,user_id,amount,currency_code,type,description,source_id,idempotency_key) VALUES($1::uuid,$2::uuid,$3,$4,'referral_commission',$5,$6,$7) ON CONFLICT(idempotency_key) DO NOTHING`, uuid.NewString(), refID, commission, refCurrency, description, claimID, key); err != nil {
+			if _, err = tx.ExecContext(ctx, `INSERT INTO public.wallet_transactions(id,user_id,amount,currency_code,type,description,source_id,idempotency_key) VALUES($1::uuid,$2::uuid,$3,$4,'referral_commission',$5,$6,$7) ON CONFLICT(idempotency_key) DO NOTHING`, uuid.NewString(), refID, commission, refCurrency, description, claimID, key); err != nil {
 				return err
 			}
-			if _, err = tx.Exec(`UPDATE public.app_users SET balance=balance+$1,total_earning=total_earning+$1,updated_at=now() WHERE id=$2::uuid`, commission, refID); err != nil {
+			if _, err = tx.ExecContext(ctx, `UPDATE public.app_users SET balance=balance+$1,total_earning=total_earning+$1,updated_at=now() WHERE id=$2::uuid`, commission, refID); err != nil {
 				return err
 			}
 		}
