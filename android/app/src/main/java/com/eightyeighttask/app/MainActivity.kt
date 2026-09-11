@@ -3,11 +3,22 @@ package com.eightyeighttask.app
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.Dialog
+import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.net.Uri
 import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
-import android.window.OnBackInvokedDispatcher
+import android.util.Base64
+import android.view.Gravity
+import android.view.ViewGroup
+import android.view.Window
 import android.webkit.CookieManager
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
@@ -15,14 +26,18 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import android.window.OnBackInvokedDispatcher
 import java.lang.ref.WeakReference
-import java.security.SecureRandom
-import android.util.Base64
-import android.content.Intent
-import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.SecureRandom
 import kotlin.concurrent.thread
+import org.json.JSONObject
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
@@ -138,7 +153,6 @@ class MainActivity : Activity() {
         return Base64.encodeToString(bytes, Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE)
     }
 
-
     private fun checkAppVersion() {
         thread {
             try {
@@ -186,11 +200,158 @@ class MainActivity : Activity() {
         Intent(Intent.ACTION_VIEW, Uri.parse(url)).resolveActivity(packageManager) != null
 
     private fun showUpdatePopup(downloadUrl: String, forceUpdate: Boolean, message: String, versionName: String) {
-        val title = if (versionName.isNotEmpty()) "Update Required (v$versionName)" else "Update Required"
-        val builder = AlertDialog.Builder(this)
-            .setTitle(title)
-            .setMessage(message)
-            .setPositiveButton("Update Now") { _, _ ->
+        val dp = { v: Int -> (v * resources.displayMetrics.density).toInt() }
+
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+
+        // Rounded dialog card container
+        val cardLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = dp(24).toFloat()
+                setColor(Color.WHITE)
+            }
+            setPadding(dp(24), dp(28), dp(24), dp(24))
+            elevation = dp(8).toFloat()
+        }
+
+        // Top circular icon badge
+        val iconBadge = LinearLayout(this).apply {
+            val size = dp(58)
+            layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                bottomMargin = dp(16)
+            }
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#DCFCE7"))
+            }
+        }
+
+        val iconView = ImageView(this).apply {
+            val iconRes = resources.getIdentifier("ic_app_update", "drawable", packageName)
+            if (iconRes != 0) {
+                setImageResource(iconRes)
+            }
+            layoutParams = LinearLayout.LayoutParams(dp(30), dp(30))
+        }
+        iconBadge.addView(iconView)
+        cardLayout.addView(iconBadge)
+
+        // Header Title
+        val titleView = TextView(this).apply {
+            text = if (forceUpdate) "Update Required" else "Update Available"
+            textSize = 20f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.parseColor("#0F172A"))
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(6)
+            }
+        }
+        cardLayout.addView(titleView)
+
+        // Version badge pill
+        if (versionName.isNotBlank()) {
+            val versionChip = TextView(this).apply {
+                text = "v$versionName"
+                textSize = 12f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.parseColor("#047857"))
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = dp(12).toFloat()
+                    setColor(Color.parseColor("#ECFDF5"))
+                    setStroke(dp(1), Color.parseColor("#A7F3D0"))
+                }
+                setPadding(dp(12), dp(4), dp(12), dp(4))
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    bottomMargin = dp(16)
+                }
+            }
+            cardLayout.addView(versionChip)
+        } else {
+            (titleView.layoutParams as LinearLayout.LayoutParams).bottomMargin = dp(16)
+        }
+
+        // Message changelog container
+        val messageBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = dp(12).toFloat()
+                setColor(Color.parseColor("#F8FAFC"))
+                setStroke(dp(1), Color.parseColor("#E2E8F0"))
+            }
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(20)
+            }
+        }
+
+        val scrollView = ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        val messageView = TextView(this).apply {
+            text = message
+            textSize = 13.5f
+            setTextColor(Color.parseColor("#475569"))
+            setLineSpacing(0f, 1.25f)
+            gravity = Gravity.START
+        }
+        scrollView.addView(messageView)
+        messageBox.addView(scrollView)
+        cardLayout.addView(messageBox)
+
+        // Primary Action Button ("Update Now")
+        val primaryBtn = Button(this).apply {
+            text = "Update Now"
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.WHITE)
+            isAllCaps = false
+            elevation = 0f
+            stateListAnimator = null
+
+            val normalBg = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = dp(14).toFloat()
+                setColor(Color.parseColor("#086B48"))
+            }
+            val mask = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = dp(14).toFloat()
+                setColor(Color.WHITE)
+            }
+            background = RippleDrawable(ColorStateList.valueOf(Color.parseColor("#33FFFFFF")), normalBg, mask)
+
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(48)
+            ).apply {
+                bottomMargin = if (forceUpdate) dp(8) else dp(10)
+            }
+
+            setOnClickListener {
                 if (canOpenUrl(downloadUrl)) {
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -203,16 +364,67 @@ class MainActivity : Activity() {
                     showMessage("Update Unavailable", "Could not open the update link. Please try again later.")
                 }
             }
+        }
+        cardLayout.addView(primaryBtn)
 
-        if (forceUpdate) {
-            builder.setCancelable(false)
-            builder.setNegativeButton("Exit") { _, _ -> finishAffinity() }
-        } else {
-            builder.setNegativeButton("Later") { dialog, _ -> dialog.dismiss() }
+        // Secondary Action Button ("Exit Application" or "Maybe Later")
+        val secondaryBtn = Button(this).apply {
+            text = if (forceUpdate) "Exit Application" else "Maybe Later"
+            textSize = 14f
+            isAllCaps = false
+            elevation = 0f
+            stateListAnimator = null
+
+            if (forceUpdate) {
+                setTextColor(Color.parseColor("#94A3B8"))
+                background = null
+            } else {
+                setTextColor(Color.parseColor("#475569"))
+                val normalBg = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = dp(12).toFloat()
+                    setColor(Color.parseColor("#F1F5F9"))
+                }
+                val mask = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = dp(12).toFloat()
+                    setColor(Color.WHITE)
+                }
+                background = RippleDrawable(ColorStateList.valueOf(Color.parseColor("#1A000000")), normalBg, mask)
+            }
+
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(44)
+            )
+
+            setOnClickListener {
+                if (forceUpdate) {
+                    finishAffinity()
+                } else {
+                    dialog.dismiss()
+                }
+            }
+        }
+        cardLayout.addView(secondaryBtn)
+
+        // Dialog configuration
+        dialog.setContentView(cardLayout)
+        dialog.window?.apply {
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            val width = (resources.displayMetrics.widthPixels * 0.88).toInt().coerceAtMost(dp(360))
+            setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
+            setDimAmount(0.6f)
         }
 
-        val dialog = builder.create()
-        dialog.setCanceledOnTouchOutside(!forceUpdate)
+        if (forceUpdate) {
+            dialog.setCancelable(false)
+            dialog.setCanceledOnTouchOutside(false)
+            dialog.setOnCancelListener { finishAffinity() }
+        } else {
+            dialog.setCanceledOnTouchOutside(true)
+        }
+
         dialog.show()
     }
 
