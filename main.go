@@ -195,6 +195,9 @@ func main() {
 	if err = initEarningPortalSchema(); err != nil {
 		panic(err)
 	}
+	if err = initCampaignSchema(); err != nil {
+		panic(err)
+	}
 	if err = initWalletSchema(); err != nil {
 		panic(err)
 	}
@@ -231,6 +234,8 @@ func requestSizeLimits(next http.Handler) http.Handler {
 		limit := int64(2 << 20)
 		if r.URL.Path == "/admin/banners/data" {
 			limit = 6 << 20
+		} else if r.URL.Path == "/admin/campaigns/import" || r.URL.Path == "/api/client/campaigns/import" {
+			limit = 64 << 20
 		}
 		http.MaxBytesHandler(next, limit).ServeHTTP(w, r)
 	})

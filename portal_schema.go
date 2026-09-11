@@ -99,6 +99,32 @@ func initPortalBaseSchema() error {
 		CREATE UNIQUE INDEX IF NOT EXISTS task_claims_active_user_task_idx
 		ON public.task_claims(task_id,user_id)
 		WHERE status IN ('claimed','sending','sent');
+		UPDATE public.task_claims
+		SET status='expired',updated_at=now()
+		WHERE channel='sms' AND status='sending' AND expires_at<=now();
+		UPDATE public.task_claims
+		SET status='expired',failure_reason='WhatsApp claim expired before sending began',updated_at=now()
+		WHERE channel='whatsapp' AND status='claimed' AND expires_at<=now();
+		WITH duplicate_reservations AS (
+			SELECT id,row_number() OVER (PARTITION BY task_id ORDER BY created_at,id) AS position
+			FROM public.task_claims
+			WHERE status IN ('claimed','sending','delivery_unknown')
+		)
+		UPDATE public.task_claims c
+		SET status='failed',failure_reason='Superseded while enabling global task exclusivity',updated_at=now()
+		FROM duplicate_reservations d
+		WHERE c.id=d.id AND d.position>1;
+		CREATE UNIQUE INDEX IF NOT EXISTS task_claims_single_active_task_idx
+		ON public.task_claims(task_id)
+		WHERE status IN ('claimed','sending');
+		CREATE UNIQUE INDEX IF NOT EXISTS task_claims_single_reserved_task_idx
+		ON public.task_claims(task_id)
+		WHERE status IN ('claimed','sending','delivery_unknown');
+		UPDATE public.task_definitions t
+		SET active=false,updated_at=now()
+		WHERE active=true AND EXISTS(
+			SELECT 1 FROM public.task_claims c WHERE c.task_id=t.id AND c.status='sent'
+		);
 		CREATE INDEX IF NOT EXISTS task_claims_user_idx
 		ON public.task_claims(user_id,created_at DESC);
 

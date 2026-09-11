@@ -16,6 +16,7 @@
       bonuses: '<path d="M20 12v9H4v-9M2 7h20v5H2zM12 7v14M12 7H7.5a2.5 2.5 0 1 1 2.1-3.85L12 7Zm0 0h4.5a2.5 2.5 0 1 0-2.1-3.85L12 7Z"/>',
       countries: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>',
       tasks: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+      campaigns: '<path d="M3 6h18v14H3z"/><path d="M8 6V3h8v3M3 11h18M10 15h4"/>',
       banners: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/>',
       withdrawals: '<path d="M3 7h18v12H3z"/><path d="M3 10h18M7 15h4"/>',
 	  customerService: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"/><path d="M8 9h8M8 13h5"/>',
@@ -47,6 +48,7 @@
       { key: 'bonuses', href: '/admin/bonuses', label: 'nav.bonuses', title: 'Bonuses', icon: 'bonuses' },
       { key: 'countries', href: '/admin/countries', label: 'nav.countries', title: 'Countries & rates', icon: 'countries' },
       { key: 'tasks', href: '/admin/tasks', label: 'nav.earning_tasks', title: 'Earning tasks', icon: 'tasks' },
+      { key: 'campaigns', href: '/admin/campaigns', label: 'nav.campaigns', title: 'Campaigns & search', icon: 'campaigns' },
       { key: 'banners', href: '/admin/banners', label: 'nav.banners', title: 'Banners', icon: 'banners' },
 	  { key: 'customerService', href: '/admin/customer-service', label: 'nav.customer_service', title: 'Customer service', icon: 'customerService' },
       { key: 'withdrawals', href: '/admin/withdrawals', label: 'nav.withdrawals', title: 'Withdrawals', icon: 'withdrawals' }

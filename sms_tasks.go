@@ -107,6 +107,10 @@ func userSMSTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "Valid task_id and installation_id are required"})
 		return
 	}
+	if err := expireTaskClaimLeases(); err != nil {
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not refresh task availability"})
+		return
+	}
 	tx, err := userDB.Begin()
 	if err != nil {
 		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error"})
@@ -151,7 +155,7 @@ func userSMSTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var title, message, target string
-	if err = tx.QueryRow(`SELECT title,message,target_phone FROM public.task_definitions WHERE id=$1::uuid AND channel='sms' AND active=true AND (country_code IS NULL OR country_code=$2)`, in.TaskID, country).Scan(&title, &message, &target); err != nil || strings.TrimSpace(target) == "" {
+	if err = tx.QueryRow(`SELECT t.title,t.message,t.target_phone FROM public.task_definitions t WHERE t.id=$1::uuid AND t.channel='sms' AND t.active=true AND (t.country_code IS NULL OR t.country_code=$2) AND NOT EXISTS(SELECT 1 FROM public.task_claims c WHERE c.task_id=t.id AND c.status IN ('claimed','sending','delivery_unknown','sent')) FOR UPDATE OF t`, in.TaskID, country).Scan(&title, &message, &target); err != nil || strings.TrimSpace(target) == "" {
 		userFeaturesJSON(w, http.StatusNotFound, map[string]any{"status": "error", "message": "SMS task unavailable for your country"})
 		return
 	}
