@@ -96,6 +96,8 @@ func initPortalBaseSchema() error {
 		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS sms_parts INTEGER;
 		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
 		ALTER TABLE public.task_claims ADD COLUMN IF NOT EXISTS failure_reason TEXT NOT NULL DEFAULT '';
+		ALTER TABLE public.task_claims DROP CONSTRAINT IF EXISTS task_claims_status_check;
+		ALTER TABLE public.task_claims ADD CONSTRAINT task_claims_status_check CHECK (status IN ('claimed','sending','sent','expired','failed','delivery_unknown','cancelled','timeout','pending','active','completed'));
 		CREATE UNIQUE INDEX IF NOT EXISTS task_claims_active_user_task_idx
 		ON public.task_claims(task_id,user_id)
 		WHERE status IN ('claimed','sending','sent');
