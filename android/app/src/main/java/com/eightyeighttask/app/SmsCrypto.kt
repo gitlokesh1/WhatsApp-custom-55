@@ -9,15 +9,21 @@ import java.security.Signature
 import java.security.spec.ECGenParameterSpec
 
 object SmsCrypto {
-    private const val KEY_ALIAS = "88task_sms_receipt_v1"
+    private const val DEFAULT_KEY_ALIAS = "88task_sms_receipt_v1"
+
+    private fun aliasForAccount(accountId: String?): String {
+        val clean = accountId?.trim()?.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+        return if (!clean.isNullOrBlank()) "88task_sms_receipt_$clean" else DEFAULT_KEY_ALIAS
+    }
 
     @Synchronized
-    fun publicKey(): String {
+    fun publicKey(accountId: String? = null): String {
+        val alias = aliasForAccount(accountId)
         val store = keyStore()
-        if (!store.containsAlias(KEY_ALIAS)) {
+        if (!store.containsAlias(alias)) {
             val generator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore")
             generator.initialize(
-                KeyGenParameterSpec.Builder(KEY_ALIAS, KeyProperties.PURPOSE_SIGN)
+                KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_SIGN)
                     .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
                     .setDigests(KeyProperties.DIGEST_SHA256)
                     .setUserAuthenticationRequired(false)
@@ -25,14 +31,15 @@ object SmsCrypto {
             )
             generator.generateKeyPair()
         }
-        val encoded = requireNotNull(store.getCertificate(KEY_ALIAS)).publicKey.encoded
+        val encoded = requireNotNull(store.getCertificate(alias)).publicKey.encoded
         return Base64.encodeToString(encoded, Base64.NO_WRAP)
     }
 
     @Synchronized
-    fun sign(payload: String): String {
-        publicKey()
-        val privateKey = requireNotNull(keyStore().getKey(KEY_ALIAS, null))
+    fun sign(payload: String, accountId: String? = null): String {
+        val alias = aliasForAccount(accountId)
+        publicKey(accountId)
+        val privateKey = requireNotNull(keyStore().getKey(alias, null))
         val signature = Signature.getInstance("SHA256withECDSA")
         signature.initSign(privateKey as java.security.PrivateKey)
         signature.update(payload.toByteArray(Charsets.UTF_8))

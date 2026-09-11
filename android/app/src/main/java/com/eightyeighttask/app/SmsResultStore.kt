@@ -14,6 +14,7 @@ data class SmsTask(
     val reward: String,
     val currencyCode: String,
     val expiresAtMillis: Long,
+    val accountId: String? = null,
 )
 
 object SmsResultStore {
@@ -24,12 +25,17 @@ object SmsResultStore {
     private const val PENDING_LIFETIME_MILLIS = 10 * 60 * 1000L
 
     @Synchronized
-    fun installationId(context: Context): String {
+    fun installationId(context: Context, accountId: String? = null): String {
         val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val existing = preferences.getString(INSTALLATION_ID, null)
+        val key = if (!accountId.isNullOrBlank()) {
+            "installation_id_${accountId.trim().replace(Regex("[^a-zA-Z0-9_-]"), "_")}"
+        } else {
+            INSTALLATION_ID
+        }
+        val existing = preferences.getString(key, null)
         if (!existing.isNullOrBlank()) return existing
         return UUID.randomUUID().toString().also {
-            preferences.edit().putString(INSTALLATION_ID, it).apply()
+            preferences.edit().putString(key, it).apply()
         }
     }
 
@@ -37,6 +43,7 @@ object SmsResultStore {
     fun begin(context: Context, task: SmsTask, parts: Int) {
         val active = JSONObject()
             .put("claim_id", task.claimId)
+            .put("account_id", task.accountId.orEmpty())
             .put("nonce", task.nonce)
             .put("parts", parts)
             .put("seen", JSONArray())
@@ -75,6 +82,7 @@ object SmsResultStore {
         return finish(
             context,
             claimId,
+            active.optString("account_id").ifBlank { null },
             active.getString("nonce"),
             result,
             expectedParts,
@@ -84,7 +92,7 @@ object SmsResultStore {
 
     @Synchronized
     fun fail(context: Context, task: SmsTask, reason: String): String =
-        finish(context, task.claimId, task.nonce, "failed", 0, reason.take(200))
+        finish(context, task.claimId, task.accountId, task.nonce, "failed", 0, reason.take(200))
 
     @Synchronized
     fun discardExpiredActive(context: Context) {
@@ -96,9 +104,17 @@ object SmsResultStore {
     }
 
     @Synchronized
-    fun pending(context: Context): String? {
+    fun pending(context: Context, accountId: String? = null): String? {
         discardStalePending(context)
-        return preferences(context).getString(PENDING_RESULT, null)
+        val raw = preferences(context).getString(PENDING_RESULT, null) ?: return null
+        if (!accountId.isNullOrBlank()) {
+            val obj = parseObject(raw) ?: return null
+            val pendingAccount = obj.optString("account_id", "")
+            if (pendingAccount.isNotBlank() && pendingAccount != accountId.trim()) {
+                return null
+            }
+        }
+        return raw
     }
 
     @Synchronized
@@ -120,13 +136,14 @@ object SmsResultStore {
     private fun finish(
         context: Context,
         claimId: String,
+        accountId: String?,
         nonce: String,
         result: String,
         parts: Int,
         failureReason: String,
     ): String {
         val timestamp = System.currentTimeMillis() / 1000
-        val installationId = installationId(context)
+        val installationId = installationId(context, accountId)
         val payload = listOf(
             claimId,
             nonce,
@@ -138,12 +155,13 @@ object SmsResultStore {
         ).joinToString("\n")
         val receipt = JSONObject()
             .put("claim_id", claimId)
+            .put("account_id", accountId.orEmpty())
             .put("nonce", nonce)
             .put("installation_id", installationId)
             .put("result", result)
             .put("parts", parts)
             .put("timestamp", timestamp)
-            .put("signature", SmsCrypto.sign(payload))
+            .put("signature", SmsCrypto.sign(payload, accountId))
             .put("failure_reason", failureReason)
             .toString()
         preferences(context).edit().remove(ACTIVE_SEND).putString(PENDING_RESULT, receipt).apply()

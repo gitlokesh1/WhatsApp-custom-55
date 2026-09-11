@@ -102,7 +102,13 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        CookieManager.getInstance().flush()
         if (::smsBridge.isInitialized) smsBridge.resumePending(bridgeToken)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        CookieManager.getInstance().flush()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
