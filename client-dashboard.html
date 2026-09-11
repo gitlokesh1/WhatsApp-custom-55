@@ -1,5 +1,718 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#087a50"><title>88Task • Advertiser campaigns</title><link rel="stylesheet" href="/client-ui.css"></head><body><nav class="client-nav"><a class="client-brand" href="/client"><span class="client-mark">88</span><span>Advertiser Portal</span></a><div class="client-links"><span id="clientName"></span><a href="/client/docs">Documentation</a><button class="client-btn" onclick="clientLogout()">Sign out</button></div></nav><main class="client-wrap"><header class="client-head"><div><h1>Campaign workspace</h1><p>Upload consented SMS or WhatsApp task data, then follow pricing, approval, activation, and completion from one place.</p></div><a class="client-btn" href="/client/docs">CSV guide</a></header><section class="client-grid"><article class="client-card"><h2>Submit a campaign</h2><p>Our team sets pricing after review. Submitted tasks stay unavailable to users until admin approval.</p><form id="campaignForm"><div class="client-field"><label for="name">Campaign name</label><input id="name" name="name" class="client-input" maxlength="140" required></div><div class="client-grid"><div class="client-field"><label for="channel">Channel</label><select id="channel" name="channel" class="client-input"><option value="sms">SMS</option><option value="whatsapp">WhatsApp</option></select></div><div class="client-field"><label for="country">Country</label><select id="country" name="country_code" class="client-input" required><option value="">Loading…</option></select></div></div><div class="client-field"><label for="file">CSV file</label><input id="file" name="file" class="client-input" type="file" accept=".csv,text/csv" required><small>Required columns: phone, message, consent. Optional: title.</small></div><button id="submitButton" class="client-btn primary" type="submit">Submit for review</button><div id="uploadMessage" aria-live="polite"></div></form></article><article class="client-card"><h2>How approval works</h2><p>Every campaign follows the same controlled process.</p><ol><li>You upload consented recipients and message content.</li><li>Our team validates the data and assigns the channel price.</li><li>Approved tasks are activated for eligible users in the selected country.</li><li>Each task can be claimed and completed by only one user.</li><li>Progress updates below as tasks complete.</li></ol></article></section><article class="client-card" style="margin-top:18px"><h2>Your campaigns</h2><p>Pricing is read-only and appears after admin review.</p><div class="client-table-wrap"><table class="client-table"><thead><tr><th>Campaign</th><th>Channel / country</th><th>Status</th><th>Progress</th><th>Admin price</th><th>Submitted</th></tr></thead><tbody id="campaignRows"><tr><td colspan="6" class="client-empty">Loading…</td></tr></tbody></table></div></article></main><script src="/client-ui.js"></script><script>
-async function loadCountries(){const response=await fetch('/api/public/countries');const data=await response.json();const options=(data.countries||[]).map(x=>`<option value="${clientEscape(x.code)}">${clientEscape(x.name)} (${clientEscape(x.code)})</option>`).join('');country.innerHTML=options?'<option value="" selected disabled>Select country</option>'+options:'<option value="">No active countries</option>'}
-async function loadCampaigns(){const data=await clientApi('/api/client/campaigns');clientName.textContent=data.advertiser_name||'';const campaigns=data.campaigns||[];campaignRows.innerHTML=campaigns.length?campaigns.map(item=>{const total=Number(item.task_count||0),done=Number(item.completed_count||0),pct=total?Math.round(done*100/total):0;return `<tr><td><strong>${clientEscape(item.name)}</strong><br><small>${clientEscape(item.public_id)}</small></td><td>${clientEscape(String(item.channel).toUpperCase())}<br><small>${clientEscape(item.country_code)}</small></td><td><span class="client-badge ${clientEscape(item.status)}">${clientEscape(String(item.status).replaceAll('_',' '))}</span></td><td>${done} / ${total}<div class="client-progress"><span style="width:${pct}%"></span></div></td><td>${item.unit_price==null?'Pending':clientEscape(Number(item.unit_price).toFixed(4)+' '+item.currency_code)}${item.quoted_total==null?'':`<br><small>Total ${clientEscape(Number(item.quoted_total).toFixed(4)+' '+item.currency_code)}</small>`}</td><td>${clientEscape(clientDate(item.created_at))}</td></tr>`}).join(''):'<tr><td colspan="6" class="client-empty">No campaigns submitted yet.</td></tr>'}
-campaignForm.onsubmit=async event=>{event.preventDefault();submitButton.disabled=true;uploadMessage.innerHTML='';try{const data=await clientApi('/api/client/campaigns/import',{method:'POST',body:new FormData(campaignForm)});uploadMessage.innerHTML=`<div class="client-alert"><strong>${clientEscape(data.campaign_id)}</strong> submitted with ${Number(data.imported||0)} tasks. ${Number(data.skipped||0)} skipped.</div>`;campaignForm.reset();await loadCampaigns()}catch(error){uploadMessage.innerHTML='<div class="client-alert error">'+clientEscape(error.message)+'</div>'}finally{submitButton.disabled=false}};Promise.all([loadCountries(),loadCampaigns()]).catch(error=>uploadMessage.innerHTML='<div class="client-alert error">'+clientEscape(error.message)+'</div>');
-</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#087a50">
+  <title>88Task • Advertiser Portal</title>
+  <link rel="stylesheet" href="/client-ui.css">
+</head>
+<body>
+  <nav class="client-nav">
+    <a class="client-brand" href="/client">
+      <span class="client-mark">88</span>
+      <span>Advertiser Portal</span>
+    </a>
+    <div class="client-links">
+      <span id="clientNameTag" class="client-user-tag">Advertiser</span>
+      <button class="client-btn small" onclick="openProfileModal()">Account & Security</button>
+      <a class="client-btn small" href="/client/docs">Documentation</a>
+      <button class="client-btn small" onclick="clientLogout()">Sign out</button>
+    </div>
+  </nav>
+
+  <main class="client-wrap">
+    <header class="client-head">
+      <div>
+        <h1>Campaign Workspace</h1>
+        <p>Monitor campaign delivery in real time, review pricing and approval status, inspect tasks, and submit new SMS or WhatsApp broadcasts.</p>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="client-btn" onclick="openProfileModal()">⚙ Settings</button>
+        <a class="client-btn primary" href="#submitCard">+ New Campaign</a>
+      </div>
+    </header>
+
+    <!-- Top KPI Cards -->
+    <section class="client-kpi-grid">
+      <div class="client-kpi-card">
+        <div class="client-kpi-label">Total Campaigns</div>
+        <div id="kpiTotalCampaigns" class="client-kpi-value">0</div>
+        <div class="client-kpi-sub">Lifetime submissions</div>
+      </div>
+      <div class="client-kpi-card">
+        <div class="client-kpi-label">Total Messages</div>
+        <div id="kpiTotalTasks" class="client-kpi-value">0</div>
+        <div class="client-kpi-sub">Recipient tasks imported</div>
+      </div>
+      <div class="client-kpi-card">
+        <div class="client-kpi-label">Successfully Delivered</div>
+        <div id="kpiDelivered" class="client-kpi-value" style="color:var(--green)">0</div>
+        <div class="client-kpi-sub">Sent by active app users</div>
+      </div>
+      <div class="client-kpi-card">
+        <div class="client-kpi-label">In-Flight / Reserved</div>
+        <div id="kpiReserved" class="client-kpi-value" style="color:var(--warning)">0</div>
+        <div class="client-kpi-sub">Currently being processed</div>
+      </div>
+      <div class="client-kpi-card">
+        <div class="client-kpi-label">Overall Delivery Rate</div>
+        <div id="kpiDeliveryRate" class="client-kpi-value">0%</div>
+        <div class="client-kpi-sub">Completed / total ratio</div>
+      </div>
+      <div class="client-kpi-card">
+        <div class="client-kpi-label">Estimated Spend</div>
+        <div id="kpiTotalSpend" class="client-kpi-value">0.00</div>
+        <div class="client-kpi-sub">Across approved campaigns</div>
+      </div>
+    </section>
+
+    <!-- Campaign submission & instructions -->
+    <section class="client-grid">
+      <article id="submitCard" class="client-card">
+        <h2>Submit a campaign</h2>
+        <p>Admin sets pricing after review. Tasks remain queued until approved and activated.</p>
+        <form id="campaignForm">
+          <div class="client-field">
+            <label for="name">Campaign name</label>
+            <input id="name" name="name" class="client-input" maxlength="140" placeholder="e.g. Summer Promo SMS #1" required>
+          </div>
+          <div class="client-grid">
+            <div class="client-field">
+              <label for="channel">Channel</label>
+              <select id="channel" name="channel" class="client-input">
+                <option value="sms">SMS</option>
+                <option value="whatsapp">WhatsApp</option>
+              </select>
+            </div>
+            <div class="client-field">
+              <label for="country">Country</label>
+              <select id="country" name="country_code" class="client-input" required>
+                <option value="">Loading…</option>
+              </select>
+            </div>
+          </div>
+          <div class="client-field">
+            <label for="file">CSV file</label>
+            <input id="file" name="file" class="client-input" type="file" accept=".csv,text/csv" required>
+            <div id="csvPreview" class="client-csv-preview" style="display:none"></div>
+          </div>
+          <button id="submitButton" class="client-btn primary" type="submit" style="width:100%;margin-top:8px">Submit for review</button>
+          <div id="uploadMessage" aria-live="polite"></div>
+        </form>
+      </article>
+
+      <article class="client-card">
+        <h2>Campaign Lifecycle & Guide</h2>
+        <p>How 88Task routes your campaigns securely:</p>
+        <ol style="padding-left:20px;line-height:1.7;color:var(--text);font-size:13.5px">
+          <li><strong>Consented Audience:</strong> CSV must contain <code>phone</code>, <code>message</code>, and <code>consent</code> (1, yes, or true).</li>
+          <li><strong>Admin Review & Pricing:</strong> Rates are quoted per target country currency.</li>
+          <li><strong>User Distribution:</strong> Tasks are automatically matched to verified real Android app devices in the target region.</li>
+          <li><strong>Single-Device Execution:</strong> Each task is securely claimed and sent by one user.</li>
+          <li><strong>Proof & Reporting:</strong> Live progress updates below with downloadable delivery audit reports.</li>
+        </ol>
+        <div style="margin-top:16px">
+          <a class="client-btn small" href="/client/docs">Read CSV Format Guide →</a>
+        </div>
+      </article>
+    </section>
+
+    <!-- Campaigns Directory Card with Search, Filter & Pagination -->
+    <article class="client-card" style="margin-top:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2 style="margin:0">Campaigns Directory</h2>
+          <p style="margin:2px 0 0;font-size:13px;color:var(--muted)">Search, inspect message delivery, or pause active campaigns.</p>
+        </div>
+        <button class="client-btn small" onclick="loadCampaigns()">↻ Refresh</button>
+      </div>
+
+      <!-- Filters Toolbar -->
+      <div class="client-filters">
+        <input id="filterSearch" class="client-input client-search" type="search" placeholder="Search campaign name or ID…">
+        <select id="filterChannel" class="client-input client-filter-item" style="width:auto">
+          <option value="">All Channels</option>
+          <option value="sms">SMS</option>
+          <option value="whatsapp">WhatsApp</option>
+        </select>
+        <select id="filterStatus" class="client-input client-filter-item" style="width:auto">
+          <option value="">All Statuses</option>
+          <option value="pending_review">Pending Review</option>
+          <option value="approved">Approved</option>
+          <option value="active">Active</option>
+          <option value="paused">Paused</option>
+          <option value="completed">Completed</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <div class="client-presets client-filter-item">
+          <button type="button" class="client-preset-btn active" data-preset="all">All</button>
+          <button type="button" class="client-preset-btn" data-preset="today">Today</button>
+          <button type="button" class="client-preset-btn" data-preset="7d">7D</button>
+          <button type="button" class="client-preset-btn" data-preset="30d">30D</button>
+        </div>
+        <div class="client-date-group client-filter-item">
+          <input id="filterFromDate" class="client-input" type="date" title="From date" style="width:auto">
+          <span style="font-size:12px;color:var(--muted)">to</span>
+          <input id="filterToDate" class="client-input" type="date" title="To date" style="width:auto">
+        </div>
+      </div>
+
+      <!-- Campaigns Table -->
+      <div class="client-table-wrap">
+        <table class="client-table">
+          <thead>
+            <tr>
+              <th>Campaign</th>
+              <th>Channel / Country</th>
+              <th>Status</th>
+              <th>Progress</th>
+              <th>Admin Pricing</th>
+              <th>Submitted</th>
+              <th style="text-align:right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="campaignRows">
+            <tr><td colspan="7" class="client-empty">Loading campaigns…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Footer -->
+      <div class="client-pager">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span>Show:</span>
+          <select id="pageSizeSelect" class="client-input" style="width:auto;padding:4px 8px">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+          </select>
+          <span id="pageRecordCount">Showing 0 of 0</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <button id="prevPageBtn" class="client-btn small" disabled>‹ Prev</button>
+          <span id="pageIndicator" style="font-weight:750">1 / 1</span>
+          <button id="nextPageBtn" class="client-btn small" disabled>Next ›</button>
+        </div>
+      </div>
+    </article>
+  </main>
+
+  <!-- Campaign Detail Modal -->
+  <div id="detailModal" class="client-modal-overlay hidden">
+    <div class="client-modal">
+      <div class="client-modal-head">
+        <div>
+          <h2 id="modalCampaignName">Campaign Detail</h2>
+          <div id="modalCampaignMeta" style="font-size:12px;color:var(--muted);margin-top:2px"></div>
+        </div>
+        <button class="client-btn small" onclick="closeDetailModal()">✕ Close</button>
+      </div>
+      <div class="client-modal-body">
+        <div id="modalAdminNotes" class="client-notes-box" style="display:none"></div>
+
+        <div class="client-kpi-grid" style="margin-bottom:18px">
+          <div class="client-kpi-card" style="padding:10px 14px">
+            <div class="client-kpi-label">Total Tasks</div>
+            <div id="modalTotalTasks" class="client-kpi-value" style="font-size:18px">0</div>
+          </div>
+          <div class="client-kpi-card" style="padding:10px 14px">
+            <div class="client-kpi-label">Delivered</div>
+            <div id="modalDelivered" class="client-kpi-value" style="font-size:18px;color:var(--green)">0</div>
+          </div>
+          <div class="client-kpi-card" style="padding:10px 14px">
+            <div class="client-kpi-label">In-Flight</div>
+            <div id="modalReserved" class="client-kpi-value" style="font-size:18px;color:var(--warning)">0</div>
+          </div>
+          <div class="client-kpi-card" style="padding:10px 14px">
+            <div class="client-kpi-label">Failed / Review</div>
+            <div id="modalFailed" class="client-kpi-value" style="font-size:18px;color:var(--danger)">0</div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <input id="modalTaskSearch" class="client-input" type="search" placeholder="Search tasks by phone or message…" style="max-width:300px;padding:6px 10px;font-size:13px">
+          <div id="modalActions" style="display:flex;gap:8px"></div>
+        </div>
+
+        <div class="client-table-wrap" style="margin:0;border:1px solid var(--line);border-radius:12px;max-height:380px">
+          <table class="client-table" style="min-width:640px">
+            <thead>
+              <tr>
+                <th>Recipient (Masked)</th>
+                <th>Message Snippet</th>
+                <th>Status</th>
+                <th>Delivered At</th>
+              </tr>
+            </thead>
+            <tbody id="modalTaskRows">
+              <tr><td colspan="4" class="client-empty">Loading tasks…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="client-modal-foot">
+        <button id="modalExportBtn" class="client-btn primary small">📥 Download Delivery CSV</button>
+        <button class="client-btn small" onclick="closeDetailModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account & Security Modal -->
+  <div id="profileModal" class="client-modal-overlay hidden">
+    <div class="client-modal" style="max-width:480px">
+      <div class="client-modal-head">
+        <h2>Account & Security Settings</h2>
+        <button class="client-btn small" onclick="closeProfileModal()">✕</button>
+      </div>
+      <div class="client-modal-body">
+        <form id="profileForm">
+          <div class="client-field">
+            <label>Login ID (Read-only)</label>
+            <input id="profileLoginID" class="client-input" readonly style="background:#f4f7f5">
+          </div>
+          <div class="client-field">
+            <label>Company / Account Name (Read-only)</label>
+            <input id="profileAccountName" class="client-input" readonly style="background:#f4f7f5">
+          </div>
+          <div class="client-field">
+            <label for="profileContactName">Contact Name</label>
+            <input id="profileContactName" class="client-input" maxlength="140" placeholder="e.g. John Doe">
+          </div>
+          <div class="client-field">
+            <label for="profileContactEmail">Contact Email</label>
+            <input id="profileContactEmail" class="client-input" type="email" maxlength="254" placeholder="e.g. john@company.com">
+          </div>
+
+          <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+
+          <h3 style="font-size:15px;margin-bottom:8px">Change Password</h3>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Leave blank if you do not wish to change your password.</p>
+          <div class="client-field">
+            <label for="profileCurrentPassword">Current Password</label>
+            <input id="profileCurrentPassword" class="client-input" type="password" autocomplete="current-password" placeholder="Required to change password">
+          </div>
+          <div class="client-field">
+            <label for="profileNewPassword">New Password (min 10 characters)</label>
+            <input id="profileNewPassword" class="client-input" type="password" minlength="10" autocomplete="new-password" placeholder="At least 10 characters">
+          </div>
+
+          <div id="profileMessage" style="margin-top:12px"></div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+            <button type="button" class="client-btn" onclick="closeProfileModal()">Cancel</button>
+            <button id="profileSaveBtn" type="submit" class="client-btn primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/client-ui.js"></script>
+  <script>
+    let rawCampaigns = [];
+    let currentDetailCampaign = null;
+    let detailTasks = [];
+    let currentPage = 1;
+
+    // Load available countries
+    async function loadCountries() {
+      try {
+        const response = await fetch('/api/public/countries');
+        const data = await response.json();
+        const options = (data.countries || []).map(x => `<option value="${clientEscape(x.code)}">${clientEscape(x.name)} (${clientEscape(x.code)})</option>`).join('');
+        country.innerHTML = options ? '<option value="" selected disabled>Select country</option>' + options : '<option value="">No active countries</option>';
+      } catch (e) {
+        country.innerHTML = '<option value="">Error loading countries</option>';
+      }
+    }
+
+    // Load campaigns from API
+    async function loadCampaigns() {
+      try {
+        const data = await clientApi('/api/client/campaigns');
+        clientNameTag.textContent = data.advertiser_name || 'Advertiser';
+        rawCampaigns = data.campaigns || [];
+        updateKPIs(rawCampaigns);
+        applyFiltersAndRender();
+      } catch (err) {
+        campaignRows.innerHTML = `<tr><td colspan="7" class="client-empty" style="color:var(--danger)">${clientEscape(err.message)}</td></tr>`;
+      }
+    }
+
+    // Calculate Top KPI summary cards
+    function updateKPIs(campaigns) {
+      const totalCampaigns = campaigns.length;
+      let totalTasks = 0;
+      let delivered = 0;
+      let reserved = 0;
+      let totalSpend = 0;
+
+      for (const c of campaigns) {
+        const tCount = Number(c.task_count || 0);
+        const dCount = Number(c.completed_count || 0);
+        const rCount = Number(c.reserved_count || 0);
+        totalTasks += tCount;
+        delivered += dCount;
+        reserved += rCount;
+        if (c.quoted_total != null) {
+          totalSpend += Number(c.quoted_total);
+        } else if (c.unit_price != null) {
+          totalSpend += Number(c.unit_price) * dCount;
+        }
+      }
+
+      kpiTotalCampaigns.textContent = totalCampaigns.toLocaleString();
+      kpiTotalTasks.textContent = totalTasks.toLocaleString();
+      kpiDelivered.textContent = delivered.toLocaleString();
+      kpiReserved.textContent = reserved.toLocaleString();
+      const rate = totalTasks > 0 ? Math.round((delivered / totalTasks) * 100) : 0;
+      kpiDeliveryRate.textContent = rate + '%';
+      kpiTotalSpend.textContent = totalSpend.toFixed(2);
+    }
+
+    // Filter, search & pagination logic
+    function getFilteredCampaigns() {
+      const q = (filterSearch.value || '').trim().toLowerCase();
+      const ch = filterChannel.value;
+      const st = filterStatus.value;
+      const fromD = filterFromDate.value ? new Date(filterFromDate.value + 'T00:00:00') : null;
+      const toD = filterToDate.value ? new Date(filterToDate.value + 'T23:59:59') : null;
+
+      return rawCampaigns.filter(c => {
+        if (ch && c.channel !== ch) return false;
+        if (st && c.status !== st) return false;
+        if (q) {
+          const matchName = (c.name || '').toLowerCase().includes(q);
+          const matchId = (c.public_id || '').toLowerCase().includes(q);
+          if (!matchName && !matchId) return false;
+        }
+        if (fromD || toD) {
+          const cDate = new Date(c.created_at);
+          if (fromD && cDate < fromD) return false;
+          if (toD && cDate > toD) return false;
+        }
+        return true;
+      });
+    }
+
+    function applyFiltersAndRender() {
+      const filtered = getFilteredCampaigns();
+      const pageSize = parseInt(pageSizeSelect.value, 10) || 25;
+      const totalRecords = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+
+      if (currentPage > totalPages) currentPage = totalPages;
+      if (currentPage < 1) currentPage = 1;
+
+      const start = (currentPage - 1) * pageSize;
+      const pageSlice = filtered.slice(start, start + pageSize);
+
+      renderCampaignTable(pageSlice);
+
+      pageRecordCount.textContent = totalRecords ? `Showing ${start + 1}–${Math.min(start + pageSize, totalRecords)} of ${totalRecords}` : '0 records';
+      pageIndicator.textContent = `${currentPage} / ${totalPages}`;
+      prevPageBtn.disabled = currentPage <= 1;
+      nextPageBtn.disabled = currentPage >= totalPages;
+    }
+
+    function renderCampaignTable(items) {
+      if (!items.length) {
+        campaignRows.innerHTML = '<tr><td colspan="7" class="client-empty">No matching campaigns found.</td></tr>';
+        return;
+      }
+
+      campaignRows.innerHTML = items.map(item => {
+        const total = Number(item.task_count || 0);
+        const done = Number(item.completed_count || 0);
+        const pct = total ? Math.round(done * 100 / total) : 0;
+        const notesTag = item.admin_notes ? `<br><small style="color:var(--warning)" title="${clientEscape(item.admin_notes)}">💬 Note: ${clientEscape(item.admin_notes.slice(0, 30))}${item.admin_notes.length > 30 ? '…' : ''}</small>` : '';
+
+        let actions = `
+          <button class="client-btn small" onclick="openDetailModal('${clientEscape(item.id)}')">View Tasks</button>
+          <a class="client-btn small" href="/api/client/campaigns/export?id=${clientEscape(item.id)}" title="Download Delivery CSV">📥 CSV</a>
+        `;
+
+        if (item.status === 'active') {
+          actions += `<button class="client-btn warning small" onclick="toggleCampaignStatus('${clientEscape(item.id)}', 'pause')">Pause</button>`;
+        } else if (item.status === 'paused') {
+          actions += `<button class="client-btn primary small" onclick="toggleCampaignStatus('${clientEscape(item.id)}', 'resume')">Resume</button>`;
+        }
+
+        return `
+          <tr>
+            <td>
+              <strong>${clientEscape(item.name)}</strong>
+              <div style="font-size:11px;color:var(--muted);font-family:monospace">${clientEscape(item.public_id)}</div>
+              ${notesTag}
+            </td>
+            <td>
+              <span style="font-weight:750">${clientEscape(String(item.channel).toUpperCase())}</span>
+              <div style="font-size:11px;color:var(--muted)">${clientEscape(item.country_code)}</div>
+            </td>
+            <td>
+              <span class="client-badge ${clientEscape(item.status)}">${clientEscape(String(item.status).replaceAll('_', ' '))}</span>
+            </td>
+            <td>
+              <div style="font-weight:750;font-size:12px">${done} / ${total} (${pct}%)</div>
+              <div class="client-progress"><span style="width:${pct}%"></span></div>
+            </td>
+            <td>
+              ${item.unit_price == null ? '<span style="color:var(--muted)">Pending review</span>' : `<strong>${Number(item.unit_price).toFixed(4)} ${clientEscape(item.currency_code)}</strong>`}
+              ${item.quoted_total != null ? `<div style="font-size:11px;color:var(--muted)">Total: ${Number(item.quoted_total).toFixed(2)} ${clientEscape(item.currency_code)}</div>` : ''}
+            </td>
+            <td>
+              <div style="font-size:12px">${clientEscape(clientDate(item.created_at))}</div>
+            </td>
+            <td style="text-align:right">
+              <div style="display:inline-flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${actions}</div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Toggle pause/resume campaign
+    async function toggleCampaignStatus(id, action) {
+      if (!confirm(`Are you sure you want to ${action} this campaign?`)) return;
+      try {
+        await clientApi('/api/client/campaigns/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, action })
+        });
+        await loadCampaigns();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // Campaign Detail Modal
+    async function openDetailModal(campaignId) {
+      detailModal.classList.remove('hidden');
+      modalTaskRows.innerHTML = '<tr><td colspan="4" class="client-empty">Loading tasks…</td></tr>';
+      modalAdminNotes.style.display = 'none';
+
+      try {
+        const res = await clientApi(`/api/client/campaigns/detail?id=${encodeURIComponent(campaignId)}`);
+        currentDetailCampaign = res.campaign;
+        detailTasks = res.tasks || [];
+
+        modalCampaignName.textContent = currentDetailCampaign.name;
+        modalCampaignMeta.textContent = `${currentDetailCampaign.public_id} • ${currentDetailCampaign.channel.toUpperCase()} • ${currentDetailCampaign.country_code} • Status: ${currentDetailCampaign.status}`;
+        
+        modalTotalTasks.textContent = Number(currentDetailCampaign.task_count || 0).toLocaleString();
+        modalDelivered.textContent = Number(currentDetailCampaign.completed_count || 0).toLocaleString();
+        modalReserved.textContent = Number(currentDetailCampaign.reserved_count || 0).toLocaleString();
+        modalFailed.textContent = (Number(currentDetailCampaign.failed_count || 0) + Number(currentDetailCampaign.delivery_unknown_count || 0)).toLocaleString();
+
+        if (currentDetailCampaign.admin_notes) {
+          modalAdminNotes.innerHTML = `<strong>Admin Feedback / Notes:</strong> ${clientEscape(currentDetailCampaign.admin_notes)}`;
+          modalAdminNotes.style.display = 'block';
+        }
+
+        modalExportBtn.onclick = () => {
+          location.href = `/api/client/campaigns/export?id=${encodeURIComponent(currentDetailCampaign.id)}`;
+        };
+
+        renderModalTasks();
+      } catch (err) {
+        modalTaskRows.innerHTML = `<tr><td colspan="4" class="client-empty" style="color:var(--danger)">${clientEscape(err.message)}</td></tr>`;
+      }
+    }
+
+    function renderModalTasks() {
+      const q = (modalTaskSearch.value || '').trim().toLowerCase();
+      const filtered = detailTasks.filter(t => {
+        if (!q) return true;
+        return (t.target_phone || '').toLowerCase().includes(q) || (t.message || '').toLowerCase().includes(q);
+      });
+
+      if (!filtered.length) {
+        modalTaskRows.innerHTML = '<tr><td colspan="4" class="client-empty">No tasks match filter.</td></tr>';
+        return;
+      }
+
+      modalTaskRows.innerHTML = filtered.slice(0, 150).map(t => `
+        <tr>
+          <td><code style="font-weight:750">${clientEscape(t.target_phone)}</code></td>
+          <td><div style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${clientEscape(t.message)}">${clientEscape(t.message)}</div></td>
+          <td><span class="client-badge ${clientEscape(t.claim_status)}">${clientEscape(t.claim_status)}</span></td>
+          <td><small>${clientEscape(t.sent_at ? clientDate(t.sent_at) : '—')}</small></td>
+        </tr>
+      `).join('');
+    }
+
+    function closeDetailModal() {
+      detailModal.classList.add('hidden');
+    }
+
+    modalTaskSearch.oninput = renderModalTasks;
+
+    // Account Profile Settings Modal
+    async function openProfileModal() {
+      profileModal.classList.remove('hidden');
+      profileMessage.innerHTML = '';
+      profileCurrentPassword.value = '';
+      profileNewPassword.value = '';
+      try {
+        const res = await clientApi('/api/client/profile');
+        const adv = res.advertiser || {};
+        profileLoginID.value = adv.login_id || '';
+        profileAccountName.value = adv.name || '';
+        profileContactName.value = adv.contact_name || '';
+        profileContactEmail.value = adv.contact_email || '';
+      } catch (err) {
+        profileMessage.innerHTML = `<div class="client-alert error">${clientEscape(err.message)}</div>`;
+      }
+    }
+
+    function closeProfileModal() {
+      profileModal.classList.add('hidden');
+    }
+
+    profileForm.onsubmit = async event => {
+      event.preventDefault();
+      profileSaveBtn.disabled = true;
+      profileMessage.innerHTML = '';
+      try {
+        const body = {
+          contact_name: profileContactName.value,
+          contact_email: profileContactEmail.value,
+          current_password: profileCurrentPassword.value,
+          new_password: profileNewPassword.value
+        };
+        const res = await clientApi('/api/client/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        profileMessage.innerHTML = `<div class="client-alert">${clientEscape(res.message || 'Saved')}</div>`;
+        profileCurrentPassword.value = '';
+        profileNewPassword.value = '';
+        setTimeout(closeProfileModal, 1500);
+      } catch (err) {
+        profileMessage.innerHTML = `<div class="client-alert error">${clientEscape(err.message)}</div>`;
+      } finally {
+        profileSaveBtn.disabled = false;
+      }
+    };
+
+    // CSV Pre-Upload Client-side inspection
+    file.onchange = () => {
+      const selected = file.files[0];
+      if (!selected) {
+        csvPreview.style.display = 'none';
+        return;
+      }
+      csvPreview.style.display = 'block';
+      csvPreview.className = 'client-csv-preview';
+      csvPreview.innerHTML = `<strong>Inspecting:</strong> ${clientEscape(selected.name)} (${(selected.size / 1024).toFixed(1)} KB)…`;
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+        if (lines.length <= 1) {
+          csvPreview.className = 'client-csv-preview invalid';
+          csvPreview.innerHTML = `⚠ File seems empty or has only a header row.`;
+          return;
+        }
+        const header = lines[0].toLowerCase();
+        const hasPhone = header.includes('phone');
+        const hasMessage = header.includes('message');
+        const hasConsent = header.includes('consent');
+
+        if (!hasPhone || !hasMessage || !hasConsent) {
+          csvPreview.className = 'client-csv-preview invalid';
+          csvPreview.innerHTML = `⚠ Missing required column headers! Must have <code>phone</code>, <code>message</code>, and <code>consent</code>.`;
+          return;
+        }
+
+        const rowCount = lines.length - 1;
+        csvPreview.className = 'client-csv-preview valid';
+        csvPreview.innerHTML = `✓ <strong>Valid CSV format:</strong> ~${rowCount.toLocaleString()} recipient rows detected.<br><small style="color:var(--muted)">Columns verified: phone, message, consent.</small>`;
+      };
+      reader.readAsText(selected.slice(0, 100000));
+    };
+
+    // Submit campaign form
+    campaignForm.onsubmit = async event => {
+      event.preventDefault();
+      submitButton.disabled = true;
+      uploadMessage.innerHTML = '<div class="client-alert">Uploading and validating campaign data…</div>';
+      try {
+        const data = await clientApi('/api/client/campaigns/import', {
+          method: 'POST',
+          body: new FormData(campaignForm)
+        });
+        uploadMessage.innerHTML = `<div class="client-alert">✓ Campaign <strong>${clientEscape(data.campaign_id)}</strong> submitted successfully with ${Number(data.imported || 0).toLocaleString()} tasks. Our team will review and set pricing.</div>`;
+        campaignForm.reset();
+        csvPreview.style.display = 'none';
+        await loadCampaigns();
+      } catch (error) {
+        uploadMessage.innerHTML = `<div class="client-alert error">${clientEscape(error.message)}</div>`;
+      } finally {
+        submitButton.disabled = false;
+      }
+    };
+
+    // Filter event listeners
+    filterSearch.oninput = () => { currentPage = 1; applyFiltersAndRender(); };
+    filterChannel.onchange = () => { currentPage = 1; applyFiltersAndRender(); };
+    filterStatus.onchange = () => { currentPage = 1; applyFiltersAndRender(); };
+    filterFromDate.onchange = () => { currentPage = 1; applyFiltersAndRender(); };
+    filterToDate.onchange = () => { currentPage = 1; applyFiltersAndRender(); };
+    pageSizeSelect.onchange = () => { currentPage = 1; applyFiltersAndRender(); };
+
+    prevPageBtn.onclick = () => { if (currentPage > 1) { currentPage--; applyFiltersAndRender(); } };
+    nextPageBtn.onclick = () => { currentPage++; applyFiltersAndRender(); };
+
+    document.querySelectorAll('.client-preset-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.client-preset-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const p = btn.dataset.preset;
+        const now = new Date();
+        if (p === 'today') {
+          const dateStr = now.toISOString().slice(0, 10);
+          filterFromDate.value = dateStr;
+          filterToDate.value = dateStr;
+        } else if (p === '7d') {
+          const past = new Date(now.getTime() - 7 * 86400000);
+          filterFromDate.value = past.toISOString().slice(0, 10);
+          filterToDate.value = now.toISOString().slice(0, 10);
+        } else if (p === '30d') {
+          const past = new Date(now.getTime() - 30 * 86400000);
+          filterFromDate.value = past.toISOString().slice(0, 10);
+          filterToDate.value = now.toISOString().slice(0, 10);
+        } else {
+          filterFromDate.value = '';
+          filterToDate.value = '';
+        }
+        currentPage = 1;
+        applyFiltersAndRender();
+      };
+    });
+
+    // Close modals on escape or click outside
+    window.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        closeDetailModal();
+        closeProfileModal();
+      }
+    });
+
+    detailModal.addEventListener('click', e => {
+      if (e.target === detailModal) closeDetailModal();
+    });
+    profileModal.addEventListener('click', e => {
+      if (e.target === profileModal) closeProfileModal();
+    });
+
+    // Initialize
+    Promise.all([loadCountries(), loadCampaigns()]).catch(err => {
+      uploadMessage.innerHTML = `<div class="client-alert error">${clientEscape(err.message)}</div>`;
+    });
+  </script>
+</body>
+</html>

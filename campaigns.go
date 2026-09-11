@@ -699,11 +699,312 @@ func advertiserCampaignsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, campaign := range campaigns {
-		delete(campaign, "admin_notes")
 		delete(campaign, "advertiser_id")
 	}
 	userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "advertiser_name": name, "campaigns": campaigns})
 }
+
+func maskPhoneNumber(phone string) string {
+	phone = strings.TrimSpace(phone)
+	if len(phone) <= 4 {
+		return phone
+	}
+	if len(phone) <= 7 {
+		return phone[:2] + "****" + phone[len(phone)-2:]
+	}
+	return phone[:4] + "****" + phone[len(phone)-3:]
+}
+
+func advertiserCampaignDetailHandler(w http.ResponseWriter, r *http.Request) {
+	advertiserID, _, ok := advertiserIdentity(r)
+	if !ok {
+		userFeaturesJSON(w, http.StatusUnauthorized, map[string]any{"status": "error", "message": "Client login required"})
+		return
+	}
+	if r.Method != http.MethodGet {
+		userFeaturesJSON(w, http.StatusMethodNotAllowed, map[string]any{"status": "error"})
+		return
+	}
+	campaignID := strings.TrimSpace(r.URL.Query().Get("id"))
+	if campaignID == "" || uuid.Validate(campaignID) != nil {
+		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "Valid campaign ID is required"})
+		return
+	}
+
+	rows, err := userDB.Query(campaignSummarySelect+` WHERE c.id=$1::uuid AND c.advertiser_id=$2::uuid`, campaignID, advertiserID)
+	if err != nil {
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not load campaign"})
+		return
+	}
+	campaigns, err := campaignSummaryRows(rows)
+	rows.Close()
+	if err != nil || len(campaigns) == 0 {
+		userFeaturesJSON(w, http.StatusNotFound, map[string]any{"status": "error", "message": "Campaign not found"})
+		return
+	}
+	campaign := campaigns[0]
+	delete(campaign, "advertiser_id")
+
+	const taskQuery = `SELECT t.id::text, t.title, t.channel, COALESCE(t.country_code, ''), t.target_phone, t.message, t.active,
+		COALESCE((SELECT tc.status FROM public.task_claims tc WHERE tc.task_id=t.id ORDER BY tc.created_at DESC LIMIT 1), 'available') AS claim_status,
+		(SELECT tc.sent_at FROM public.task_claims tc WHERE tc.task_id=t.id AND tc.status='sent' ORDER BY tc.created_at DESC LIMIT 1) AS sent_at,
+		t.created_at
+		FROM public.task_definitions t
+		WHERE t.campaign_id=$1::uuid
+		ORDER BY t.created_at ASC
+		LIMIT 500`
+
+	taskRows, err := userDB.Query(taskQuery, campaignID)
+	if err != nil {
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not load campaign tasks"})
+		return
+	}
+	defer taskRows.Close()
+
+	tasks := []map[string]any{}
+	for taskRows.Next() {
+		var id, title, channel, countryCode, targetPhone, msg, claimStatus string
+		var active bool
+		var sentAt sql.NullTime
+		var createdAt time.Time
+		if err := taskRows.Scan(&id, &title, &channel, &countryCode, &targetPhone, &msg, &active, &claimStatus, &sentAt, &createdAt); err == nil {
+			taskItem := map[string]any{
+				"id":           id,
+				"title":        title,
+				"channel":      channel,
+				"country_code": countryCode,
+				"target_phone": maskPhoneNumber(targetPhone),
+				"message":      msg,
+				"active":       active,
+				"claim_status": claimStatus,
+				"created_at":   createdAt,
+			}
+			if sentAt.Valid {
+				taskItem["sent_at"] = sentAt.Time
+			}
+			tasks = append(tasks, taskItem)
+		}
+	}
+
+	userFeaturesJSON(w, http.StatusOK, map[string]any{
+		"status":   "success",
+		"campaign": campaign,
+		"tasks":    tasks,
+	})
+}
+
+func advertiserCampaignExportHandler(w http.ResponseWriter, r *http.Request) {
+	advertiserID, _, ok := advertiserIdentity(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	campaignID := strings.TrimSpace(r.URL.Query().Get("id"))
+	if campaignID == "" || uuid.Validate(campaignID) != nil {
+		http.Error(w, "Invalid campaign ID", http.StatusBadRequest)
+		return
+	}
+
+	var publicID, name string
+	err := userDB.QueryRow(`SELECT public_id, name FROM public.advertiser_campaigns WHERE id=$1::uuid AND advertiser_id=$2::uuid`, campaignID, advertiserID).Scan(&publicID, &name)
+	if err != nil {
+		http.Error(w, "Campaign not found", http.StatusNotFound)
+		return
+	}
+
+	const exportQuery = `SELECT t.id::text, t.channel, COALESCE(t.country_code, ''), t.target_phone, t.message,
+		COALESCE((SELECT tc.status FROM public.task_claims tc WHERE tc.task_id=t.id ORDER BY tc.created_at DESC LIMIT 1), 'available') AS claim_status,
+		(SELECT tc.sent_at FROM public.task_claims tc WHERE tc.task_id=t.id AND tc.status='sent' ORDER BY tc.created_at DESC LIMIT 1) AS sent_at,
+		t.created_at
+		FROM public.task_definitions t
+		WHERE t.campaign_id=$1::uuid
+		ORDER BY t.created_at ASC`
+
+	rows, err := userDB.Query(exportQuery, campaignID)
+	if err != nil {
+		http.Error(w, "Could not load report data", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	filename := fmt.Sprintf("campaign_%s_delivery_report.csv", publicID)
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+
+	writer := csv.NewWriter(w)
+	_ = writer.Write([]string{"Task ID", "Channel", "Country", "Recipient (Masked)", "Message", "Delivery Status", "Created At", "Delivered At"})
+
+	for rows.Next() {
+		var id, channel, countryCode, targetPhone, msg, claimStatus string
+		var sentAt sql.NullTime
+		var createdAt time.Time
+		if err := rows.Scan(&id, &channel, &countryCode, &targetPhone, &msg, &claimStatus, &sentAt, &createdAt); err == nil {
+			sentStr := ""
+			if sentAt.Valid {
+				sentStr = sentAt.Time.Format(time.RFC3339)
+			}
+			_ = writer.Write([]string{
+				id,
+				strings.ToUpper(channel),
+				countryCode,
+				maskPhoneNumber(targetPhone),
+				msg,
+				claimStatus,
+				createdAt.Format(time.RFC3339),
+				sentStr,
+			})
+		}
+	}
+	writer.Flush()
+}
+
+func advertiserCampaignStatusHandler(w http.ResponseWriter, r *http.Request) {
+	advertiserID, _, ok := advertiserIdentity(r)
+	if !ok {
+		userFeaturesJSON(w, http.StatusUnauthorized, map[string]any{"status": "error", "message": "Client login required"})
+		return
+	}
+	if r.Method != http.MethodPost {
+		userFeaturesJSON(w, http.StatusMethodNotAllowed, map[string]any{"status": "error"})
+		return
+	}
+	var input struct {
+		ID     string `json:"id"`
+		Action string `json:"action"`
+	}
+	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&input) != nil || uuid.Validate(input.ID) != nil {
+		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "Valid campaign ID is required"})
+		return
+	}
+	input.Action = strings.ToLower(strings.TrimSpace(input.Action))
+	if input.Action != "pause" && input.Action != "resume" {
+		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "Action must be pause or resume"})
+		return
+	}
+
+	var currentStatus string
+	err := userDB.QueryRow(`SELECT status FROM public.advertiser_campaigns WHERE id=$1::uuid AND advertiser_id=$2::uuid`, input.ID, advertiserID).Scan(&currentStatus)
+	if err != nil {
+		userFeaturesJSON(w, http.StatusNotFound, map[string]any{"status": "error", "message": "Campaign not found"})
+		return
+	}
+
+	newStatus := ""
+	if input.Action == "pause" {
+		if currentStatus != "active" {
+			userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "Only active campaigns can be paused"})
+			return
+		}
+		newStatus = "paused"
+	} else if input.Action == "resume" {
+		if currentStatus != "paused" {
+			userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "Only paused campaigns can be resumed"})
+			return
+		}
+		newStatus = "active"
+	}
+
+	_, err = userDB.Exec(`UPDATE public.advertiser_campaigns SET status=$1, updated_at=now() WHERE id=$2::uuid AND advertiser_id=$3::uuid`, newStatus, input.ID, advertiserID)
+	if err != nil {
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not update campaign status"})
+		return
+	}
+	recordAuditDirect("advertiser_campaign_status", "campaign", input.ID, map[string]any{"action": input.Action, "status": newStatus})
+	userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "new_status": newStatus})
+}
+
+func advertiserProfileHandler(w http.ResponseWriter, r *http.Request) {
+	advertiserID, _, ok := advertiserIdentity(r)
+	if !ok {
+		userFeaturesJSON(w, http.StatusUnauthorized, map[string]any{"status": "error", "message": "Client login required"})
+		return
+	}
+	if r.Method == http.MethodGet {
+		var loginID, name, contactName, contactEmail string
+		var createdAt time.Time
+		err := userDB.QueryRow(`SELECT login_id, name, contact_name, contact_email, created_at FROM public.advertisers WHERE id=$1::uuid`, advertiserID).
+			Scan(&loginID, &name, &contactName, &contactEmail, &createdAt)
+		if err != nil {
+			userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not load profile"})
+			return
+		}
+		userFeaturesJSON(w, http.StatusOK, map[string]any{
+			"status": "success",
+			"advertiser": map[string]any{
+				"id":            advertiserID,
+				"login_id":      loginID,
+				"name":          name,
+				"contact_name":  contactName,
+				"contact_email": contactEmail,
+				"created_at":    createdAt,
+			},
+		})
+		return
+	}
+	if r.Method != http.MethodPost {
+		userFeaturesJSON(w, http.StatusMethodNotAllowed, map[string]any{"status": "error"})
+		return
+	}
+
+	var input struct {
+		ContactName     string `json:"contact_name"`
+		ContactEmail    string `json:"contact_email"`
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&input) != nil {
+		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "Invalid input"})
+		return
+	}
+	input.ContactName = strings.TrimSpace(input.ContactName)
+	input.ContactEmail = strings.TrimSpace(input.ContactEmail)
+	if len(input.ContactName) > 140 || len(input.ContactEmail) > 254 {
+		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "Contact fields too long"})
+		return
+	}
+
+	if input.NewPassword != "" {
+		if len(input.NewPassword) < 10 {
+			userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "New password must be at least 10 characters"})
+			return
+		}
+		if input.CurrentPassword == "" {
+			userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "Current password is required to change password"})
+			return
+		}
+		var currentHash string
+		err := userDB.QueryRow(`SELECT password_hash FROM public.advertisers WHERE id=$1::uuid`, advertiserID).Scan(&currentHash)
+		if err != nil || bcrypt.CompareHashAndPassword([]byte(currentHash), []byte(input.CurrentPassword)) != nil {
+			userFeaturesJSON(w, http.StatusUnauthorized, map[string]any{"status": "error", "message": "Current password incorrect"})
+			return
+		}
+		newHash, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+		if err != nil {
+			userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error"})
+			return
+		}
+		_, err = userDB.Exec(`UPDATE public.advertisers SET contact_name=$1, contact_email=$2, password_hash=$3, updated_at=now() WHERE id=$4::uuid`,
+			input.ContactName, input.ContactEmail, string(newHash), advertiserID)
+		if err != nil {
+			userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not update profile"})
+			return
+		}
+	} else {
+		_, err := userDB.Exec(`UPDATE public.advertisers SET contact_name=$1, contact_email=$2, updated_at=now() WHERE id=$3::uuid`,
+			input.ContactName, input.ContactEmail, advertiserID)
+		if err != nil {
+			userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not update profile"})
+			return
+		}
+	}
+
+	userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "message": "Profile updated successfully"})
+}
+
 
 func adminCampaignActionHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -927,6 +1228,10 @@ func init() {
 	http.HandleFunc("/api/client/logout", advertiserLogoutHandler)
 	http.HandleFunc("/api/client/campaigns", advertiserCampaignsHandler)
 	http.HandleFunc("/api/client/campaigns/import", advertiserCampaignImportHandler)
+	http.HandleFunc("/api/client/campaigns/detail", advertiserCampaignDetailHandler)
+	http.HandleFunc("/api/client/campaigns/export", advertiserCampaignExportHandler)
+	http.HandleFunc("/api/client/campaigns/status", advertiserCampaignStatusHandler)
+	http.HandleFunc("/api/client/profile", advertiserProfileHandler)
 	http.HandleFunc("/admin/campaigns", func(w http.ResponseWriter, r *http.Request) { userPage(w, r, "admin-campaigns.html") })
 	http.HandleFunc("/admin/campaigns/data", adminHandler(adminCampaignsDataHandler))
 	http.HandleFunc("/admin/campaigns/import", adminHandler(adminCampaignImportHandler))
