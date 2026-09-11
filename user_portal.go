@@ -263,7 +263,7 @@ func userProfileHandler(w http.ResponseWriter, r *http.Request) {
 	if countryCode.Valid {
 		_ = userDB.QueryRow(`SELECT COALESCE(sum(amount),0) FROM public.wallet_transactions WHERE user_id=$1::uuid AND type IN ('task_reward','referral_commission','bonus') AND (created_at AT TIME ZONE $2)::date=(now() AT TIME ZONE $2)::date`, id, zone).Scan(&todayEarning)
 	}
-	userJSON(w, map[string]any{"status": "success", "id": dbID, "user_id": uid, "name": name, "referral_code": rcode, "balance": balance, "today_earning": todayEarning, "total_earning": total, "linked_whatsapp": linked, "max_whatsapp": 3, "requires_country": !countryCode.Valid, "country_code": countryCode.String, "country_name": countryName.String, "currency_code": currency.String, "timezone": zone, "reward_per_message": reward.Float64, "sms_reward_per_message": smsReward.Float64, "country_active": countryActive.Bool, "must_change_password": mustChange, "gamification": gamification})
+	userJSON(w, map[string]any{"status": "success", "id": id, "user_id": uid, "name": name, "referral_code": rcode, "balance": balance, "today_earning": todayEarning, "total_earning": total, "linked_whatsapp": linked, "max_whatsapp": 3, "requires_country": !countryCode.Valid, "country_code": countryCode.String, "country_name": countryName.String, "currency_code": currency.String, "timezone": zone, "reward_per_message": reward.Float64, "sms_reward_per_message": smsReward.Float64, "country_active": countryActive.Bool, "must_change_password": mustChange, "gamification": gamification})
 }
 
 func userPage(w http.ResponseWriter, r *http.Request, file string) {
