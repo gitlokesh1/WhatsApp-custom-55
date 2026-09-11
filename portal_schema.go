@@ -197,6 +197,8 @@ func initPortalBaseSchema() error {
 		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS today_earning NUMERIC(14,4) NOT NULL DEFAULT 0;
 		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS total_earning NUMERIC(14,4) NOT NULL DEFAULT 0;
 		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+		ALTER TABLE public.app_users DROP CONSTRAINT IF EXISTS app_users_status_check;
+		ALTER TABLE public.app_users ADD CONSTRAINT app_users_status_check CHECK (status IN ('active', 'suspended', 'inactive', 'banned', 'blocked', 'disabled', 'pending'));
 		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
 		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
