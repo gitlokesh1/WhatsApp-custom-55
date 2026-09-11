@@ -80,34 +80,57 @@ func getFirebaseServiceAccount() (*serviceAccountJSON, error) {
 	rawJSON := os.Getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
 	if strings.TrimSpace(rawJSON) != "" {
 		var sa serviceAccountJSON
-		if err := json.Unmarshal([]byte(rawJSON), &sa); err == nil && sa.PrivateKey != "" {
-			return &sa, nil
+		if err := json.Unmarshal([]byte(rawJSON), &sa); err != nil {
+			return nil, fmt.Errorf("FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON: %w", err)
 		}
+		if sa.PrivateKey == "" || sa.ClientEmail == "" {
+			return nil, fmt.Errorf("FIREBASE_SERVICE_ACCOUNT_JSON is missing client_email or private_key")
+		}
+		if sa.ProjectID == "" {
+			return nil, fmt.Errorf("FIREBASE_SERVICE_ACCOUNT_JSON is missing project_id")
+		}
+		return &sa, nil
 	}
 
 	saPath := os.Getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
 	if saPath != "" {
-		if data, err := os.ReadFile(saPath); err == nil {
-			var sa serviceAccountJSON
-			if json.Unmarshal(data, &sa) == nil && sa.PrivateKey != "" {
-				return &sa, nil
-			}
+		data, err := os.ReadFile(saPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading FIREBASE_SERVICE_ACCOUNT_PATH failed: %w", err)
 		}
+		var sa serviceAccountJSON
+		if err := json.Unmarshal(data, &sa); err != nil {
+			return nil, fmt.Errorf("FIREBASE_SERVICE_ACCOUNT_PATH is not valid JSON: %w", err)
+		}
+		if sa.PrivateKey == "" || sa.ClientEmail == "" || sa.ProjectID == "" {
+			return nil, fmt.Errorf("service account file is missing client_email, private_key or project_id")
+		}
+		return &sa, nil
 	}
 
-	email := os.Getenv("FIREBASE_CLIENT_EMAIL")
-	key := os.Getenv("FIREBASE_PRIVATE_KEY")
-	projectID := os.Getenv("FIREBASE_PROJECT_ID")
-	if email != "" && key != "" {
+	email := strings.TrimSpace(os.Getenv("FIREBASE_CLIENT_EMAIL"))
+	key := strings.TrimSpace(os.Getenv("FIREBASE_PRIVATE_KEY"))
+	projectID := strings.TrimSpace(os.Getenv("FIREBASE_PROJECT_ID"))
+	if email != "" || key != "" || projectID != "" {
+		if email == "" {
+			return nil, fmt.Errorf("FIREBASE_CLIENT_EMAIL is missing in environment")
+		}
+		if key == "" {
+			return nil, fmt.Errorf("FIREBASE_PRIVATE_KEY is missing in environment")
+		}
+		if projectID == "" {
+			return nil, fmt.Errorf("FIREBASE_PROJECT_ID is missing in environment")
+		}
 		return &serviceAccountJSON{
 			ClientEmail: email,
-			PrivateKey:  strings.ReplaceAll(key, "\\n", "\n"),
+			PrivateKey:  strings.ReplaceAll(key, "\\n", "
+"),
 			ProjectID:   projectID,
 			TokenURI:    "https://oauth2.googleapis.com/token",
 		}, nil
 	}
 
-	return nil, fmt.Errorf("firebase credentials not configured in environment")
+	return nil, fmt.Errorf("no Firebase credentials in environment: set FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, FIREBASE_PROJECT_ID in Render")
 }
 
 func getFCMAccessToken(sa *serviceAccountJSON) (string, error) {
@@ -241,7 +264,7 @@ func sendSingleFCM(projectID, accessToken, deviceToken, title, body, imageURL st
 func BroadcastFCM(title, body, imageURL string, data map[string]string) (int, int, error) {
 	rows, err := userDB.Query(`SELECT token FROM public.fcm_device_tokens`)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("database query error: %w", err)
 	}
 	defer rows.Close()
 
@@ -253,16 +276,26 @@ func BroadcastFCM(title, body, imageURL string, data map[string]string) (int, in
 		}
 	}
 
-	sa, err := getFirebaseServiceAccount()
 	historyID := uuid.NewString()
-
-	if err != nil || sa == nil {
-		log.Printf("[FCM] Credentials not configured in env (%v). Mock broadcast to %d devices recorded.", err, len(tokens))
+	if len(tokens) == 0 {
 		_, _ = userDB.Exec(`
 			INSERT INTO public.fcm_notifications_history(id,title,body,image_url,target_type,sent_count,failed_count,status)
-			VALUES($1::uuid,$2,$3,$4,'broadcast',$5,0,'simulated_no_credentials')
+			VALUES($1::uuid,$2,$3,$4,'broadcast',0,0,'no_devices')
+		`, historyID, title, body, imageURL)
+		return 0, 0, fmt.Errorf("no registered devices found in database (0 tokens)")
+	}
+
+	sa, err := getFirebaseServiceAccount()
+	if err != nil || sa == nil {
+		errMsg := "credentials missing"
+		if err != nil {
+			errMsg = err.Error()
+		}
+		_, _ = userDB.Exec(`
+			INSERT INTO public.fcm_notifications_history(id,title,body,image_url,target_type,sent_count,failed_count,status)
+			VALUES($1::uuid,$2,$3,$4,'broadcast',0,$5,'credential_error')
 		`, historyID, title, body, imageURL, len(tokens))
-		return len(tokens), 0, nil
+		return 0, len(tokens), fmt.Errorf("Firebase credentials error: %s", errMsg)
 	}
 
 	accessToken, err := getFCMAccessToken(sa)
@@ -272,14 +305,16 @@ func BroadcastFCM(title, body, imageURL string, data map[string]string) (int, in
 			INSERT INTO public.fcm_notifications_history(id,title,body,image_url,target_type,sent_count,failed_count,status)
 			VALUES($1::uuid,$2,$3,$4,'broadcast',0,$5,'auth_error')
 		`, historyID, title, body, imageURL, len(tokens))
-		return 0, len(tokens), err
+		return 0, len(tokens), fmt.Errorf("Firebase OAuth exchange failed: %w", err)
 	}
 
 	sent := 0
 	failed := 0
+	var lastErr error
 	for _, tok := range tokens {
 		if err := sendSingleFCM(sa.ProjectID, accessToken, tok, title, body, imageURL, data); err != nil {
 			failed++
+			lastErr = err
 			if strings.Contains(err.Error(), "UNREGISTERED") || strings.Contains(err.Error(), "INVALID_ARGUMENT") {
 				_, _ = userDB.Exec(`DELETE FROM public.fcm_device_tokens WHERE token=$1`, tok)
 			}
@@ -288,10 +323,18 @@ func BroadcastFCM(title, body, imageURL string, data map[string]string) (int, in
 		}
 	}
 
+	status := "sent"
+	if sent == 0 && failed > 0 {
+		status = "failed"
+	}
 	_, _ = userDB.Exec(`
 		INSERT INTO public.fcm_notifications_history(id,title,body,image_url,target_type,sent_count,failed_count,status)
-		VALUES($1::uuid,$2,$3,$4,'broadcast',$5,$6,'sent')
-	`, historyID, title, body, imageURL, sent, failed)
+		VALUES($1::uuid,$2,$3,$4,'broadcast',$5,$6,$7)
+	`, historyID, title, body, imageURL, sent, failed, status)
+
+	if sent == 0 && failed > 0 && lastErr != nil {
+		return sent, failed, fmt.Errorf("broadcast failed for all %d devices. FCM error: %w", failed, lastErr)
+	}
 
 	return sent, failed, nil
 }
@@ -299,7 +342,7 @@ func BroadcastFCM(title, body, imageURL string, data map[string]string) (int, in
 func SendFCMToUser(userID, title, body, imageURL string, data map[string]string) (int, int, error) {
 	rows, err := userDB.Query(`SELECT token FROM public.fcm_device_tokens WHERE user_id=$1::uuid`, userID)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("database query error: %w", err)
 	}
 	defer rows.Close()
 
@@ -311,32 +354,40 @@ func SendFCMToUser(userID, title, body, imageURL string, data map[string]string)
 		}
 	}
 
+	historyID := uuid.NewString()
 	if len(tokens) == 0 {
-		return 0, 0, nil
+		_, _ = userDB.Exec(`
+			INSERT INTO public.fcm_notifications_history(id,title,body,image_url,target_type,target_user_id,sent_count,failed_count,status)
+			VALUES($1::uuid,$2,$3,$4,'user',$5::uuid,0,0,'no_devices')
+		`, historyID, title, body, imageURL, userID)
+		return 0, 0, fmt.Errorf("no registered devices found for user %s", userID)
 	}
 
 	sa, err := getFirebaseServiceAccount()
-	historyID := uuid.NewString()
-
 	if err != nil || sa == nil {
-		log.Printf("[FCM] Credentials not configured in env (%v). Mock push to user %s recorded.", err, userID)
+		errMsg := "credentials missing"
+		if err != nil {
+			errMsg = err.Error()
+		}
 		_, _ = userDB.Exec(`
 			INSERT INTO public.fcm_notifications_history(id,title,body,image_url,target_type,target_user_id,sent_count,failed_count,status)
-			VALUES($1::uuid,$2,$3,$4,'user',$5::uuid,$6,0,'simulated_no_credentials')
+			VALUES($1::uuid,$2,$3,$4,'user',$5::uuid,0,$6,'credential_error')
 		`, historyID, title, body, imageURL, userID, len(tokens))
-		return len(tokens), 0, nil
+		return 0, len(tokens), fmt.Errorf("Firebase credentials error: %s", errMsg)
 	}
 
 	accessToken, err := getFCMAccessToken(sa)
 	if err != nil {
-		return 0, len(tokens), err
+		return 0, len(tokens), fmt.Errorf("Firebase OAuth exchange failed: %w", err)
 	}
 
 	sent := 0
 	failed := 0
+	var lastErr error
 	for _, tok := range tokens {
 		if err := sendSingleFCM(sa.ProjectID, accessToken, tok, title, body, imageURL, data); err != nil {
 			failed++
+			lastErr = err
 			if strings.Contains(err.Error(), "UNREGISTERED") || strings.Contains(err.Error(), "INVALID_ARGUMENT") {
 				_, _ = userDB.Exec(`DELETE FROM public.fcm_device_tokens WHERE token=$1`, tok)
 			}
@@ -345,10 +396,18 @@ func SendFCMToUser(userID, title, body, imageURL string, data map[string]string)
 		}
 	}
 
+	status := "sent"
+	if sent == 0 && failed > 0 {
+		status = "failed"
+	}
 	_, _ = userDB.Exec(`
 		INSERT INTO public.fcm_notifications_history(id,title,body,image_url,target_type,target_user_id,sent_count,failed_count,status)
-		VALUES($1::uuid,$2,$3,$4,'user',$5::uuid,$6,$7,'sent')
-	`, historyID, title, body, imageURL, userID, sent, failed)
+		VALUES($1::uuid,$2,$3,$4,'user',$5::uuid,$6,$7,$8)
+	`, historyID, title, body, imageURL, userID, sent, failed, status)
+
+	if sent == 0 && failed > 0 && lastErr != nil {
+		return sent, failed, fmt.Errorf("delivery failed. FCM error: %w", lastErr)
+	}
 
 	return sent, failed, nil
 }
@@ -484,9 +543,9 @@ func adminFCMBroadcastHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		adminJSON(w, http.StatusOK, map[string]any{
-			"status":  "partial_success",
-			"message": fmt.Sprintf("Broadcast processed (Note: %v). Sent: %d, Failed: %d", err, sent, failed),
+		adminJSON(w, http.StatusBadRequest, map[string]any{
+			"status":  "error",
+			"message": fmt.Sprintf("Broadcast failed: %v", err),
 			"sent":    sent,
 			"failed":  failed,
 		})

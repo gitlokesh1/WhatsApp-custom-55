@@ -10,7 +10,8 @@
       getInstallation: accountId => nativeSMS.getInstallation(androidSMSToken, accountId || ''),
       sendTask: value => nativeSMS.sendTask(androidSMSToken, value),
       resumePending: () => nativeSMS.resumePending(androidSMSToken),
-      acknowledgeResult: claimID => nativeSMS.acknowledgeResult(androidSMSToken, claimID)
+      acknowledgeResult: claimID => nativeSMS.acknowledgeResult(androidSMSToken, claimID),
+      getFcmToken: () => nativeSMS.getFcmToken ? nativeSMS.getFcmToken(androidSMSToken) : ""
     }) });
   }
   const iconPaths = {

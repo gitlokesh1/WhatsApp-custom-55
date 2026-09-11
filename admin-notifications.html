@@ -205,9 +205,13 @@
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        alert(data.message || 'Notification broadcast completed.');
-        form.reset();
-        imagePreview.style.display = 'none';
+        if (!res.ok || data.status === 'error') {
+          alert('Broadcast Error: ' + (data.message || 'Unknown server error'));
+        } else {
+          alert(data.message || 'Notification broadcast completed.');
+          form.reset();
+          imagePreview.style.display = 'none';
+        }
         loadHistory();
       } catch (err) {
         alert('Failed to broadcast: ' + err.message);

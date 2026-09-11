@@ -48,6 +48,7 @@ class MainActivity : Activity() {
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        fetchFcmToken()
         currentActivity = WeakReference(this)
         bridgeToken = savedInstanceState?.getString(BRIDGE_TOKEN) ?: newBridgeToken()
 

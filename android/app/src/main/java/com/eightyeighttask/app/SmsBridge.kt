@@ -47,6 +47,13 @@ class SmsBridge(
     fun getInstallation(token: String): String = getInstallation(token, "")
 
     @JavascriptInterface
+    fun getFcmToken(token: String): String {
+        if (!authorized(token)) return ""
+        val prefs = activity.getSharedPreferences("sms_receipts", android.content.Context.MODE_PRIVATE)
+        return prefs.getString("fcm_device_token", "") ?: ""
+    }
+
+    @JavascriptInterface
     fun getInstallation(token: String, accountId: String): String {
         if (!authorized(token)) return "{}"
         val cleanAccount = accountId.trim().ifBlank { null }
