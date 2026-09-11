@@ -3,10 +3,33 @@
 <section id="summary" class="admin-stats" data-admin-i18n-records><article class="admin-card"><div class="admin-empty">Loading user…</div></article></section>
 <section class="admin-grid two"><article class="admin-card"><div class="admin-card-head"><div><h2>Account controls</h2><p>Changes preserve the user’s history.</p></div></div><div class="admin-form-grid"><div class="admin-field full"><label for="displayName">Display name</label><input id="displayName" class="admin-input"></div><div class="admin-field"><label for="status">Status</label><select id="status" class="admin-select"><option value="active">Active</option><option value="suspended">Suspended</option></select></div><div class="admin-field"><label for="country">Country</label><select id="country" class="admin-select"></select></div><div class="admin-field full"><label style="display:inline-flex;align-items:center;gap:12px;cursor:pointer;"><input id="withdrawalsEnabled" class="admin-switch" type="checkbox"><b>Allow withdrawals for this user</b></label></div></div><div class="admin-actions" style="margin-top:18px"><button id="saveProfile" class="admin-btn primary">Save profile</button><button id="quickSuspendBtn" class="admin-btn danger" type="button">Suspend account</button><button id="resetPassword" class="admin-btn">Issue temporary password</button></div><div id="temporaryPassword" class="admin-alert" hidden></div></article>
 <article class="admin-card"><div class="admin-card-head"><div><h2>Wallet action</h2><p>Every adjustment is immutable and attributed to the admin.</p></div></div><div class="admin-form-grid"><div class="admin-field"><label for="financialAction">Action</label><select id="financialAction" class="admin-select"><option value="bonus">Award bonus</option><option value="credit">Manual credit</option><option value="debit">Manual debit</option></select></div><div class="admin-field"><label for="amount">Amount</label><input id="amount" class="admin-input" type="number" min="0.01" step="0.01"></div><div class="admin-field full"><label for="title">Public title</label><input id="title" class="admin-input" placeholder="Performance bonus"></div><div class="admin-field full"><label for="description">User-visible description</label><textarea id="description" class="admin-textarea"></textarea></div><div class="admin-field full"><label for="reason">Internal reason</label><textarea id="reason" class="admin-textarea" required></textarea></div></div><button id="applyFinancial" class="admin-btn primary" style="margin-top:18px">Preview and confirm</button></article></section>
-<article class="admin-card" style="margin-top:20px"><div class="admin-card-head"><div><h2>Related activity</h2><p>Operational history remains available when an account is suspended.</p></div></div><div id="related" class="admin-stats" data-admin-i18n-records></div></article><article class="admin-card flush" style="margin-top:20px"><div class="admin-card-head" style="padding:20px"><div><h2>Complete wallet history</h2><p>Signed credits and debits, including tasks, bonuses, adjustments, and withdrawals.</p></div></div><div id="ledger" class="admin-table-wrap" data-admin-i18n-records><div class="admin-empty">Loading activity…</div></div></article>
-<article class="admin-card flush" style="margin-top:20px"><div class="admin-card-head" style="padding:20px"><div><h2>Today's & recent SMS task history</h2><p>SMS verification & campaign tasks sent via Android native bridge.</p></div></div><div id="smsTaskTable" class="admin-table-wrap" data-admin-i18n-records><div class="admin-empty">Loading SMS tasks…</div></div></article>
-<article class="admin-card flush" style="margin-top:20px"><div class="admin-card-head" style="padding:20px"><div><h2>WhatsApp task history</h2><p>WhatsApp messaging tasks processed for active accounts.</p></div></div><div id="waTaskTable" class="admin-table-wrap" data-admin-i18n-records><div class="admin-empty">Loading WhatsApp tasks…</div></div></article>
-<article class="admin-card flush" style="margin-top:20px"><div class="admin-card-head" style="padding:20px"><div><h2>Referred users</h2><p>Users who registered with this account's referral link.</p></div></div><div id="referredTable" class="admin-table-wrap" data-admin-i18n-records><div class="admin-empty">Loading referred users…</div></div></article>
+<article class="admin-card" style="margin-top:20px"><div class="admin-card-head"><div><h2>Related activity</h2><p>Operational history remains available when an account is suspended.</p></div></div><div id="related" class="admin-stats" data-admin-i18n-records></div></article><article class="admin-card flush" style="margin-top:20px">
+  <div class="admin-card-head" style="padding:20px 20px 10px;"><div><h2>Referred users</h2><p>Users who registered with this account's referral link.</p></div></div>
+  <div id="refControls" style="padding:0 20px 14px;"></div>
+  <div id="referredTable" class="admin-table-wrap" data-admin-i18n-records><div class="admin-empty">Loading referred users…</div></div>
+  <div id="refPagination"></div>
+</article>
+
+<article class="admin-card flush" style="margin-top:20px">
+  <div class="admin-card-head" style="padding:20px 20px 10px;"><div><h2>Today's & recent SMS task history</h2><p>SMS verification & campaign tasks sent via Android native bridge.</p></div></div>
+  <div id="smsControls" style="padding:0 20px 14px;"></div>
+  <div id="smsTaskTable" class="admin-table-wrap" data-admin-i18n-records><div class="admin-empty">Loading SMS tasks…</div></div>
+  <div id="smsPagination"></div>
+</article>
+
+<article class="admin-card flush" style="margin-top:20px">
+  <div class="admin-card-head" style="padding:20px 20px 10px;"><div><h2>WhatsApp task history</h2><p>WhatsApp messaging tasks processed for active accounts.</p></div></div>
+  <div id="waControls" style="padding:0 20px 14px;"></div>
+  <div id="waTaskTable" class="admin-table-wrap" data-admin-i18n-records><div class="admin-empty">Loading WhatsApp tasks…</div></div>
+  <div id="waPagination"></div>
+</article>
+
+<article class="admin-card flush" style="margin-top:20px">
+  <div class="admin-card-head" style="padding:20px 20px 10px;"><div><h2>Complete wallet history</h2><p>Signed credits and debits, including tasks, bonuses, adjustments, and withdrawals.</p></div></div>
+  <div id="ledgerControls" style="padding:0 20px 14px;"></div>
+  <div id="ledger" class="admin-table-wrap" data-admin-i18n-records><div class="admin-empty">Loading activity…</div></div>
+  <div id="ledgerPagination"></div>
+</article>
 </main><script src="/admin-ui.js?v=20260909.5"></script><script src="/admin-i18n.js?v=20260909.8"></script><script>
 const id=new URLSearchParams(location.search).get('id');const statusSelect=document.getElementById('status');const quickSuspendBtn=document.getElementById('quickSuspendBtn');const toggleSuspendBtn=document.getElementById('toggleSuspendBtn');let user,countries=[];const esc=adminEscape;const money=(n,c)=>{try{return new Intl.NumberFormat(undefined,{style:'currency',currency:c||'INR'}).format(Number(n)||0)}catch(_){return (c||'')+' '+Number(n||0).toFixed(2)}};
 async function load(){if(!id){showAdminError('Missing user ID');return}try{const [detail,catalog,history]=await Promise.all([adminApi('/admin/users/detail?id='+encodeURIComponent(id)),adminApi('/admin/countries/data'),adminApi('/admin/users/ledger?id='+encodeURIComponent(id))]);user=detail.user;countries=catalog.countries||[];pageTitle.textContent=user.name;displayName.value=user.name;statusSelect.value=user.status;withdrawalsEnabled.checked=Boolean(user.withdrawals_enabled);
@@ -19,28 +42,179 @@ const btnClass=isSuspended?'admin-btn primary':'admin-btn danger';
 quickSuspendBtn.textContent=btnText;quickSuspendBtn.className=btnClass;
 toggleSuspendBtn.textContent=btnText;toggleSuspendBtn.className=btnClass;toggleSuspendBtn.style.display='inline-flex';const rel=user.related||{};summary.innerHTML='<article class="admin-stat"><div class="admin-stat-label">Available balance</div><div class="admin-stat-value">'+money(user.balance,user.currency_code)+'</div><div class="admin-stat-meta">'+esc(user.currency_code||'No currency')+'</div></article><article class="admin-stat"><div class="admin-stat-label">Lifetime earnings</div><div class="admin-stat-value">'+money(user.total_earning,user.currency_code)+'</div><div class="admin-stat-meta">qualifying credits</div></article><article class="admin-stat"><div class="admin-stat-label">Tasks today</div><div class="admin-stat-value">'+(rel.tasks_today||0)+'</div><div class="admin-stat-meta">SMS: '+(rel.sms_tasks_today||0)+' · WA: '+(rel.whatsapp_tasks_today||0)+'</div></article><article class="admin-stat"><div class="admin-stat-label">Total referrals</div><div class="admin-stat-value">'+(rel.referrals||0)+'</div><div class="admin-stat-meta">referred accounts</div></article><article class="admin-stat"><div class="admin-stat-label">Country</div><div class="admin-stat-value">'+esc(user.country_name||'Unassigned')+'</div><div class="admin-stat-meta">'+esc(user.user_id)+'</div></article><article class="admin-stat"><div class="admin-stat-label">Access</div><div class="admin-stat-value">'+esc(user.status)+'</div><div class="admin-stat-meta">withdrawals '+(user.withdrawals_enabled?'enabled':'disabled')+'</div></article>';related.innerHTML=Object.entries(user.related||{}).map(([key,value])=>'<article class="admin-stat"><div class="admin-stat-label">'+esc(key.replaceAll('_',' '))+'</div><div class="admin-stat-value">'+Number(value)+'</div></article>').join('');renderLedger(history.transactions||[]);renderSmsTasks(user.sms_tasks||[]);renderWaTasks(user.whatsapp_tasks||[]);renderReferred(user.referred_users||[])}catch(error){showAdminError(error.message)}}
 
-function renderSmsTasks(items){
-  const el = document.getElementById('smsTaskTable');
-  if(!el) return;
-  el.innerHTML = items.length ? '<table class="admin-table"><thead><tr><th>Time</th><th>Target Phone</th><th>Message</th><th>Status</th><th>Reward</th></tr></thead><tbody>' +
-    items.map(x => '<tr><td>' + esc(adminFormatDate(x.created_at)) + '</td><td><code>' + esc(x.target_phone||'—') + '</code></td><td style="max-width:320px;word-break:break-word;">' + esc(x.message||'—') + '</td><td>' + adminStatusBadge(x.status||'pending') + '</td><td><strong style="color:#087a50">+' + money(x.reward, x.currency_code||user.currency_code) + '</strong></td></tr>').join('') + '</tbody></table>' : '<div class="admin-empty">No SMS tasks found for this user.</div>';
-}
+function setupTableWidget({controlsId, tableId, paginationId, searchPlaceholder, items, renderHeader, renderRow, getSearchText, getDate, emptyText, onAfterRender}){
+  const cEl = document.getElementById(controlsId);
+  const tEl = document.getElementById(tableId);
+  const pEl = document.getElementById(paginationId);
+  if(!tEl) return;
+  let query = '', fromDate = '', toDate = '', page = 1, pageSize = 10;
 
-function renderWaTasks(items){
-  const el = document.getElementById('waTaskTable');
-  if(!el) return;
-  el.innerHTML = items.length ? '<table class="admin-table"><thead><tr><th>Time</th><th>Target Phone</th><th>Message</th><th>Status</th><th>Reward</th></tr></thead><tbody>' +
-    items.map(x => '<tr><td>' + esc(adminFormatDate(x.created_at)) + '</td><td><code>' + esc(x.target_phone||'—') + '</code></td><td style="max-width:320px;word-break:break-word;">' + esc(x.message||'—') + '</td><td>' + adminStatusBadge(x.status||'pending') + '</td><td><strong style="color:#087a50">+' + money(x.reward, x.currency_code||user.currency_code) + '</strong></td></tr>').join('') + '</tbody></table>' : '<div class="admin-empty">No WhatsApp tasks found for this user.</div>';
+  cEl.innerHTML = `<div class="admin-toolbar" style="margin-bottom:0;gap:8px;align-items:flex-end;">
+    <div class="admin-field" style="flex:2 1 180px;">
+      <label style="font-size:11px;font-weight:700;">Search</label>
+      <input class="admin-input filter-query" style="height:36px;padding:6px 10px;font-size:13px;" placeholder="${searchPlaceholder}">
+    </div>
+    <div class="admin-field" style="flex:1 1 120px;">
+      <label style="font-size:11px;font-weight:700;">From date</label>
+      <input type="date" class="admin-input filter-from" style="height:36px;padding:4px 8px;font-size:12px;">
+    </div>
+    <div class="admin-field" style="flex:1 1 120px;">
+      <label style="font-size:11px;font-weight:700;">To date</label>
+      <input type="date" class="admin-input filter-to" style="height:36px;padding:4px 8px;font-size:12px;">
+    </div>
+    <div style="display:flex;gap:4px;padding-bottom:2px;">
+      <button type="button" class="admin-btn small btn-today">Today</button>
+      <button type="button" class="admin-btn small btn-7d">7D</button>
+      <button type="button" class="admin-btn small btn-30d">30D</button>
+      <button type="button" class="admin-btn small btn-clear">Reset</button>
+    </div>
+  </div>`;
+
+  const qIn = cEl.querySelector('.filter-query');
+  const fIn = cEl.querySelector('.filter-from');
+  const tIn = cEl.querySelector('.filter-to');
+  const padz = (n)=>String(n).padStart(2,'0');
+  const fmtYMD = (d)=>d.getFullYear()+'-'+padz(d.getMonth()+1)+'-'+padz(d.getDate());
+
+  function update(){
+    const qLower = query.toLowerCase().trim();
+    const fromTs = fromDate ? new Date(fromDate + 'T00:00:00Z').getTime() : null;
+    const toTs = toDate ? new Date(toDate + 'T23:59:59.999Z').getTime() : null;
+
+    const filtered = items.filter(x => {
+      if(qLower){
+        const txt = getSearchText(x).toLowerCase();
+        if(!txt.includes(qLower)) return false;
+      }
+      if(fromTs || toTs){
+        const dt = getDate(x);
+        if(dt){
+          const ts = new Date(dt).getTime();
+          if(fromTs && ts < fromTs) return false;
+          if(toTs && ts > toTs) return false;
+        }
+      }
+      return true;
+    });
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    if(page > totalPages) page = totalPages;
+    if(page < 1) page = 1;
+
+    const startIdx = (page - 1) * pageSize;
+    const pageItems = filtered.slice(startIdx, startIdx + pageSize);
+
+    if(!filtered.length){
+      tEl.innerHTML = `<div class="admin-empty" style="padding:30px 20px;">${items.length ? 'No records match search/date filters. <button class="admin-btn small" type="button" style="margin-left:8px;">Reset filters</button>' : emptyText}</div>`;
+      const rBtn = tEl.querySelector('button');
+      if(rBtn) rBtn.onclick = resetAll;
+    } else {
+      tEl.innerHTML = `<table class="admin-table"><thead>${renderHeader()}</thead><tbody>${pageItems.map(renderRow).join('')}</tbody></table>`;
+      if(onAfterRender) onAfterRender(tEl);
+    }
+
+    if(pEl){
+      pEl.innerHTML = `<div class="admin-actions" style="padding:10px 20px;justify-content:space-between;align-items:center;border-top:1px solid var(--admin-border);background:#fafcfb;">
+        <div class="admin-help">Showing <strong>${filtered.length ? startIdx + 1 : 0}–${Math.min(startIdx + pageSize, filtered.length)}</strong> of <strong>${filtered.length}</strong> ${filtered.length !== items.length ? '(filtered from ' + items.length + ' total)' : 'records'}</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <label style="font-size:11px;color:var(--admin-muted);">Per page:</label>
+          <select class="admin-select sel-size" style="width:auto;padding:3px 6px;height:30px;font-size:12px;">
+            <option value="10" ${pageSize===10?'selected':''}>10</option>
+            <option value="25" ${pageSize===25?'selected':''}>25</option>
+            <option value="50" ${pageSize===50?'selected':''}>50</option>
+          </select>
+          <button type="button" class="admin-btn small btn-prev" ${page<=1?'disabled':''}>Previous</button>
+          <span class="admin-help" style="min-width:60px;text-align:center;">Page ${page} of ${totalPages}</span>
+          <button type="button" class="admin-btn small btn-next" ${page>=totalPages?'disabled':''}>Next</button>
+        </div>
+      </div>`;
+
+      pEl.querySelector('.sel-size').onchange = (e)=>{ pageSize = Number(e.target.value); page = 1; update(); };
+      pEl.querySelector('.btn-prev').onclick = ()=>{ if(page>1){ page--; update(); } };
+      pEl.querySelector('.btn-next').onclick = ()=>{ if(page<totalPages){ page++; update(); } };
+    }
+  }
+
+  function resetAll(){
+    query = ''; fromDate = ''; toDate = '';
+    qIn.value = ''; fIn.value = ''; tIn.value = '';
+    page = 1; update();
+  }
+
+  let db;
+  qIn.oninput = ()=>{ clearTimeout(db); db = setTimeout(()=>{ query = qIn.value; page = 1; update(); }, 200); };
+  fIn.onchange = ()=>{ fromDate = fIn.value; page = 1; update(); };
+  tIn.onchange = ()=>{ toDate = tIn.value; page = 1; update(); };
+  cEl.querySelector('.btn-today').onclick = ()=>{ const ymd = fmtYMD(new Date()); fromDate = fIn.value = ymd; toDate = tIn.value = ymd; page = 1; update(); };
+  cEl.querySelector('.btn-7d').onclick = ()=>{ const now = new Date(), p = new Date(now.getTime() - 7*86400000); fromDate = fIn.value = fmtYMD(p); toDate = tIn.value = fmtYMD(now); page = 1; update(); };
+  cEl.querySelector('.btn-30d').onclick = ()=>{ const now = new Date(), p = new Date(now.getTime() - 30*86400000); fromDate = fIn.value = fmtYMD(p); toDate = tIn.value = fmtYMD(now); page = 1; update(); };
+  cEl.querySelector('.btn-clear').onclick = resetAll;
+
+  update();
 }
 
 function renderReferred(items){
-  const el = document.getElementById('referredTable');
-  if(!el) return;
-  el.innerHTML = items.length ? '<table class="admin-table"><thead><tr><th>Joined Date</th><th>User ID</th><th>Display Name</th><th>Status</th><th>Balance</th><th>Lifetime Earned</th><th>Action</th></tr></thead><tbody>' +
-    items.map(x => '<tr><td>' + esc(adminFormatDate(x.created_at)) + '</td><td><code>' + esc(x.user_id) + '</code></td><td>' + esc(x.name||'—') + '</td><td>' + adminStatusBadge(x.status||'active') + '</td><td>' + money(x.balance, user.currency_code) + '</td><td><strong>' + money(x.total_earning, user.currency_code) + '</strong></td><td><a class="admin-btn small" href="/admin/user?id=' + encodeURIComponent(x.id) + '">View user</a></td></tr>').join('') + '</tbody></table>' : '<div class="admin-empty">No referred users registered under this account yet.</div>';
+  setupTableWidget({
+    controlsId: 'refControls',
+    tableId: 'referredTable',
+    paginationId: 'refPagination',
+    searchPlaceholder: 'Search by User ID, name, status...',
+    items: items,
+    emptyText: 'No referred users registered under this account yet.',
+    getSearchText: (x) => `${x.user_id||''} ${x.name||''} ${x.status||''} ${x.balance||''} ${x.total_earning||''}`,
+    getDate: (x) => x.created_at,
+    renderHeader: () => '<tr><th>Joined Date</th><th>User ID</th><th>Display Name</th><th>Status</th><th>Balance</th><th>Lifetime Earned</th><th>Action</th></tr>',
+    renderRow: (x) => '<tr><td>' + esc(adminFormatDate(x.created_at)) + '</td><td><code>' + esc(x.user_id) + '</code></td><td>' + esc(x.name||'—') + '</td><td>' + adminStatusBadge(x.status||'active') + '</td><td>' + money(x.balance, user.currency_code) + '</td><td><strong>' + money(x.total_earning, user.currency_code) + '</strong></td><td><a class="admin-btn small" href="/admin/user?id=' + encodeURIComponent(x.id) + '">View user</a></td></tr>'
+  });
 }
 
-function renderLedger(items){ledger.innerHTML=items.length?'<table class="admin-table"><thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Status</th><th>Amount</th><th>Action</th></tr></thead><tbody>'+items.map(x=>'<tr><td>'+esc(adminFormatDate(x.created_at))+'</td><td>'+esc((x.source_type||'earning').replaceAll('_',' '))+'</td><td>'+esc(x.description||'Wallet transaction')+'</td><td>'+adminStatusBadge(x.status||'completed')+'</td><td><strong style="color:'+(x.direction==='debit'?'#b42318':'#087a50')+'">'+(x.direction==='debit'?'−':'+')+money(x.amount,x.currency_code)+'</strong></td><td>'+(x.type==='bonus'&&!x.reversed?'<button class="admin-btn small danger" data-reverse="'+esc(x.id)+'">Reverse</button>':x.reversed?'Reversed':'—')+'</td></tr>').join('')+'</tbody></table>':'<div class="admin-empty">No wallet transactions yet.</div>';ledger.querySelectorAll('[data-reverse]').forEach(b=>b.onclick=()=>reverseBonus(b.dataset.reverse))}
+function renderSmsTasks(items){
+  setupTableWidget({
+    controlsId: 'smsControls',
+    tableId: 'smsTaskTable',
+    paginationId: 'smsPagination',
+    searchPlaceholder: 'Search SMS by phone, message, status...',
+    items: items,
+    emptyText: 'No SMS tasks found for this user.',
+    getSearchText: (x) => `${x.target_phone||''} ${x.message||''} ${x.status||''} ${x.reward||''}`,
+    getDate: (x) => x.created_at,
+    renderHeader: () => '<tr><th>Time</th><th>Target Phone</th><th>Message</th><th>Status</th><th>Reward</th></tr>',
+    renderRow: (x) => '<tr><td>' + esc(adminFormatDate(x.created_at)) + '</td><td><code>' + esc(x.target_phone||'—') + '</code></td><td style="max-width:320px;word-break:break-word;">' + esc(x.message||'—') + '</td><td>' + adminStatusBadge(x.status||'pending') + '</td><td><strong style="color:#087a50">+' + money(x.reward, x.currency_code||user.currency_code) + '</strong></td></tr>'
+  });
+}
+
+function renderWaTasks(items){
+  setupTableWidget({
+    controlsId: 'waControls',
+    tableId: 'waTaskTable',
+    paginationId: 'waPagination',
+    searchPlaceholder: 'Search WhatsApp by phone, message, status...',
+    items: items,
+    emptyText: 'No WhatsApp tasks found for this user.',
+    getSearchText: (x) => `${x.target_phone||''} ${x.message||''} ${x.status||''} ${x.reward||''}`,
+    getDate: (x) => x.created_at,
+    renderHeader: () => '<tr><th>Time</th><th>Target Phone</th><th>Message</th><th>Status</th><th>Reward</th></tr>',
+    renderRow: (x) => '<tr><td>' + esc(adminFormatDate(x.created_at)) + '</td><td><code>' + esc(x.target_phone||'—') + '</code></td><td style="max-width:320px;word-break:break-word;">' + esc(x.message||'—') + '</td><td>' + adminStatusBadge(x.status||'pending') + '</td><td><strong style="color:#087a50">+' + money(x.reward, x.currency_code||user.currency_code) + '</strong></td></tr>'
+  });
+}
+
+function renderLedger(items){
+  setupTableWidget({
+    controlsId: 'ledgerControls',
+    tableId: 'ledger',
+    paginationId: 'ledgerPagination',
+    searchPlaceholder: 'Search transactions by description, type...',
+    items: items,
+    emptyText: 'No wallet transactions yet.',
+    getSearchText: (x) => `${x.source_type||''} ${x.type||''} ${x.description||''} ${x.status||''} ${x.amount||''}`,
+    getDate: (x) => x.created_at,
+    renderHeader: () => '<tr><th>Date</th><th>Type</th><th>Description</th><th>Status</th><th>Amount</th><th>Action</th></tr>',
+    renderRow: (x) => '<tr><td>'+esc(adminFormatDate(x.created_at))+'</td><td>'+esc((x.source_type||'earning').replaceAll('_',' '))+'</td><td>'+esc(x.description||'Wallet transaction')+'</td><td>'+adminStatusBadge(x.status||'completed')+'</td><td><strong style="color:'+(x.direction==='debit'?'#b42318':'#087a50')+'">'+(x.direction==='debit'?'−':'+')+money(x.amount,x.currency_code)+'</strong></td><td>'+(x.type==='bonus'&&!x.reversed?'<button class="admin-btn small danger" data-reverse="'+esc(x.id)+'">Reverse</button>':x.reversed?'Reversed':'—')+'</td></tr>',
+    onAfterRender: (el) => {
+      el.querySelectorAll('[data-reverse]').forEach(b => b.onclick = () => reverseBonus(b.dataset.reverse));
+    }
+  });
+}
 async function reverseBonus(transactionID){const reason=await showAdminPrompt('Enter the internal reason. Reversal is available once and requires sufficient balance.','','Reverse bonus',{placeholder:'Reason'});if(!reason)return;try{await adminApi('/admin/users/financial',{method:'POST',body:{user_id:id,action:'reverse_bonus',transaction_id:transactionID,reason}});adminToast('Bonus reversed');load()}catch(error){showAdminError(error.message)}}
 async function action(action,body={}){return adminApi('/admin/users/action',{method:'POST',body:{user_id:id,action,...body}})}
 withdrawalsEnabled.onchange=async()=>{
