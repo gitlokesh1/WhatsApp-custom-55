@@ -171,7 +171,7 @@ func userSMSTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error"})
 		return
 	}
-	userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "claim_id": claimID, "title": title, "target_phone": target, "message": message, "nonce": nonce, "reward": reward, "currency_code": currency, "expires_at": expiresAt})
+	userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "claim_id": claimID, "account_id": userID, "title": title, "target_phone": target, "message": message, "nonce": nonce, "reward": reward, "currency_code": currency, "expires_at": expiresAt})
 }
 
 func userSMSTaskResultHandler(w http.ResponseWriter, r *http.Request) {
