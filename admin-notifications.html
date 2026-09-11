@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>88Task • Push Notifications</title>
+  <link rel="stylesheet" href="/admin-ui.css">
+  <style>
+    .notif-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+    @media (max-width: 900px) { .notif-grid { grid-template-columns: 1fr; } }
+    .img-preview { max-width: 100%; max-height: 160px; border-radius: 10px; object-fit: cover; margin-top: 10px; border: 1px solid var(--admin-border, #e2e8f0); display: none; }
+    .stat-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .stat-badge.success { background: #dcfce7; color: #047857; }
+    .stat-badge.simulated { background: #fef9c3; color: #854d0e; }
+  </style>
+</head>
+<body>
+  <main data-admin-page="notifications">
+    <header class="admin-page-header">
+      <div>
+        <h1 style="margin:0; font-size:24px; font-weight:800;">Push Notifications (FCM)</h1>
+        <p style="margin:4px 0 0; color:#64748b; font-size:14px;">Broadcast announcements & manage automated engagement pushes</p>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <span class="stat-badge success" id="registeredDevices">Loading devices…</span>
+      </div>
+    </header>
+
+    <div class="notif-grid">
+      <!-- Compose Card -->
+      <section class="admin-card">
+        <h2 style="font-size:18px; font-weight:700; margin-bottom:16px;">Compose Push Notification</h2>
+        <form id="notifForm">
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">Target Audience</label>
+            <select id="notifTarget" class="admin-input" style="width:100%; padding:10px;">
+              <option value="all">📢 All Active Devices (Broadcast)</option>
+              <option value="user">👤 Specific User ID</option>
+            </select>
+          </div>
+
+          <div id="targetUserWrapper" style="margin-bottom:14px; display:none;">
+            <label style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">User UUID</label>
+            <input type="text" id="targetUserID" class="admin-input" placeholder="e.g. 123e4567-e89b-12d3-a456-426614174000" style="width:100%; padding:10px;">
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">Notification Title *</label>
+            <input type="text" id="notifTitle" class="admin-input" placeholder="e.g. 🚀 Special Weekend Task Boost!" required style="width:100%; padding:10px;">
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">Message Body *</label>
+            <textarea id="notifBody" class="admin-input" rows="3" placeholder="Enter your notification text..." required style="width:100%; padding:10px; font-family:inherit;"></textarea>
+          </div>
+
+          <div style="margin-bottom:18px;">
+            <label style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">Banner Image URL (Optional)</label>
+            <input type="url" id="notifImage" class="admin-input" placeholder="https://example.com/promo.jpg" style="width:100%; padding:10px;">
+            <img id="imagePreview" class="img-preview" alt="Notification banner preview">
+          </div>
+
+          <button type="submit" id="sendBtn" class="admin-btn primary" style="padding:12px 24px; font-weight:700; width:100%;">
+            Send Push Notification
+          </button>
+        </form>
+      </section>
+
+      <!-- Automated Triggers Info Card -->
+      <section class="admin-card">
+        <h3 style="font-size:16px; font-weight:700; margin-bottom:12px;">Automated Engagement</h3>
+        <p style="font-size:13px; color:#475569; line-height:1.5; margin-bottom:12px;">
+          The backend automatically sends high-converting milestones to active users:
+        </p>
+        <ul style="font-size:13px; color:#334155; padding-left:18px; line-height:1.6; margin:0;">
+          <li><strong>10 Messages Sent:</strong> Congratulatory milestone boost to maintain daily streak.</li>
+          <li><strong>Every 25 Messages:</strong> Encouraging alert displaying current balance and withdrawal proximity.</li>
+          <li><strong>Balance Milestone:</strong> Notifies users when they reach threshold balance to complete final tasks.</li>
+        </ul>
+
+        <div style="margin-top:20px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
+          <strong style="display:block; font-size:12.5px; color:#0f172a; margin-bottom:4px;">Firebase Setup</strong>
+          <p style="font-size:12px; color:#64748b; margin:0;">
+            Provide <code>FIREBASE_PROJECT_ID</code> and <code>FIREBASE_SERVICE_ACCOUNT_JSON</code> in environment variables. If not set, notifications are safely recorded in simulation mode.
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <!-- History Table -->
+    <section class="admin-card" style="margin-top:24px;">
+      <h2 style="font-size:18px; font-weight:700; margin-bottom:16px;">Notification Broadcast History</h2>
+      <div style="overflow-x:auto;">
+        <table class="admin-table" style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr style="text-align:left; border-bottom:2px solid #e2e8f0;">
+              <th style="padding:10px;">Date & Time</th>
+              <th style="padding:10px;">Title & Message</th>
+              <th style="padding:10px;">Image</th>
+              <th style="padding:10px;">Target</th>
+              <th style="padding:10px;">Sent / Failed</th>
+              <th style="padding:10px;">Status</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr><td colspan="6" style="padding:14px; text-align:center; color:#64748b;">Loading history…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/admin-i18n.js"></script>
+  <script src="/admin-ui.js"></script>
+  <script>
+    const form = document.getElementById('notifForm');
+    const targetSelect = document.getElementById('notifTarget');
+    const targetUserWrapper = document.getElementById('targetUserWrapper');
+    const targetUserID = document.getElementById('targetUserID');
+    const notifTitle = document.getElementById('notifTitle');
+    const notifBody = document.getElementById('notifBody');
+    const notifImage = document.getElementById('notifImage');
+    const imagePreview = document.getElementById('imagePreview');
+    const sendBtn = document.getElementById('sendBtn');
+    const historyBody = document.getElementById('historyBody');
+    const registeredDevices = document.getElementById('registeredDevices');
+
+    targetSelect.addEventListener('change', () => {
+      targetUserWrapper.style.display = targetSelect.value === 'user' ? 'block' : 'none';
+    });
+
+    notifImage.addEventListener('input', () => {
+      const url = notifImage.value.trim();
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        imagePreview.src = url;
+        imagePreview.style.display = 'block';
+      } else {
+        imagePreview.style.display = 'none';
+      }
+    });
+
+    async function loadHistory() {
+      try {
+        const res = await fetch('/admin/fcm/history');
+        const data = await res.json();
+        if (data.status === 'success') {
+          registeredDevices.textContent = `${data.total_tokens || 0} Registered Devices`;
+          if (!data.history || !data.history.length) {
+            historyBody.innerHTML = '<tr><td colspan="6" style="padding:14px; text-align:center; color:#64748b;">No push notifications broadcast yet.</td></tr>';
+            return;
+          }
+          historyBody.innerHTML = data.history.map(item => `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:10px; font-size:13px; color:#64748b; white-space:nowrap;">${new Date(item.created_at).toLocaleString()}</td>
+              <td style="padding:10px;">
+                <div style="font-weight:700; font-size:14px; color:#0f172a;">${item.title}</div>
+                <div style="font-size:13px; color:#475569; margin-top:2px;">${item.body}</div>
+              </td>
+              <td style="padding:10px;">
+                ${item.image_url ? `<a href="${item.image_url}" target="_blank"><img src="${item.image_url}" style="width:40px; height:40px; border-radius:6px; object-fit:cover;"></a>` : '<span style="color:#94a3b8;">—</span>'}
+              </td>
+              <td style="padding:10px; font-size:13px; text-transform:capitalize;">${item.target_type}</td>
+              <td style="padding:10px; font-size:13px;">
+                <span style="color:#047857; font-weight:700;">${item.sent_count}</span> / 
+                <span style="${item.failed_count > 0 ? 'color:#dc2626; font-weight:700;' : 'color:#94a3b8;'}">${item.failed_count}</span>
+              </td>
+              <td style="padding:10px;">
+                <span class="stat-badge ${item.status === 'sent' ? 'success' : 'simulated'}">${item.status}</span>
+              </td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        historyBody.innerHTML = `<tr><td colspan="6" style="padding:14px; text-align:center; color:#dc2626;">Failed to load history: ${err.message}</td></tr>`;
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!confirm('Are you sure you want to broadcast this push notification?')) return;
+
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Broadcasting…';
+
+      try {
+        const payload = {
+          title: notifTitle.value.trim(),
+          body: notifBody.value.trim(),
+          image_url: notifImage.value.trim(),
+          target: targetSelect.value === 'user' ? targetUserID.value.trim() : 'all'
+        };
+
+        const res = await fetch('/admin/fcm/broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        alert(data.message || 'Notification broadcast completed.');
+        form.reset();
+        imagePreview.style.display = 'none';
+        loadHistory();
+      } catch (err) {
+        alert('Failed to broadcast: ' + err.message);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send Push Notification';
+      }
+    });
+
+    loadHistory();
+  </script>
+</body>
+</html>

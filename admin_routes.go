@@ -51,3 +51,7 @@ func publicAppVersionHandler(w http.ResponseWriter, r *http.Request) {
         "update_message":       getAdminSetting("app_update_message", "A new version of the app is available. Please update to continue."),
     })
 }
+
+func adminNotificationsPageHandler(w http.ResponseWriter, r *http.Request) {
+	serveAdminPage(w, r, "admin-notifications.html")
+}

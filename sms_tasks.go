@@ -280,6 +280,7 @@ func userSMSTaskResultHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	gamification := userGamification(userID, mustCountryTimezone(country), mustCountryGoal(country))
+	TriggerEarningMilestoneNotification(userID)
 	userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "credited": true, "reward": reward, "currency_code": currency, "gamification": gamification})
 }
 
