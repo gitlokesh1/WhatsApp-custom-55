@@ -29,11 +29,15 @@ class SmsBridge(
     fun canSend(token: String): Boolean = authorized(token) && SmsResultStore.canStart(activity)
 
     @JavascriptInterface
-    fun getInstallation(token: String): String {
+    fun getInstallation(token: String): String = getInstallation(token, "")
+
+    @JavascriptInterface
+    fun getInstallation(token: String, accountId: String): String {
         if (!authorized(token)) return "{}"
+        val cleanAccount = accountId.trim().ifBlank { null }
         return JSONObject()
-            .put("installation_id", SmsResultStore.installationId(activity))
-            .put("public_key", SmsCrypto.publicKey())
+            .put("installation_id", SmsResultStore.installationId(activity, cleanAccount))
+            .put("public_key", SmsCrypto.publicKey(cleanAccount))
             .toString()
     }
 
@@ -83,8 +87,8 @@ class SmsBridge(
         chooseSubscription(task)
     }
 
-    fun deliverPending() {
-        val result = SmsResultStore.pending(activity) ?: return
+    fun deliverPending(accountId: String? = null) {
+        val result = SmsResultStore.pending(activity, accountId) ?: return
         val argument = JSONObject.quote(result)
         webView.evaluateJavascript("window.onAndroidSMSResult && window.onAndroidSMSResult($argument);", null)
     }
@@ -223,6 +227,7 @@ class SmsBridge(
             json.opt("reward")?.toString().orEmpty(),
             json.optString("currency_code"),
             expires,
+            json.optString("account_id").ifBlank { null },
         )
     }.getOrNull()
 

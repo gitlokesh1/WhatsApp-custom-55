@@ -140,7 +140,7 @@
     };
     showNext(); return true;
   };
-  const logout = async () => { clearSeenEvents(); sessionStorage.removeItem(profileHeaderKey); try { await fetch('/logout', { method: 'POST' }); } finally { location.href = '/login'; } };
+  const logout = async () => { clearSeenEvents(); sessionStorage.removeItem(profileHeaderKey); sessionStorage.removeItem('88task_android_sms_token'); try { await fetch('/logout', { method: 'POST' }); } finally { location.href = '/login'; } };
 
   function shell(page) {
     const main = document.querySelector('main[data-user-page]'); if (!main || main.closest('.u-shell')) return;

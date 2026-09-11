@@ -76,14 +76,9 @@ func androidInstallationHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": err.Error()})
 		return
 	}
-	result, err := userDB.Exec(`INSERT INTO public.android_installations(id,user_id,public_key_der,active,last_seen_at) VALUES($1::uuid,$2::uuid,$3,true,now()) ON CONFLICT(id) DO UPDATE SET public_key_der=excluded.public_key_der,active=true,last_seen_at=now() WHERE android_installations.user_id=excluded.user_id`, in.InstallationID, userID, der)
+	result, err := userDB.Exec(`INSERT INTO public.android_installations(id,user_id,public_key_der,active,last_seen_at) VALUES($1::uuid,$2::uuid,$3,true,now()) ON CONFLICT(id) DO UPDATE SET user_id=excluded.user_id,public_key_der=excluded.public_key_der,active=true,last_seen_at=now()`, in.InstallationID, userID, der)
 	if err != nil {
 		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not register this device"})
-		return
-	}
-	changed, _ := result.RowsAffected()
-	if changed != 1 {
-		userFeaturesJSON(w, http.StatusConflict, map[string]any{"status": "error", "message": "Installation belongs to another account"})
 		return
 	}
 	userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "installation_id": in.InstallationID})
@@ -146,7 +141,7 @@ func userSMSTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var installationBusy bool
-	if err = tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM public.task_claims WHERE android_installation_id=$1::uuid AND channel='sms' AND status='sending')`, in.InstallationID).Scan(&installationBusy); err != nil {
+	if err = tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM public.task_claims WHERE android_installation_id=$1::uuid AND user_id=$2::uuid AND channel='sms' AND status='sending' AND expires_at>now())`, in.InstallationID, userID).Scan(&installationBusy); err != nil {
 		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error"})
 		return
 	}
