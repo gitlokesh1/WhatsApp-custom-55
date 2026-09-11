@@ -12,7 +12,8 @@
       bulk: '<path d="M4 5h16M4 12h16M4 19h16"/><path d="m17 2 3 3-3 3M17 9l3 3-3 3M17 16l3 3-3 3"/>',
       logs: '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h8"/>',
       telemetry: '<path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/>',
-      users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+      bell: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
       bonuses: '<path d="M20 12v9H4v-9M2 7h20v5H2zM12 7v14M12 7H7.5a2.5 2.5 0 1 1 2.1-3.85L12 7Zm0 0h4.5a2.5 2.5 0 1 0-2.1-3.85L12 7Z"/>',
       countries: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>',
       tasks: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
@@ -50,6 +51,7 @@
       { key: 'tasks', href: '/admin/tasks', label: 'nav.earning_tasks', title: 'Earning tasks', icon: 'tasks' },
       { key: 'campaigns', href: '/admin/campaigns', label: 'nav.campaigns', title: 'Campaigns & search', icon: 'campaigns' },
       { key: 'banners', href: '/admin/banners', label: 'nav.banners', title: 'Banners', icon: 'banners' },
+      { key: 'notifications', href: '/admin/notifications', label: 'nav.notifications', title: 'Push Notifications', icon: 'bell' },
 	  { key: 'customerService', href: '/admin/customer-service', label: 'nav.customer_service', title: 'Customer service', icon: 'customerService' },
       { key: 'withdrawals', href: '/admin/withdrawals', label: 'nav.withdrawals', title: 'Withdrawals', icon: 'withdrawals' }
     ] },
