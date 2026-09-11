@@ -32,7 +32,7 @@
     </div>
     <span id="appVersionBadge" class="u-app-badge" style="background:rgba(52,211,153,0.2);border-color:#34d399;color:#bbf7d0;display:none"></span>
   </div>
-  <div class="u-app-title">Send SMS & Earn on the 88Task Android App</div>
+  <div class="u-app-title">Send SMS &amp; Earn on the 88Task Android App</div>
   <p class="u-app-desc">SMS tasks use your phone SIM card and local carrier to send messages securely. This requires native Android hardware permissions available in our official mobile application.</p>
   <div class="u-app-steps">
     <div class="u-app-step">
@@ -52,7 +52,7 @@
     <div class="u-app-step">
       <div class="u-app-step-num">3</div>
       <div class="u-app-step-body">
-        <strong>Pick SIM & Earn</strong>
+        <strong>Pick SIM &amp; Earn</strong>
         <span>Select your SIM card and start completing tasks</span>
       </div>
     </div>
@@ -70,135 +70,152 @@
 <section id="accountCard" class="u-card" style="margin-top:18px"><div class="u-card-head"><div><h2>Choose a WhatsApp sending account</h2><p>This account is used only for WhatsApp tasks.</p></div><a class="u-btn small" href="/whatsapp">Manage accounts</a></div><select id="account" class="u-select"><option>Loading connected accounts…</option></select></section>
 <section id="list" class="u-grid two" style="margin-top:18px"><article class="u-card"><div class="u-skeleton"></div></article></section>
 </main><script src="/user-i18n.js?v=20260910.2"></script><script src="/user-ui.js?v=20260910.1"></script><script>
-const requestedChannel=new URLSearchParams(location.search).get("channel");
-let taskData=[],activeAccounts=[],androidInstallation=null,smsBusy=false,smsClaimTimer=0,activeSMSClaimID="",appVersionData=null,taskFilter=["sms","whatsapp"].includes(requestedChannel)?requestedChannel:"all";
+const requestedChannel = new URLSearchParams(location.search).get('channel');
+let taskData = [], activeAccounts = [], androidInstallation = null, smsBusy = false, smsClaimTimer = 0, activeSMSClaimID = '', appVersionData = null, taskFilter = ['sms','whatsapp'].includes(requestedChannel) ? requestedChannel : 'all';
 
-function androidBridge(){try{return window.AndroidSMS&&window.AndroidSMS.isAvailable()===true?window.AndroidSMS:null}catch(_){return null}}
-function androidCanSend(){const bridge=androidBridge();try{return Boolean(bridge&&(!bridge.canSend||bridge.canSend()===true))}catch(_){return false}}
-
-async function registerAndroid(){
-  const bridge=androidBridge();
-  if(!bridge)return null;
-  try{
-    let details=null;
-    const profile=await uProfile().catch(()=>null);
-    const accountId=profile?.user_id||profile?.id||"";
-    if(accountId&&typeof bridge.getInstallation==="function"){
-      try{details=JSON.parse(bridge.getInstallation(accountId))}catch(_){}
-    }
-    if(!details){details=JSON.parse(bridge.getInstallation())}
-    await uApi("/api/user/android/installations",{method:"POST",body:details});
-    setTimeout(()=>bridge.resumePending(),250);
-    return details;
-  }catch(error){
-    uToast(error.message||"Could not register Android SMS","error");
+function androidBridge() {
+  try {
+    return window.AndroidSMS && window.AndroidSMS.isAvailable() === true ? window.AndroidSMS : null;
+  } catch (_) {
     return null;
   }
 }
 
-async function fetchAppVersionInfo(){
-  try{
-    const res=await fetch("/api/app/version",{headers:{"Accept":"application/json"}});
-    if(res.ok){
-      appVersionData=await res.json();
+function androidCanSend() {
+  const bridge = androidBridge();
+  try {
+    return Boolean(bridge && (!bridge.canSend || bridge.canSend() === true));
+  } catch (_) {
+    return false;
+  }
+}
+
+async function registerAndroid() {
+  const bridge = androidBridge();
+  if (!bridge) return null;
+  try {
+    let details = null;
+    const profile = await uProfile().catch(() => null);
+    const accountId = profile?.user_id || profile?.id || '';
+    if (accountId && typeof bridge.getInstallation === 'function') {
+      try { details = JSON.parse(bridge.getInstallation(accountId)); } catch (_) {}
+    }
+    if (!details) {
+      details = JSON.parse(bridge.getInstallation());
+    }
+    await uApi('/api/user/android/installations', { method: 'POST', body: details });
+    setTimeout(() => bridge.resumePending(), 250);
+    return details;
+  } catch (error) {
+    uToast(error.message || 'Could not register Android SMS', 'error');
+    return null;
+  }
+}
+
+async function fetchAppVersionInfo() {
+  try {
+    const res = await fetch('/api/app/version', { headers: { 'Accept': 'application/json' } });
+    if (res.ok) {
+      appVersionData = await res.json();
       updateAppDownloadUI();
     }
-  }catch(_){}
+  } catch (_) {}
 }
 
-function updateAppDownloadUI(){
-  const hasAndroid=Boolean(androidInstallation&&androidBridge());
-  const banner=document.getElementById("appDownloadBanner");
-  if(hasAndroid){
-    if(banner)banner.style.display="none";
+function updateAppDownloadUI() {
+  const hasAndroid = Boolean(androidInstallation && androidBridge());
+  const banner = document.getElementById('appDownloadBanner');
+  if (hasAndroid) {
+    if (banner) banner.style.display = 'none';
     return;
   }
-  if(banner){
-    banner.style.display="block";
+  if (banner) {
+    banner.style.display = 'block';
   }
-  const btn=document.getElementById("appDownloadBtn");
-  const label=document.getElementById("appDownloadBtnLabel");
-  const note=document.getElementById("appDownloadNote");
-  const badge=document.getElementById("appVersionBadge");
-  const dlUrl=appVersionData?.download_url||"";
-  const verName=appVersionData?.latest_version_name||"";
+  const btn = document.getElementById('appDownloadBtn');
+  const label = document.getElementById('appDownloadBtnLabel');
+  const note = document.getElementById('appDownloadNote');
+  const badge = document.getElementById('appVersionBadge');
+  const dlUrl = appVersionData?.download_url || '';
+  const verName = appVersionData?.latest_version_name || '';
 
-  if(verName&&badge){
-    badge.textContent="v"+verName;
-    badge.style.display="inline-flex";
+  if (verName && badge) {
+    badge.textContent = 'v' + verName;
+    badge.style.display = 'inline-flex';
   }
-  if(dlUrl){
-    if(btn){
-      btn.href=dlUrl;
-      btn.onclick=null;
+  if (dlUrl) {
+    if (btn) {
+      btn.href = dlUrl;
+      btn.onclick = null;
     }
-    if(label)label.textContent=verName?"Download Android App (v"+verName+")":"Download Android App (.apk)";
-    if(note)note.textContent="Direct APK download • Android 7.0+";
-  }else{
-    if(btn){
-      btn.href="javascript:void(0)";
-      btn.onclick=()=>{
-        uToast("App APK download is being configured in admin settings. Please check back shortly.","info");
+    if (label) label.textContent = verName ? ('Download Android App (v' + verName + ')') : 'Download Android App (.apk)';
+    if (note) note.textContent = 'Direct APK download • Android 7.0+';
+  } else {
+    if (btn) {
+      btn.href = 'javascript:void(0)';
+      btn.onclick = () => {
+        uToast('App APK download link is being configured in admin settings.', 'info');
       };
     }
-    if(label)label.textContent="Download Android App (.apk)";
-    if(note)note.textContent="Admin is updating download URL";
+    if (label) label.textContent = 'Download Android App (.apk)';
+    if (note) note.textContent = 'Admin is updating download URL';
   }
 }
 
-function handleDownloadClick(){
-  const dlUrl=appVersionData?.download_url||"";
-  if(dlUrl){
-    window.open(dlUrl,"_blank");
-  }else{
-    const banner=document.getElementById("appDownloadBanner");
-    if(banner){
-      banner.scrollIntoView({behavior:"smooth",block:"center"});
-      banner.style.boxShadow="0 0 0 3px #34d399";
-      setTimeout(()=>{banner.style.boxShadow="";},1500);
+function handleDownloadClick() {
+  const dlUrl = appVersionData?.download_url || '';
+  if (dlUrl) {
+    window.open(dlUrl, '_blank');
+  } else {
+    const banner = document.getElementById('appDownloadBanner');
+    if (banner) {
+      banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      banner.style.boxShadow = '0 0 0 3px #34d399';
+      setTimeout(() => { banner.style.boxShadow = ''; }, 1500);
     }
-    uToast("Please download the official Android App to complete SMS tasks.","info");
+    uToast('Please download the official Android App to complete SMS tasks.', 'info');
   }
 }
 
-function setTaskFilter(value){
-  taskFilter=["sms","whatsapp"].includes(value)?value:"all";
-  const url=new URL(location.href);
-  if(taskFilter==="all")url.searchParams.delete("channel");
-  else url.searchParams.set("channel",taskFilter);
-  history.replaceState(null,"",url.pathname+url.search);
+function setTaskFilter(value) {
+  taskFilter = ['sms','whatsapp'].includes(value) ? value : 'all';
+  const url = new URL(location.href);
+  if (taskFilter === 'all') url.searchParams.delete('channel');
+  else url.searchParams.set('channel', taskFilter);
+  history.replaceState(null, '', url.pathname + url.search);
   renderTasks();
 }
 
-function renderTasks(){
-  const hasAndroid=Boolean(androidInstallation&&androidBridge()),
-        smsReady=hasAndroid&&androidCanSend()&&!smsBusy,
-        visibleTasks=taskData.filter(x=>taskFilter==="all"||x.channel===taskFilter);
+function renderTasks() {
+  const hasAndroid = Boolean(androidInstallation && androidBridge()),
+        smsReady = hasAndroid && androidCanSend() && !smsBusy,
+        visibleTasks = taskData.filter(x => taskFilter === 'all' || x.channel === taskFilter);
 
-  taskFilters.querySelectorAll("[data-task-filter]").forEach(button=>button.classList.toggle("primary",button.dataset.taskFilter===taskFilter));
-  accountCard.hidden=!visibleTasks.some(x=>x.channel!=="sms");
-  smsGuide.hidden=taskFilter!=="sms";
+  taskFilters.querySelectorAll('[data-task-filter]').forEach(button => button.classList.toggle('primary', button.dataset.taskFilter === taskFilter));
+  accountCard.hidden = !visibleTasks.some(x => x.channel !== 'sms');
+  smsGuide.hidden = taskFilter !== 'sms';
 
-  if(taskFilter==="sms"){
-    smsGuide.textContent=uT(hasAndroid?"Choose an available SMS task below. You will select a SIM and review the message before sending.":"Install the 88Task Android app to start completing SMS tasks and earning instant rewards.");
+  if (taskFilter === 'sms') {
+    smsGuide.textContent = uT(hasAndroid ? 'Choose an available SMS task below. You will select a SIM and review the message before sending.' : 'Install the 88Task Android app to start completing SMS tasks and earning instant rewards.');
   }
 
   updateAppDownloadUI();
 
-  list.innerHTML=visibleTasks.length?visibleTasks.map(x=>{
-    const sms=x.channel==="sms";
-    const ready=sms?smsReady:activeAccounts.length>0;
-    const channel=sms?"SMS task":"WhatsApp task";
-    const action=sms?(hasAndroid?"Send SMS and earn":"Download App to Send"):("Complete task");
-    const actionIcon=sms?(hasAndroid?"phone":"download"):("send");
+  list.innerHTML = visibleTasks.length ? visibleTasks.map(x => {
+    const sms = x.channel === 'sms';
+    const ready = sms ? smsReady : activeAccounts.length > 0;
+    const channel = sms ? 'SMS task' : 'WhatsApp task';
+    const action = sms ? (hasAndroid ? 'Send SMS and earn' : 'Download App to Send') : 'Complete task';
+    const actionIcon = sms ? (hasAndroid ? 'phone' : 'download') : 'send';
+    const carrierNote = sms ? ('<small>' + uEscape(uT(hasAndroid ? 'Your carrier may charge for this SMS.' : 'Android app required for hardware SIM access')) + '</small>') : '';
 
-    return "<article class="u-card u-task"><div class="u-card-head"><div><span class="u-badge">"+uEscape(uT(channel))+" · "+(x.country_code?uEscape(x.country_code)+" task":"Global task")+"</span><h2 style="margin-top:10px">"+uEscape(x.title)+"</h2></div><div class="u-reward">+"+uMoney(x.reward,x.currency_code)+"</div></div><div class="u-task-message">"+uEscape(x.message)+"</div><div class="u-row"><div class="u-row-main"><span>Verified recipient</span><strong>"+uEscape(x.target_phone.replace(/.(?=.{4})/g,"•"))+"</strong>"+(sms?"<small>"+uEscape(uT(hasAndroid?"Your carrier may charge for this SMS.":"Android app required for hardware SIM access"))+"</small>":"")+"</div><button class="u-btn "+(ready||!sms?"primary":"soft")+"" data-claim=""+uEscape(x.id)+"" "+(sms&&hasAndroid&&!ready?"disabled":"")+">"+uIcon(actionIcon)+uEscape(uT(action))+"</button></div></article>";
-  }).join(""):taskFilter==="sms"?uEmpty("phone","No SMS tasks available","New SMS tasks will appear here when an administrator activates them."):uEmpty("flag","You are all caught up","New tasks will appear here when they become available.");
+    return '<article class="u-card u-task"><div class="u-card-head"><div><span class="u-badge">' + uEscape(uT(channel)) + ' · ' + (x.country_code ? uEscape(x.country_code) + ' task' : 'Global task') + '</span><h2 style="margin-top:10px">' + uEscape(x.title) + '</h2></div><div class="u-reward">+' + uMoney(x.reward, x.currency_code) + '</div></div><div class="u-task-message">' + uEscape(x.message) + '</div><div class="u-row"><div class="u-row-main"><span>Verified recipient</span><strong>' + uEscape(x.target_phone.replace(/.(?=.{4})/g, '•')) + '</strong>' + carrierNote + '</div><button class="u-btn ' + (ready || !sms ? 'primary' : 'soft') + '" data-claim="' + uEscape(x.id) + '" ' + (sms && hasAndroid && !ready ? 'disabled' : '') + '>' + uIcon(actionIcon) + uEscape(uT(action)) + '</button></div></article>';
+  }).join('') : (taskFilter === 'sms' ? uEmpty('phone', 'No SMS tasks available', 'New SMS tasks will appear here when an administrator activates them.') : uEmpty('flag', 'You are all caught up', 'New tasks will appear here when they become available.'));
 
-  list.querySelectorAll("[data-claim]").forEach(button=>{
-    button.onclick=()=>{
-      const task=taskData.find(item=>item.id===button.dataset.claim);
-      if(task&&task.channel==="sms"&&!hasAndroid){
+  list.querySelectorAll('[data-claim]').forEach(button => {
+    button.onclick = () => {
+      const task = taskData.find(item => item.id === button.dataset.claim);
+      if (task && task.channel === 'sms' && !hasAndroid) {
         handleDownloadClick();
         return;
       }
@@ -207,105 +224,105 @@ function renderTasks(){
   });
 }
 
-async function load(){
-  try{
-    const [p,t,w]=await Promise.all([uProfile(),uApi("/api/user/tasks"),uApi("/api/user/whatsapp")]);
-    rate.textContent=uMoney(t.reward_per_message||p.reward_per_message,t.currency_code||p.currency_code)+" WhatsApp · "+uMoney(t.sms_reward_per_message,t.currency_code||p.currency_code)+" SMS";
-    activeAccounts=w.accounts.filter(x=>x.status==="active"&&x.connected);
-    account.innerHTML=activeAccounts.length?activeAccounts.map(x=>"<option value=""+uEscape(x.id)+"">"+uEscape(x.phone)+" · Connected</option>").join(""):"<option value="">No connected account</option>";
-    androidInstallation=await registerAndroid();
-    const hasWhatsAppTasks=(t.tasks||[]).some(x=>x.channel!=="sms");
-    const notices=[];
-    if(t.earning_paused)notices.push(t.message);
-    if(hasWhatsAppTasks&&!activeAccounts.length)notices.push("Connect a WhatsApp account before completing WhatsApp tasks.");
-    if((t.tasks||[]).some(x=>x.channel==="sms")&&!androidInstallation&&!androidBridge()){
-      notices.push("SMS tasks require the official 88Task Android app. Download the APK below to start earning.");
+async function load() {
+  try {
+    const [p, t, w] = await Promise.all([uProfile(), uApi('/api/user/tasks'), uApi('/api/user/whatsapp')]);
+    rate.textContent = uMoney(t.reward_per_message || p.reward_per_message, t.currency_code || p.currency_code) + ' WhatsApp · ' + uMoney(t.sms_reward_per_message, t.currency_code || p.currency_code) + ' SMS';
+    activeAccounts = w.accounts.filter(x => x.status === 'active' && x.connected);
+    account.innerHTML = activeAccounts.length ? activeAccounts.map(x => '<option value="' + uEscape(x.id) + '">' + uEscape(x.phone) + ' · Connected</option>').join('') : '<option value="">No connected account</option>';
+    androidInstallation = await registerAndroid();
+    const hasWhatsAppTasks = (t.tasks || []).some(x => x.channel !== 'sms');
+    const notices = [];
+    if (t.earning_paused) notices.push(t.message);
+    if (hasWhatsAppTasks && !activeAccounts.length) notices.push('Connect a WhatsApp account before completing WhatsApp tasks.');
+    if ((t.tasks || []).some(x => x.channel === 'sms') && !androidInstallation && !androidBridge()) {
+      notices.push('SMS tasks require the official 88Task Android app. Download the APK below to start earning.');
     }
-    alert.innerHTML=notices.map(message=>"<div class="u-alert">"+uEscape(message)+"</div>").join("");
-    taskData=t.tasks||[];
+    alert.innerHTML = notices.map(message => '<div class="u-alert">' + uEscape(message) + '</div>').join('');
+    taskData = t.tasks || [];
     renderTasks();
-  }catch(error){
-    list.innerHTML=uEmpty("alert","Could not load tasks",error.message);
+  } catch (error) {
+    list.innerHTML = uEmpty('alert', 'Could not load tasks', error.message);
   }
 }
 
-async function claim(button){
-  const task=taskData.find(item=>item.id===button.dataset.claim);
-  if(!task)return;
-  if(task.channel==="sms")return claimSMS(button,task);
-  if(!account.value)return uToast("Connect a WhatsApp account first","error");
-  const reward=uMoney(task.reward,task.currency_code);
-  if(!await uConfirm("Send this task message?","The verified message will be sent through your selected WhatsApp account. A successful send earns "+reward+".",{confirmText:"Send and earn",icon:"send"}))return;
-  button.disabled=true;
-  button.textContent="Sending…";
-  try{
-    const data=await uApi("/api/user/tasks/claim",{method:"POST",body:{task_id:task.id,whatsapp_account_id:account.value}});
-    uCelebrate(data.reward,data.currency_code,data.gamification);
+async function claim(button) {
+  const task = taskData.find(item => item.id === button.dataset.claim);
+  if (!task) return;
+  if (task.channel === 'sms') return claimSMS(button, task);
+  if (!account.value) return uToast('Connect a WhatsApp account first', 'error');
+  const reward = uMoney(task.reward, task.currency_code);
+  if (!await uConfirm('Send this task message?', 'The verified message will be sent through your selected WhatsApp account. A successful send earns ' + reward + '.', { confirmText: 'Send and earn', icon: 'send' })) return;
+  button.disabled = true;
+  button.textContent = 'Sending…';
+  try {
+    const data = await uApi('/api/user/tasks/claim', { method: 'POST', body: { task_id: task.id, whatsapp_account_id: account.value } });
+    uCelebrate(data.reward, data.currency_code, data.gamification);
     await load();
-  }catch(error){
-    uToast(error.message,"error");
-    button.disabled=false;
-    button.innerHTML=uIcon("send")+"Complete task";
+  } catch (error) {
+    uToast(error.message, 'error');
+    button.disabled = false;
+    button.innerHTML = uIcon('send') + 'Complete task';
   }
 }
 
-async function claimSMS(button,task){
-  if(smsBusy||!androidInstallation||!androidCanSend())return uToast("Finish the pending SMS task first","error");
-  smsBusy=true;
-  button.disabled=true;
-  button.textContent="Preparing SMS…";
-  try{
-    const claim=await uApi("/api/user/tasks/sms/claim",{method:"POST",body:{task_id:task.id,installation_id:androidInstallation.installation_id}});
-    if(!claim.installation_id&&androidInstallation?.installation_id){
-      claim.installation_id=androidInstallation.installation_id;
+async function claimSMS(button, task) {
+  if (smsBusy || !androidInstallation || !androidCanSend()) return uToast('Finish the pending SMS task first', 'error');
+  smsBusy = true;
+  button.disabled = true;
+  button.textContent = 'Preparing SMS…';
+  try {
+    const claim = await uApi('/api/user/tasks/sms/claim', { method: 'POST', body: { task_id: task.id, installation_id: androidInstallation.installation_id } });
+    if (!claim.installation_id && androidInstallation?.installation_id) {
+      claim.installation_id = androidInstallation.installation_id;
     }
-    activeSMSClaimID=claim.claim_id;
+    activeSMSClaimID = claim.claim_id;
     androidBridge().sendTask(JSON.stringify(claim));
-    button.textContent="Waiting for phone…";
+    button.textContent = 'Waiting for phone…';
     clearTimeout(smsClaimTimer);
-    const delay=Math.max(0,new Date(claim.expires_at).getTime()-Date.now()),claimID=claim.claim_id;
-    smsClaimTimer=setTimeout(async()=>{
-      if(activeSMSClaimID!==claimID)return;
-      activeSMSClaimID="";
-      smsBusy=false;
-      uToast("SMS claim expired. Start the task again.","error");
+    const delay = Math.max(0, new Date(claim.expires_at).getTime() - Date.now()), claimID = claim.claim_id;
+    smsClaimTimer = setTimeout(async () => {
+      if (activeSMSClaimID !== claimID) return;
+      activeSMSClaimID = '';
+      smsBusy = false;
+      uToast('SMS claim expired. Start the task again.', 'error');
       await load();
-    },delay);
-  }catch(error){
-    activeSMSClaimID="";
-    smsBusy=false;
-    uToast(error.message,"error");
-    button.disabled=false;
-    button.innerHTML=uIcon("phone")+uT("Send SMS and earn");
+    }, delay);
+  } catch (error) {
+    activeSMSClaimID = '';
+    smsBusy = false;
+    uToast(error.message, 'error');
+    button.disabled = false;
+    button.innerHTML = uIcon('phone') + uT('Send SMS and earn');
   }
 }
 
-window.onAndroidSMSResult=async result=>{
-  let payload=null,isActive=false,accepted=false;
-  try{
-    payload=typeof result==="string"?JSON.parse(result):result;
-    isActive=payload?.claim_id===activeSMSClaimID;
-    if(isActive){
+window.onAndroidSMSResult = async result => {
+  let payload = null, isActive = false, accepted = false;
+  try {
+    payload = typeof result === 'string' ? JSON.parse(result) : result;
+    isActive = payload?.claim_id === activeSMSClaimID;
+    if (isActive) {
       clearTimeout(smsClaimTimer);
-      smsClaimTimer=0;
-      activeSMSClaimID="";
+      smsClaimTimer = 0;
+      activeSMSClaimID = '';
     }
-    const data=await uApi("/api/user/tasks/sms/result",{method:"POST",body:payload});
+    const data = await uApi('/api/user/tasks/sms/result', { method: 'POST', body: payload });
     androidBridge()?.acknowledgeResult(payload.claim_id);
-    accepted=true;
-    if(data.credited)uCelebrate(data.reward,data.currency_code,data.gamification);
-    else uToast("SMS was not sent. No reward was credited.","error");
-  }catch(error){
-    if(payload?.claim_id&&[400,403,404,409,410,422].includes(error.status))androidBridge()?.acknowledgeResult(payload.claim_id);
-    uToast(error.message||"Could not verify SMS result","error");
-  }finally{
-    if(isActive)smsBusy=false;
-    if(accepted)await load();
+    accepted = true;
+    if (data.credited) uCelebrate(data.reward, data.currency_code, data.gamification);
+    else uToast('SMS was not sent. No reward was credited.', 'error');
+  } catch (error) {
+    if (payload?.claim_id && [400, 403, 404, 409, 410, 422].includes(error.status)) androidBridge()?.acknowledgeResult(payload.claim_id);
+    uToast(error.message || 'Could not verify SMS result', 'error');
+  } finally {
+    if (isActive) smsBusy = false;
+    if (accepted) await load();
     else renderTasks();
   }
 };
 
-taskFilters.querySelectorAll("[data-task-filter]").forEach(button=>button.onclick=()=>setTaskFilter(button.dataset.taskFilter));
+taskFilters.querySelectorAll('[data-task-filter]').forEach(button => button.onclick = () => setTaskFilter(button.dataset.taskFilter));
 fetchAppVersionInfo();
 renderTasks();
 load();
