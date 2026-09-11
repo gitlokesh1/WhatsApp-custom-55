@@ -445,6 +445,11 @@ class MainActivity : Activity() {
                     if (!token.isNullOrBlank()) {
                         val prefs = getSharedPreferences("sms_receipts", Context.MODE_PRIVATE)
                         prefs.edit().putString("fcm_device_token", token).apply()
+                        runOnUiThread {
+                            if (::webView.isInitialized) {
+                                webView.evaluateJavascript("window.uSyncFcmToken && window.uSyncFcmToken('" + token + "');", null)
+                            }
+                        }
                     }
                 }
             }
