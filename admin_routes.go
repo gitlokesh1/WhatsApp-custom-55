@@ -1,6 +1,6 @@
 package main
 
-import("context";"crypto/rand";"crypto/subtle";"encoding/hex";"encoding/json";"log";"net/http";"os";"strings";"time";"go.mau.fi/whatsmeow";waLog "go.mau.fi/whatsmeow/util/log")
+import("context";"crypto/rand";"crypto/subtle";"encoding/hex";"encoding/json";"fmt";"log";"net/http";"os";"strings";"time";"go.mau.fi/whatsmeow";waLog "go.mau.fi/whatsmeow/util/log")
 func adminToken()string{return strings.TrimSpace(os.Getenv("ADMIN_TOKEN"))}
 func checkAdminToken(r *http.Request)bool{t:=adminToken();p:=strings.TrimSpace(r.Header.Get("X-Admin-Token"));return t!=""&&p!=""&&subtle.ConstantTimeCompare([]byte(t),[]byte(p))==1}
 func requireAdmin(w http.ResponseWriter,r *http.Request)bool{if !checkAdminToken(r){w.Header().Set("Content-Type","application/json");w.WriteHeader(http.StatusUnauthorized);_=json.NewEncoder(w).Encode(APIResponse{Status:"error",Message:"Unauthorized"});return false};return true}
