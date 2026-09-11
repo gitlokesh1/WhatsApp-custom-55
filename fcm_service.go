@@ -123,8 +123,7 @@ func getFirebaseServiceAccount() (*serviceAccountJSON, error) {
 		}
 		return &serviceAccountJSON{
 			ClientEmail: email,
-			PrivateKey:  strings.ReplaceAll(key, "\\n", "
-"),
+			PrivateKey:  strings.ReplaceAll(key, `\n`, "\n"),
 			ProjectID:   projectID,
 			TokenURI:    "https://oauth2.googleapis.com/token",
 		}, nil
