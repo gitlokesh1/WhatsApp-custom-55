@@ -164,7 +164,7 @@ class MainActivity : Activity() {
                     val message = json.optString("update_message", "A new version of the app is available. Please update to continue.")
                     val versionName = json.optString("latest_version_name", "")
 
-                    if (latestVersionCode > BuildConfig.VERSION_CODE && downloadUrl.isNotBlank()) {
+                    if (latestVersionCode > BuildConfig.VERSION_CODE && isHttpsUrl(downloadUrl) && canOpenUrl(downloadUrl)) {
                         runOnUiThread {
                             if (!isFinishing && !isDestroyed) {
                                 showUpdatePopup(downloadUrl, forceUpdate, message, versionName)
@@ -177,18 +177,30 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun isHttpsUrl(url: String): Boolean {
+        val uri = Uri.parse(url)
+        return uri.scheme.equals("https", ignoreCase = true) && !uri.host.isNullOrBlank()
+    }
+
+    private fun canOpenUrl(url: String): Boolean =
+        Intent(Intent.ACTION_VIEW, Uri.parse(url)).resolveActivity(packageManager) != null
+
     private fun showUpdatePopup(downloadUrl: String, forceUpdate: Boolean, message: String, versionName: String) {
         val title = if (versionName.isNotEmpty()) "Update Required (v$versionName)" else "Update Required"
         val builder = AlertDialog.Builder(this)
             .setTitle(title)
             .setMessage(message)
             .setPositiveButton("Update Now") { _, _ ->
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(intent)
-                if (forceUpdate) {
-                    finishAffinity()
+                if (canOpenUrl(downloadUrl)) {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startActivity(intent)
+                    if (forceUpdate) {
+                        finishAffinity()
+                    }
+                } else {
+                    showMessage("Update Unavailable", "Could not open the update link. Please try again later.")
                 }
             }
 
