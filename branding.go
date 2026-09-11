@@ -122,6 +122,7 @@ func brandingScriptHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func injectBrandingScript(content string) string {
+	content = injectAppIconLinks(content)
 	if strings.Contains(content, "/branding.js") {
 		return content
 	}
@@ -130,6 +131,17 @@ func injectBrandingScript(content string) string {
 		return strings.Replace(content, "</body>", script+"</body>", 1)
 	}
 	return content + script
+}
+
+func injectAppIconLinks(content string) string {
+	if strings.Contains(content, "/site.webmanifest") {
+		return content
+	}
+	links := `<link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/site.webmanifest">`
+	if strings.Contains(content, "</head>") {
+		return strings.Replace(content, "</head>", links+"</head>", 1)
+	}
+	return links + content
 }
 
 func init() {

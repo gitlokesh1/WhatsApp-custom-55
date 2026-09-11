@@ -66,6 +66,9 @@ func TestInjectBrandingScriptIsIdempotent(t *testing.T) {
 	if strings.Count(injected, "/branding.js") != 1 {
 		t.Fatalf("expected one branding script, got %q", injected)
 	}
+	if strings.Count(injected, "/site.webmanifest") != 1 || strings.Count(injected, "/favicon.ico") != 1 {
+		t.Fatalf("expected one set of app icon links, got %q", injected)
+	}
 	if again := injectBrandingScript(injected); again != injected {
 		t.Fatal("branding script injection should be idempotent")
 	}
