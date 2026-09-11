@@ -159,9 +159,30 @@
     const data = await api('/api/public/countries'); if (!data.countries?.length) throw new Error('No earning countries are currently available'); const country = await countryPicker(data.countries, '', { required: true });
     await api('/api/user/country', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ country_code: country.code }) });
   }
+  async function syncFcmToken(explicitToken) {
+    try {
+      const token = explicitToken || (window.AndroidSMS?.getFcmToken ? window.AndroidSMS.getFcmToken() : '');
+      if (!token || typeof token !== 'string' || !token.trim()) return;
+      const cleanToken = token.trim();
+      const last = sessionStorage.getItem('88task_synced_fcm_token');
+      if (last === cleanToken) return;
+      const res = await fetch('/api/user/fcm/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: cleanToken, device_type: 'android' })
+      });
+      if (res.ok) {
+        sessionStorage.setItem('88task_synced_fcm_token', cleanToken);
+      }
+    } catch (_) {}
+  }
+  window.uSyncFcmToken = syncFcmToken;
+
   async function profile(requireCountry = true) {
     let data = await api('/api/user/profile'); if (data.requires_country && requireCountry) { await chooseCountry(); data = await api('/api/user/profile'); }
-    saveProfileHeader(data); applyProfileHeader(data); window.userProfile = data; return data;
+    saveProfileHeader(data); applyProfileHeader(data); window.userProfile = data;
+    syncFcmToken().catch(() => {});
+    return data;
   }
   function celebrate(reward, currency, gamification) {
     const streakDays = Number(gamification?.streak_days) || 0;
@@ -169,6 +190,12 @@
     const streakCopy = escapeHTML(translate(streakTemplate, { count: streakDays }));
     const root = document.createElement('div'); root.className = 'u-modal-root show'; root.innerHTML = `<div class="u-modal u-celebrate" role="dialog" aria-modal="true"><div class="u-celebrate-icon">${icon('sparkle')}</div><div class="u-eyebrow">Reward unlocked</div><h2>${money(reward, currency)} earned!</h2><p>${streakCopy}</p><button class="u-btn primary" type="button">Keep earning</button></div>`; document.body.appendChild(root); root.querySelector('button').onclick = () => root.remove(); root.querySelector('button').focus();
   }
-  document.addEventListener('DOMContentLoaded', () => { hydrateIcons(); const main = document.querySelector('main[data-user-page]'); if (main) shell(main.dataset.userPage); });
+  document.addEventListener('DOMContentLoaded', () => {
+    hydrateIcons();
+    const main = document.querySelector('main[data-user-page]');
+    if (main) shell(main.dataset.userPage);
+    // Poll for FCM token on startup in case bridge resolves shortly after page load
+    [500, 2000, 5000].forEach(delay => setTimeout(() => syncFcmToken().catch(() => {}), delay));
+  });
   Object.assign(window, { uEscape: escapeHTML, uMoney: money, uDate: date, uApi: api, uToast: toast, uEmpty: empty, uProfile: profile, uCelebrate: celebrate, uLogout: logout, uIcon: icon, uConfirm: confirmDialog, uCountryPicker: countryPicker, uCountryFlag: countryFlag, uShowEvent: showEvent, uSafeURL: safeInternalURL });
 })();
