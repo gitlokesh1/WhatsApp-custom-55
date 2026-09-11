@@ -98,3 +98,9 @@ val validatePortalUrl by tasks.registering {
 tasks.named("preBuild").configure {
     dependsOn(validatePortalUrl)
 }
+
+dependencies {
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging")
+}
