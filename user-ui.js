@@ -45,7 +45,8 @@
     close: '<path d="m6 6 12 12M18 6 6 18"/>',
     chevronDown: '<path d="m6 9 6 6 6-6"/>',
     announcement: '<path d="M3 11v2a2 2 0 0 0 2 2h2l2 5h3l-2-5 9-4V5L7 9H5a2 2 0 0 0-2 2Z"/><path d="M19 9c1.3.7 2 1.7 2 3s-.7 2.3-2 3"/>',
-    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>'
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'
   };
 
   const nav = [
