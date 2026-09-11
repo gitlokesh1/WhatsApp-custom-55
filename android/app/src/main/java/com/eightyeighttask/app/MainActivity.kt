@@ -18,6 +18,11 @@ import android.webkit.WebViewClient
 import java.lang.ref.WeakReference
 import java.security.SecureRandom
 import android.util.Base64
+import android.content.Intent
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
@@ -76,6 +81,8 @@ class MainActivity : Activity() {
         } else {
             webView.restoreState(savedInstanceState)
         }
+
+        checkAppVersion()
     }
 
     override fun onResume() {
@@ -129,6 +136,72 @@ class MainActivity : Activity() {
     private fun newBridgeToken(): String {
         val bytes = ByteArray(32).also(SecureRandom()::nextBytes)
         return Base64.encodeToString(bytes, Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE)
+    }
+
+
+    private fun checkAppVersion() {
+        thread {
+            try {
+                val endpoint = Uri.parse(BuildConfig.PORTAL_URL)
+                    .buildUpon()
+                    .path("/api/app/version")
+                    .build()
+                    .toString()
+
+                val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 6000
+                    readTimeout = 6000
+                    requestMethod = "GET"
+                }
+
+                if (connection.responseCode == 200) {
+                    val body = connection.inputStream.bufferedReader().use { it.readText() }
+                    val json = JSONObject(body)
+
+                    val latestVersionCode = json.optInt("latest_version_code", 0)
+                    val downloadUrl = json.optString("download_url", "")
+                    val forceUpdate = json.optBoolean("force_update", false)
+                    val message = json.optString("update_message", "A new version of the app is available. Please update to continue.")
+                    val versionName = json.optString("latest_version_name", "")
+
+                    if (latestVersionCode > BuildConfig.VERSION_CODE && downloadUrl.isNotBlank()) {
+                        runOnUiThread {
+                            if (!isFinishing && !isDestroyed) {
+                                showUpdatePopup(downloadUrl, forceUpdate, message, versionName)
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private fun showUpdatePopup(downloadUrl: String, forceUpdate: Boolean, message: String, versionName: String) {
+        val title = if (versionName.isNotEmpty()) "Update Required (v$versionName)" else "Update Required"
+        val builder = AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("Update Now") { _, _ ->
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(intent)
+                if (forceUpdate) {
+                    finishAffinity()
+                }
+            }
+
+        if (forceUpdate) {
+            builder.setCancelable(false)
+            builder.setNegativeButton("Exit") { _, _ -> finishAffinity() }
+        } else {
+            builder.setNegativeButton("Later") { dialog, _ -> dialog.dismiss() }
+        }
+
+        val dialog = builder.create()
+        dialog.setCanceledOnTouchOutside(!forceUpdate)
+        dialog.show()
     }
 
     companion object {
