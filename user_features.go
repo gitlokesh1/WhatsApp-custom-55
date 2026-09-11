@@ -444,7 +444,9 @@ func userSupportHandler(w http.ResponseWriter, r *http.Request) {
 				out = append(out, map[string]any{"id": tid, "subject": sub, "message": msg, "status": status, "support_reply": reply, "support_agent_label": agent, "last_replied_at": replied, "created_at": created, "updated_at": updated})
 			}
 		}
-		userFeaturesJSON(w, 200, map[string]any{"status": "success", "tickets": out})
+		var countryCode, telegramGroup, whatsappGroup string
+		_ = userDB.QueryRow(`SELECT COALESCE(u.country_code, ''), COALESCE(c.telegram_group, ''), COALESCE(c.whatsapp_group, '') FROM public.app_users u LEFT JOIN public.earning_countries c ON c.code = u.country_code WHERE u.id=$1::uuid`, id).Scan(&countryCode, &telegramGroup, &whatsappGroup)
+		userFeaturesJSON(w, 200, map[string]any{"status": "success", "tickets": out, "country_code": countryCode, "telegram_group": telegramGroup, "whatsapp_group": whatsappGroup})
 		return
 	}
 	if r.Method != http.MethodPost {
