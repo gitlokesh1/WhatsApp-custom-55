@@ -208,6 +208,12 @@ func main() {
 		panic(err)
 	}
 	http.HandleFunc("/favicon.ico", faviconHandler)
+	http.HandleFunc("/apple-touch-icon.png", staticIconHandler("apple-touch-icon.png", "image/png"))
+	http.HandleFunc("/icon-192.png", staticIconHandler("icon-192.png", "image/png"))
+	http.HandleFunc("/icon-512.png", staticIconHandler("icon-512.png", "image/png"))
+	http.HandleFunc("/icon-192-maskable.png", staticIconHandler("icon-192-maskable.png", "image/png"))
+	http.HandleFunc("/icon-512-maskable.png", staticIconHandler("icon-512-maskable.png", "image/png"))
+	http.HandleFunc("/site.webmanifest", staticIconHandler("site.webmanifest", "application/manifest+json"))
 	http.HandleFunc("/", adminHandler(rootHandler))
 	http.HandleFunc("/pairing", pairingPageHandler)
 	http.HandleFunc("/pair", adminHandler(pairHandler))
@@ -242,13 +248,33 @@ func securityHeaders(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-func faviconHandler(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) }
+func staticIconHandler(file, contentType string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Header().Set("Content-Type", contentType)
+		http.ServeFile(w, r, file)
+	}
+}
+
+func faviconHandler(w http.ResponseWriter, r *http.Request) {
+	staticIconHandler("favicon.ico", "image/x-icon")(w, r)
+}
 func pairingPageHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	http.ServeFile(w, r, "pairing.html")
+	data, err := os.ReadFile("pairing.html")
+	if err != nil {
+		http.Error(w, "Page not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(injectAppIconLinks(string(data))))
 }
 func statusHandler(w http.ResponseWriter, r *http.Request) {
 	enableCORS(w)
