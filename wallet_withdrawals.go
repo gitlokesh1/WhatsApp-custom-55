@@ -670,7 +670,7 @@ func adminUserDetailHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	referredUsers := []map[string]any{}
-	if refRows, err := userDB.Query(`SELECT id, user_id, display_name, status, balance, total_earning, created_at FROM public.app_users WHERE referred_by=$1::uuid ORDER BY created_at DESC LIMIT 100`, uid); err == nil {
+	if refRows, err := userDB.Query(`SELECT id, user_id, display_name, status, balance, total_earning, created_at FROM public.app_users WHERE referred_by=$1::uuid ORDER BY created_at DESC LIMIT 500`, uid); err == nil {
 		defer refRows.Close()
 		for refRows.Next() {
 			var rID, rUID, rName, rStatus string
@@ -686,7 +686,7 @@ func adminUserDetailHandler(w http.ResponseWriter, r *http.Request) {
 	out["referred_users"] = referredUsers
 
 	smsTasks := []map[string]any{}
-	if smsRows, err := userDB.Query(`SELECT id, target_phone, message, status, reward, COALESCE(currency_code,''), COALESCE(sent_at, created_at) FROM public.task_claims WHERE user_id=$1::uuid AND channel='sms' ORDER BY created_at DESC LIMIT 100`, uid); err == nil {
+	if smsRows, err := userDB.Query(`SELECT id, target_phone, message, status, reward, COALESCE(currency_code,''), COALESCE(sent_at, created_at) FROM public.task_claims WHERE user_id=$1::uuid AND channel='sms' ORDER BY created_at DESC LIMIT 500`, uid); err == nil {
 		defer smsRows.Close()
 		for smsRows.Next() {
 			var sID, sTarget, sMsg, sStatus, sCurr string
@@ -702,7 +702,7 @@ func adminUserDetailHandler(w http.ResponseWriter, r *http.Request) {
 	out["sms_tasks"] = smsTasks
 
 	waTasks := []map[string]any{}
-	if waRows, err := userDB.Query(`SELECT id, target_phone, message, status, reward, COALESCE(currency_code,''), COALESCE(sent_at, created_at) FROM public.task_claims WHERE user_id=$1::uuid AND COALESCE(channel,'')<>'sms' ORDER BY created_at DESC LIMIT 100`, uid); err == nil {
+	if waRows, err := userDB.Query(`SELECT id, target_phone, message, status, reward, COALESCE(currency_code,''), COALESCE(sent_at, created_at) FROM public.task_claims WHERE user_id=$1::uuid AND COALESCE(channel,'')<>'sms' ORDER BY created_at DESC LIMIT 500`, uid); err == nil {
 		defer waRows.Close()
 		for waRows.Next() {
 			var wID, wTarget, wMsg, wStatus, wCurr string
