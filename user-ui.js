@@ -7,7 +7,7 @@
     Object.defineProperty(window, 'AndroidSMS', { configurable: false, value: Object.freeze({
       isAvailable: () => nativeSMS.isAvailable(androidSMSToken),
       canSend: () => nativeSMS.canSend(androidSMSToken),
-      getInstallation: () => nativeSMS.getInstallation(androidSMSToken),
+      getInstallation: accountId => nativeSMS.getInstallation(androidSMSToken, accountId || ''),
       sendTask: value => nativeSMS.sendTask(androidSMSToken, value),
       resumePending: () => nativeSMS.resumePending(androidSMSToken),
       acknowledgeResult: claimID => nativeSMS.acknowledgeResult(androidSMSToken, claimID)
@@ -140,7 +140,7 @@
     };
     showNext(); return true;
   };
-  const logout = async () => { clearSeenEvents(); sessionStorage.removeItem(profileHeaderKey); sessionStorage.removeItem('88task_android_sms_token'); try { await fetch('/logout', { method: 'POST' }); } finally { location.href = '/login'; } };
+  const logout = async () => { clearSeenEvents(); sessionStorage.removeItem(profileHeaderKey);  try { await fetch('/logout', { method: 'POST' }); } finally { location.href = '/login'; } };
 
   function shell(page) {
     const main = document.querySelector('main[data-user-page]'); if (!main || main.closest('.u-shell')) return;
