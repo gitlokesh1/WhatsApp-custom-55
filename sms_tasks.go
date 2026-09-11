@@ -76,7 +76,7 @@ func androidInstallationHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": err.Error()})
 		return
 	}
-	result, err := userDB.Exec(`INSERT INTO public.android_installations(id,user_id,public_key_der,active,last_seen_at) VALUES($1::uuid,$2::uuid,$3,true,now()) ON CONFLICT(id) DO UPDATE SET user_id=excluded.user_id,public_key_der=excluded.public_key_der,active=true,last_seen_at=now()`, in.InstallationID, userID, der)
+	_, err = userDB.Exec(`INSERT INTO public.android_installations(id,user_id,public_key_der,active,last_seen_at) VALUES($1::uuid,$2::uuid,$3,true,now()) ON CONFLICT(id) DO UPDATE SET user_id=excluded.user_id,public_key_der=excluded.public_key_der,active=true,last_seen_at=now()`, in.InstallationID, userID, der)
 	if err != nil {
 		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not register this device"})
 		return
