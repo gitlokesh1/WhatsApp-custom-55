@@ -138,7 +138,11 @@ class MainActivity : Activity() {
         return Base64.encodeToString(bytes, Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE)
     }
 
-
+    /**
+     * Checks the public update policy without blocking startup and shows a prompt when
+     * a newer version and nonblank download URL are available. Network, response, and
+     * parsing failures are ignored.
+     */
     private fun checkAppVersion() {
         thread {
             try {
@@ -177,6 +181,13 @@ class MainActivity : Activity() {
         }
     }
 
+    /**
+     * Shows an update prompt that opens [downloadUrl] when accepted. A nonempty
+     * [versionName] is included in the title.
+     *
+     * When [forceUpdate] is true, the prompt cannot be dismissed, and choosing either
+     * update or exit closes the app task. Optional updates can be postponed.
+     */
     private fun showUpdatePopup(downloadUrl: String, forceUpdate: Boolean, message: String, versionName: String) {
         val title = if (versionName.isNotEmpty()) "Update Required (v$versionName)" else "Update Required"
         val builder = AlertDialog.Builder(this)
