@@ -138,12 +138,21 @@ func adminUsersHandler(w http.ResponseWriter, r *http.Request) {
 	if strings.EqualFold(r.URL.Query().Get("direction"), "asc") {
 		direction = "ASC"
 	}
+	fromDateStr := strings.TrimSpace(r.URL.Query().Get("from_date"))
+	toDateStr := strings.TrimSpace(r.URL.Query().Get("to_date"))
+	var fromTime, toTime any = nil, nil
+	if t, err := time.Parse("2006-01-02", fromDateStr); err == nil {
+		fromTime = t
+	}
+	if t, err := time.Parse("2006-01-02", toDateStr); err == nil {
+		toTime = t.AddDate(0, 0, 1)
+	}
 	var totalUsers int
-	if err := userDB.QueryRow(`SELECT count(*) FROM public.app_users u WHERE ($1='' OR ($1='UNASSIGNED' AND u.country_code IS NULL) OR u.country_code=$1) AND ($2='' OR u.status=$2) AND ($3='%%' OR lower(u.user_id||' '||u.display_name) LIKE $3)`, country, status, query).Scan(&totalUsers); err != nil {
+	if err := userDB.QueryRow(`SELECT count(*) FROM public.app_users u WHERE ($1='' OR ($1='UNASSIGNED' AND u.country_code IS NULL) OR u.country_code=$1) AND ($2='' OR u.status=$2) AND ($3='%%' OR lower(u.user_id||' '||u.display_name) LIKE $3) AND ($4::timestamptz IS NULL OR u.created_at >= $4) AND ($5::timestamptz IS NULL OR u.created_at < $5)`, country, status, query, fromTime, toTime).Scan(&totalUsers); err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error"})
 		return
 	}
-	rows, err := userDB.Query(`SELECT u.id,u.user_id,u.display_name,u.status,u.country_code,c.name,c.currency_code,u.balance,u.total_earning,u.created_at,count(DISTINCT tc.id) FILTER(WHERE tc.status='sent'),count(DISTINCT wa.id) FILTER(WHERE wa.status<>'removed') FROM public.app_users u LEFT JOIN public.earning_countries c ON c.code=u.country_code LEFT JOIN public.task_claims tc ON tc.user_id=u.id LEFT JOIN public.user_whatsapp_accounts wa ON wa.user_id=u.id WHERE ($1='' OR ($1='UNASSIGNED' AND u.country_code IS NULL) OR u.country_code=$1) AND ($2='' OR u.status=$2) AND ($3='%%' OR lower(u.user_id||' '||u.display_name) LIKE $3) GROUP BY u.id,c.code ORDER BY `+sortColumn+` `+direction+` LIMIT $4 OFFSET $5`, country, status, query, perPage, (page-1)*perPage)
+	rows, err := userDB.Query(`SELECT u.id,u.user_id,u.display_name,u.status,u.country_code,c.name,c.currency_code,u.balance,u.total_earning,u.created_at,count(DISTINCT tc.id) FILTER(WHERE tc.status='sent'),count(DISTINCT wa.id) FILTER(WHERE wa.status<>'removed') FROM public.app_users u LEFT JOIN public.earning_countries c ON c.code=u.country_code LEFT JOIN public.task_claims tc ON tc.user_id=u.id LEFT JOIN public.user_whatsapp_accounts wa ON wa.user_id=u.id WHERE ($1='' OR ($1='UNASSIGNED' AND u.country_code IS NULL) OR u.country_code=$1) AND ($2='' OR u.status=$2) AND ($3='%%' OR lower(u.user_id||' '||u.display_name) LIKE $3) AND ($4::timestamptz IS NULL OR u.created_at >= $4) AND ($5::timestamptz IS NULL OR u.created_at < $5) GROUP BY u.id,c.code ORDER BY `+sortColumn+` `+direction+` LIMIT $6 OFFSET $7`, country, status, query, fromTime, toTime, perPage, (page-1)*perPage)
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": err.Error()})
 		return
