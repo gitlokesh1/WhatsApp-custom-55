@@ -646,7 +646,77 @@ func adminUserDetailHandler(w http.ResponseWriter, r *http.Request) {
 	out = map[string]any{"id": id, "user_id": userID, "name": name, "status": status, "country_code": country, "country_name": countryName, "currency_code": currency, "balance": balance, "total_earning": total, "withdrawals_enabled": withdrawals, "must_change_password": mustChange, "created_at": created}
 	var tasks, referrals, accounts, tickets, withdrawalCount, bonuses int
 	_ = userDB.QueryRow(`SELECT (SELECT count(*) FROM public.task_claims WHERE user_id=$1::uuid),(SELECT count(*) FROM public.app_users WHERE referred_by=$1::uuid),(SELECT count(*) FROM public.user_whatsapp_accounts WHERE user_id=$1::uuid AND status<>'removed'),(SELECT count(*) FROM public.customer_care_tickets WHERE user_id=$1::uuid),(SELECT count(*) FROM public.withdrawal_requests WHERE user_id=$1::uuid),(SELECT count(*) FROM public.wallet_transactions WHERE user_id=$1::uuid AND type IN ('bonus','bonus_reversal'))`, uid).Scan(&tasks, &referrals, &accounts, &tickets, &withdrawalCount, &bonuses)
-	out["related"] = map[string]any{"tasks": tasks, "referrals": referrals, "whatsapp_accounts": accounts, "support_tickets": tickets, "withdrawals": withdrawalCount, "bonuses": bonuses}
+
+	var smsToday, smsTotal, waToday, waTotal int
+	_ = userDB.QueryRow(`SELECT 
+		COUNT(*) FILTER (WHERE channel='sms' AND status='sent' AND (COALESCE(sent_at, updated_at) AT TIME ZONE 'UTC')::date = (now() AT TIME ZONE 'UTC')::date),
+		COUNT(*) FILTER (WHERE channel='sms' AND status='sent'),
+		COUNT(*) FILTER (WHERE COALESCE(channel,'')<>'sms' AND status='sent' AND (COALESCE(sent_at, updated_at) AT TIME ZONE 'UTC')::date = (now() AT TIME ZONE 'UTC')::date),
+		COUNT(*) FILTER (WHERE COALESCE(channel,'')<>'sms' AND status='sent')
+	FROM public.task_claims WHERE user_id=$1::uuid`, uid).Scan(&smsToday, &smsTotal, &waToday, &waTotal)
+
+	out["related"] = map[string]any{
+		"tasks":                tasks,
+		"referrals":            referrals,
+		"whatsapp_accounts":    accounts,
+		"support_tickets":      tickets,
+		"withdrawals":          withdrawalCount,
+		"bonuses":              bonuses,
+		"sms_tasks_today":      smsToday,
+		"sms_tasks_total":      smsTotal,
+		"whatsapp_tasks_today": waToday,
+		"whatsapp_tasks_total": waTotal,
+		"tasks_today":          smsToday + waToday,
+	}
+
+	referredUsers := []map[string]any{}
+	if refRows, err := userDB.Query(`SELECT id, user_id, display_name, status, balance, total_earning, created_at FROM public.app_users WHERE referred_by=$1::uuid ORDER BY created_at DESC LIMIT 100`, uid); err == nil {
+		defer refRows.Close()
+		for refRows.Next() {
+			var rID, rUID, rName, rStatus string
+			var rBal, rTot float64
+			var rCreated time.Time
+			if refRows.Scan(&rID, &rUID, &rName, &rStatus, &rBal, &rTot, &rCreated) == nil {
+				referredUsers = append(referredUsers, map[string]any{
+					"id": rID, "user_id": rUID, "name": rName, "status": rStatus, "balance": rBal, "total_earning": rTot, "created_at": rCreated,
+				})
+			}
+		}
+	}
+	out["referred_users"] = referredUsers
+
+	smsTasks := []map[string]any{}
+	if smsRows, err := userDB.Query(`SELECT id, target_phone, message, status, reward, COALESCE(currency_code,''), COALESCE(sent_at, created_at) FROM public.task_claims WHERE user_id=$1::uuid AND channel='sms' ORDER BY created_at DESC LIMIT 100`, uid); err == nil {
+		defer smsRows.Close()
+		for smsRows.Next() {
+			var sID, sTarget, sMsg, sStatus, sCurr string
+			var sReward float64
+			var sDate time.Time
+			if smsRows.Scan(&sID, &sTarget, &sMsg, &sStatus, &sReward, &sCurr, &sDate) == nil {
+				smsTasks = append(smsTasks, map[string]any{
+					"id": sID, "target_phone": sTarget, "message": sMsg, "status": sStatus, "reward": sReward, "currency_code": sCurr, "created_at": sDate,
+				})
+			}
+		}
+	}
+	out["sms_tasks"] = smsTasks
+
+	waTasks := []map[string]any{}
+	if waRows, err := userDB.Query(`SELECT id, target_phone, message, status, reward, COALESCE(currency_code,''), COALESCE(sent_at, created_at) FROM public.task_claims WHERE user_id=$1::uuid AND COALESCE(channel,'')<>'sms' ORDER BY created_at DESC LIMIT 100`, uid); err == nil {
+		defer waRows.Close()
+		for waRows.Next() {
+			var wID, wTarget, wMsg, wStatus, wCurr string
+			var wReward float64
+			var wDate time.Time
+			if waRows.Scan(&wID, &wTarget, &wMsg, &wStatus, &wReward, &wCurr, &wDate) == nil {
+				waTasks = append(waTasks, map[string]any{
+					"id": wID, "target_phone": wTarget, "message": wMsg, "status": wStatus, "reward": wReward, "currency_code": wCurr, "created_at": wDate,
+				})
+			}
+		}
+	}
+	out["whatsapp_tasks"] = waTasks
+
 	userFeaturesJSON(w, 200, map[string]any{"status": "success", "user": out})
 }
 
