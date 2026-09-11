@@ -195,8 +195,11 @@ func adminUserActionHandler(w http.ResponseWriter, r *http.Request) {
 	switch in.Action {
 	case "update":
 		name := strings.TrimSpace(in.Name)
-		if utf8.RuneCountInString(name) < 2 || utf8.RuneCountInString(name) > 100 {
-			userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Name must be between 2 and 100 characters"})
+		if name == "" {
+			name = "User"
+		}
+		if utf8.RuneCountInString(name) > 100 {
+			userFeaturesJSON(w, 400, map[string]any{"status": "error", "message": "Name must be under 100 characters"})
 			return
 		}
 		if in.Status != "active" && in.Status != "suspended" {
@@ -237,8 +240,7 @@ func adminUserActionHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if credits > 0 {
-				userFeaturesJSON(w, 409, map[string]any{"status": "error", "message": "Country is locked after the first earning"})
-				return
+				countryCode = currentCountry.String
 			}
 		}
 		var countryValue any
@@ -249,11 +251,11 @@ func adminUserActionHandler(w http.ResponseWriter, r *http.Request) {
 			userFeaturesJSON(w, 500, map[string]any{"status": "error"})
 			return
 		}
-		detail, _ := json.Marshal(map[string]any{"action": in.Action, "country_code": countryCode, "name": name, "status": in.Status, "enabled": *in.Enabled})
-		if _, err = tx.Exec(`INSERT INTO public.admin_audit_log(id,action,target_type,target_id,detail) VALUES($1::uuid,'user_update','user',$2,$3::jsonb)`, uuid.NewString(), in.UserID, string(detail)); err != nil {
-			userFeaturesJSON(w, 500, map[string]any{"status": "error"})
-			return
+		if in.Status == "suspended" {
+			_, _ = tx.Exec(`DELETE FROM public.user_sessions_auth WHERE user_id=$1::uuid`, in.UserID)
 		}
+		detail, _ := json.Marshal(map[string]any{"action": in.Action, "country_code": countryCode, "name": name, "status": in.Status, "enabled": *in.Enabled})
+		_, _ = tx.Exec(`INSERT INTO public.admin_audit_log(id,action,target_type,target_id,detail) VALUES($1::uuid,'user_update','user',$2,$3::jsonb)`, uuid.NewString(), in.UserID, string(detail))
 		if err = tx.Commit(); err != nil {
 			userFeaturesJSON(w, 500, map[string]any{"status": "error"})
 			return
@@ -303,6 +305,9 @@ func adminUserActionHandler(w http.ResponseWriter, r *http.Request) {
 		if n != 1 {
 			userFeaturesJSON(w, 404, map[string]any{"status": "error", "message": "User not found"})
 			return
+		}
+		if in.Action == "suspend" {
+			_, _ = userDB.Exec(`DELETE FROM public.user_sessions_auth WHERE user_id=$1::uuid`, in.UserID)
 		}
 	case "country":
 		country, err := loadCountry(in.CountryCode, false)
