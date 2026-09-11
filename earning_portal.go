@@ -20,6 +20,8 @@ type countryConfig struct {
 	Active             bool    `json:"active"`
 	DisplayOrder       int     `json:"display_order"`
 	WithdrawalsEnabled bool    `json:"withdrawals_enabled"`
+	TelegramGroup      string  `json:"telegram_group"`
+	WhatsAppGroup      string  `json:"whatsapp_group"`
 }
 
 func initEarningPortalSchema() error {
@@ -43,6 +45,8 @@ func initEarningPortalSchema() error {
 
 		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS country_code TEXT;
 		ALTER TABLE public.earning_countries ADD COLUMN IF NOT EXISTS sms_reward_per_message NUMERIC(14,4) NOT NULL DEFAULT 0 CHECK (sms_reward_per_message >= 0);
+		ALTER TABLE public.earning_countries ADD COLUMN IF NOT EXISTS telegram_group TEXT NOT NULL DEFAULT '';
+		ALTER TABLE public.earning_countries ADD COLUMN IF NOT EXISTS whatsapp_group TEXT NOT NULL DEFAULT '';
 		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;
 		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS policy_version TEXT NOT NULL DEFAULT '';
 		ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS mobile_number TEXT;
@@ -114,11 +118,11 @@ func isUpperAlphaCode(value string, length int) bool {
 
 func loadCountry(code string, activeOnly bool) (countryConfig, error) {
 	var c countryConfig
-	query := `SELECT code,name,currency_code,timezone,reward_per_message,sms_reward_per_message,daily_goal,active,display_order,withdrawals_enabled FROM public.earning_countries WHERE code=$1`
+	query := `SELECT code,name,currency_code,timezone,reward_per_message,sms_reward_per_message,daily_goal,active,display_order,withdrawals_enabled,COALESCE(telegram_group,''),COALESCE(whatsapp_group,'') FROM public.earning_countries WHERE code=$1`
 	if activeOnly {
 		query += ` AND active=true`
 	}
-	err := userDB.QueryRow(query, normalizeCountryCode(code)).Scan(&c.Code, &c.Name, &c.CurrencyCode, &c.Timezone, &c.Reward, &c.SMSReward, &c.DailyGoal, &c.Active, &c.DisplayOrder, &c.WithdrawalsEnabled)
+	err := userDB.QueryRow(query, normalizeCountryCode(code)).Scan(&c.Code, &c.Name, &c.CurrencyCode, &c.Timezone, &c.Reward, &c.SMSReward, &c.DailyGoal, &c.Active, &c.DisplayOrder, &c.WithdrawalsEnabled, &c.TelegramGroup, &c.WhatsAppGroup)
 	return c, err
 }
 
@@ -127,7 +131,7 @@ func publicCountriesHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	rows, err := userDB.Query(`SELECT code,name,currency_code,timezone,reward_per_message,sms_reward_per_message,daily_goal,active,display_order,withdrawals_enabled FROM public.earning_countries WHERE active=true ORDER BY display_order,name`)
+	rows, err := userDB.Query(`SELECT code,name,currency_code,timezone,reward_per_message,sms_reward_per_message,daily_goal,active,display_order,withdrawals_enabled,COALESCE(telegram_group,''),COALESCE(whatsapp_group,'') FROM public.earning_countries WHERE active=true ORDER BY display_order,name`)
 	if err != nil {
 		userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": "Could not load countries"})
 		return
