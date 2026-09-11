@@ -296,6 +296,7 @@ func adminUserActionHandler(w http.ResponseWriter, r *http.Request) {
 		if in.Action == "suspend" {
 			state = "suspended"
 		}
+		_, _ = userDB.Exec(`ALTER TABLE public.app_users DROP CONSTRAINT IF EXISTS app_users_status_check; ALTER TABLE public.app_users ADD CONSTRAINT app_users_status_check CHECK (status IN ('active', 'suspended', 'inactive', 'banned', 'blocked', 'disabled', 'pending'))`)
 		result, err := userDB.Exec(`UPDATE public.app_users SET status=$1,updated_at=now() WHERE id::text=$2 OR user_id=$2`, state, in.UserID)
 		if err != nil {
 			userFeaturesJSON(w, 500, map[string]any{"status": "error", "message": err.Error()})
