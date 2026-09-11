@@ -31,18 +31,18 @@
   };
 
   const groups = [
-    { label: 'nav.overview', items: [{ key: 'dashboard', href: '/admin', label: 'nav.dashboard', icon: 'dashboard' }] },
-    { label: 'nav.whatsapp', items: [
-      { key: 'devices', href: '/admin/devices', label: 'nav.devices', icon: 'devices' },
-      { key: 'pair', href: '/admin/pair', label: 'nav.pair', icon: 'pair' },
-      { key: 'health', href: '/admin/account-health', label: 'nav.health', icon: 'health' }
+    { label: 'nav.overview', title: 'Overview', items: [{ key: 'dashboard', href: '/admin', label: 'nav.dashboard', title: 'Dashboard', icon: 'dashboard' }] },
+    { label: 'nav.whatsapp', title: 'WhatsApp', items: [
+      { key: 'devices', href: '/admin/devices', label: 'nav.devices', title: 'Devices', icon: 'devices' },
+      { key: 'pair', href: '/admin/pair', label: 'nav.pair', title: 'Pair WhatsApp', icon: 'pair' },
+      { key: 'health', href: '/admin/account-health', label: 'nav.health', title: 'Account Health', icon: 'health' }
     ] },
-    { label: 'nav.messaging', items: [
+    { label: 'nav.messaging', title: 'Messaging', items: [
       { key: 'settings', href: '/admin/settings', label: 'nav.message_safety', title: 'Message Safety', icon: 'settings' },
-      { key: 'control', href: '/admin/control', label: 'nav.conversations', icon: 'conversations' },
-      { key: 'bulk', href: '/admin/bulk', label: 'nav.bulk', icon: 'bulk' },
-      { key: 'logs', href: '/admin/send-logs', label: 'nav.logs', icon: 'logs' },
-      { key: 'telemetry', href: '/admin/telemetry', label: 'nav.telemetry', icon: 'telemetry' }
+      { key: 'control', href: '/admin/control', label: 'nav.conversations', title: 'Conversations', icon: 'conversations' },
+      { key: 'bulk', href: '/admin/bulk', label: 'nav.bulk', title: 'Bulk Messages', icon: 'bulk' },
+      { key: 'logs', href: '/admin/send-logs', label: 'nav.logs', title: 'Send Logs', icon: 'logs' },
+      { key: 'telemetry', href: '/admin/telemetry', label: 'nav.telemetry', title: 'Telemetry', icon: 'telemetry' }
     ] },
     { label: 'nav.earning_portal', title: 'Earning portal', items: [
       { key: 'users', href: '/admin/users', label: 'nav.users', title: 'Users', icon: 'users' },
@@ -55,8 +55,8 @@
 	  { key: 'customerService', href: '/admin/customer-service', label: 'nav.customer_service', title: 'Customer service', icon: 'customerService' },
       { key: 'withdrawals', href: '/admin/withdrawals', label: 'nav.withdrawals', title: 'Withdrawals', icon: 'withdrawals' }
     ] },
-    { label: 'nav.system', items: [
-      { key: 'schema', href: '/admin/schema', label: 'nav.schema', icon: 'schema' }
+    { label: 'nav.system', title: 'System', items: [
+      { key: 'schema', href: '/admin/schema', label: 'nav.schema', title: 'Public Schema', icon: 'schema' }
     ] }
   ];
 

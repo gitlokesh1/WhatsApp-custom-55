@@ -110,8 +110,8 @@
     </section>
   </main>
 
-  <script src="/admin-i18n.js"></script>
   <script src="/admin-ui.js"></script>
+  <script src="/admin-i18n.js"></script>
   <script>
     const form = document.getElementById('notifForm');
     const targetSelect = document.getElementById('notifTarget');
@@ -141,7 +141,8 @@
 
     async function loadHistory() {
       try {
-        const res = await fetch('/admin/fcm/history');
+        const headers = window.adminHeaders ? window.adminHeaders() : {};
+        const res = await fetch('/admin/fcm/history', { headers });
         const data = await res.json();
         if (data.status === 'success') {
           registeredDevices.textContent = `${data.total_tokens || 0} Registered Devices`;
@@ -194,9 +195,13 @@
           target: targetSelect.value === 'user' ? targetUserID.value.trim() : 'all'
         };
 
+        const headers = {
+          'Content-Type': 'application/json',
+          ...(window.adminHeaders ? window.adminHeaders() : {})
+        };
         const res = await fetch('/admin/fcm/broadcast', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify(payload)
         });
         const data = await res.json();
