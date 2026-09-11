@@ -38,6 +38,8 @@ import java.net.URL
 import java.security.SecureRandom
 import kotlin.concurrent.thread
 import org.json.JSONObject
+import android.content.Context
+import com.google.firebase.messaging.FirebaseMessaging
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
@@ -433,6 +435,22 @@ class MainActivity : Activity() {
         }
 
         dialog.show()
+    }
+
+    private fun fetchFcmToken() {
+        try {
+            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val token = task.result
+                    if (!token.isNullOrBlank()) {
+                        val prefs = getSharedPreferences("sms_receipts", Context.MODE_PRIVATE)
+                        prefs.edit().putString("fcm_device_token", token).apply()
+                    }
+                }
+            }
+        } catch (_: Throwable) {
+            // Firebase not initialized if google-services.json is missing or invalid
+        }
     }
 
     companion object {
