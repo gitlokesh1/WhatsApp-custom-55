@@ -502,6 +502,7 @@ func adminFCMBroadcastHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func adminFCMHistoryHandler(w http.ResponseWriter, r *http.Request) {
+	_ = ensureFCMTables()
 	rows, err := userDB.Query(`
 		SELECT h.id, h.title, h.body, COALESCE(h.image_url, ''), h.target_type,
 		       COALESCE(h.target_user_id::text, ''), h.sent_count, h.failed_count, h.status, h.created_at
@@ -509,30 +510,27 @@ func adminFCMHistoryHandler(w http.ResponseWriter, r *http.Request) {
 		ORDER BY h.created_at DESC
 		LIMIT 50
 	`)
-	if err != nil {
-		adminJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not load history"})
-		return
-	}
-	defer rows.Close()
-
-	var list []map[string]any
-	for rows.Next() {
-		var id, title, body, img, targetType, targetUser, status string
-		var sent, failed int
-		var createdAt time.Time
-		if rows.Scan(&id, &title, &body, &img, &targetType, &targetUser, &sent, &failed, &status, &createdAt) == nil {
-			list = append(list, map[string]any{
-				"id":             id,
-				"title":          title,
-				"body":           body,
-				"image_url":      img,
-				"target_type":    targetType,
-				"target_user_id": targetUser,
-				"sent_count":     sent,
-				"failed_count":   failed,
-				"status":         status,
-				"created_at":     createdAt.Format(time.RFC3339),
-			})
+	var list []map[string]any = make([]map[string]any, 0)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var id, title, body, img, targetType, targetUser, status string
+			var sent, failed int
+			var createdAt time.Time
+			if rows.Scan(&id, &title, &body, &img, &targetType, &targetUser, &sent, &failed, &status, &createdAt) == nil {
+				list = append(list, map[string]any{
+					"id":             id,
+					"title":          title,
+					"body":           body,
+					"image_url":      img,
+					"target_type":    targetType,
+					"target_user_id": targetUser,
+					"sent_count":     sent,
+					"failed_count":   failed,
+					"status":         status,
+					"created_at":     createdAt.Format(time.RFC3339),
+				})
+			}
 		}
 	}
 

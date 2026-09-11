@@ -15,6 +15,7 @@ data class SmsTask(
     val currencyCode: String,
     val expiresAtMillis: Long,
     val accountId: String? = null,
+    val installationId: String? = null,
 )
 
 object SmsResultStore {
@@ -44,6 +45,7 @@ object SmsResultStore {
         val active = JSONObject()
             .put("claim_id", task.claimId)
             .put("account_id", task.accountId.orEmpty())
+            .put("installation_id", task.installationId.orEmpty())
             .put("nonce", task.nonce)
             .put("parts", parts)
             .put("seen", JSONArray())
@@ -83,6 +85,7 @@ object SmsResultStore {
             context,
             claimId,
             active.optString("account_id").ifBlank { null },
+            active.optString("installation_id").ifBlank { null },
             active.getString("nonce"),
             result,
             expectedParts,
@@ -92,7 +95,7 @@ object SmsResultStore {
 
     @Synchronized
     fun fail(context: Context, task: SmsTask, reason: String): String =
-        finish(context, task.claimId, task.accountId, task.nonce, "failed", 0, reason.take(200))
+        finish(context, task.claimId, task.accountId, task.installationId, task.nonce, "failed", 0, reason.take(200))
 
     @Synchronized
     fun discardExpiredActive(context: Context) {
@@ -137,13 +140,14 @@ object SmsResultStore {
         context: Context,
         claimId: String,
         accountId: String?,
+        explicitInstallationId: String?,
         nonce: String,
         result: String,
         parts: Int,
         failureReason: String,
     ): String {
         val timestamp = System.currentTimeMillis() / 1000
-        val installationId = installationId(context, accountId)
+        val installationId = explicitInstallationId?.takeIf { it.isNotBlank() } ?: installationId(context, accountId)
         val payload = listOf(
             claimId,
             nonce,

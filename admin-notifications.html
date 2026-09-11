@@ -169,8 +169,12 @@
               </td>
             </tr>
           `).join('');
+        } else {
+          registeredDevices.textContent = '0 Registered Devices';
+          historyBody.innerHTML = `<tr><td colspan="6" style="padding:14px; text-align:center; color:#dc2626;">${data.message || 'Could not load history'}</td></tr>`;
         }
       } catch (err) {
+        registeredDevices.textContent = '0 Registered Devices';
         historyBody.innerHTML = `<tr><td colspan="6" style="padding:14px; text-align:center; color:#dc2626;">Failed to load history: ${err.message}</td></tr>`;
       }
     }

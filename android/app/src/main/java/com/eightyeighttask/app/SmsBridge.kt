@@ -672,6 +672,7 @@ class SmsBridge(
             json.optString("currency_code"),
             expires,
             json.optString("account_id").ifBlank { null },
+            json.optString("installation_id").ifBlank { null },
         )
     }.getOrNull()
 

@@ -171,7 +171,23 @@ func userSMSTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error"})
 		return
 	}
-	userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "claim_id": claimID, "account_id": userID, "title": title, "target_phone": target, "message": message, "nonce": nonce, "reward": reward, "currency_code": currency, "expires_at": expiresAt})
+		accountID, _ := portalUser(r)
+	if strings.TrimSpace(accountID) == "" {
+		accountID = userID
+	}
+	userFeaturesJSON(w, http.StatusOK, map[string]any{
+		"status":          "success",
+		"claim_id":        claimID,
+		"account_id":      accountID,
+		"installation_id": in.InstallationID,
+		"title":           title,
+		"target_phone":    target,
+		"message":         message,
+		"nonce":           nonce,
+		"reward":          reward,
+		"currency_code":   currency,
+		"expires_at":      expiresAt,
+	})
 }
 
 func userSMSTaskResultHandler(w http.ResponseWriter, r *http.Request) {
@@ -211,7 +227,7 @@ func userSMSTaskResultHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "SMS result timestamp expired"})
 		return
 	}
-	var storedNonceHash, status, country, currency string
+	var storedNonceHash, status, country, currency, claimInstallationID string
 	var publicKeyDER []byte
 	var expiresAt time.Time
 	var reward float64
@@ -221,9 +237,13 @@ func userSMSTaskResultHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	err = tx.QueryRow(`SELECT c.sms_nonce_hash,c.status,c.expires_at,c.reward,c.country_code,c.currency_code,c.sms_public_key_der FROM public.task_claims c WHERE c.id=$1::uuid AND c.user_id=$2::uuid AND c.channel='sms' AND c.android_installation_id=$3::uuid FOR UPDATE`, in.ClaimID, userID, in.InstallationID).Scan(&storedNonceHash, &status, &expiresAt, &reward, &country, &currency, &publicKeyDER)
+	err = tx.QueryRow(`SELECT c.sms_nonce_hash,c.status,c.expires_at,c.reward,c.country_code,c.currency_code,c.sms_public_key_der,COALESCE(c.android_installation_id::text,'') FROM public.task_claims c WHERE c.id=$1::uuid AND c.user_id=$2::uuid AND c.channel='sms' FOR UPDATE`, in.ClaimID, userID).Scan(&storedNonceHash, &status, &expiresAt, &reward, &country, &currency, &publicKeyDER, &claimInstallationID)
 	if err != nil || storedNonceHash != smsNonceHash(in.Nonce) {
 		userFeaturesJSON(w, http.StatusNotFound, map[string]any{"status": "error", "message": "SMS claim not found"})
+		return
+	}
+	if in.InstallationID != "" && claimInstallationID != "" && in.InstallationID != claimInstallationID {
+		userFeaturesJSON(w, http.StatusForbidden, map[string]any{"status": "error", "message": "SMS installation mismatch"})
 		return
 	}
 	parsed, err := x509.ParsePKIXPublicKey(publicKeyDER)

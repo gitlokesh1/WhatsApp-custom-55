@@ -254,6 +254,30 @@ func initPortalBaseSchema() error {
 
 		ALTER TABLE public.customer_care_tickets ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'open';
 		ALTER TABLE public.customer_care_tickets ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+		CREATE TABLE IF NOT EXISTS public.fcm_device_tokens (
+			token TEXT PRIMARY KEY,
+			user_id UUID NOT NULL REFERENCES public.app_users(id) ON DELETE CASCADE,
+			device_type TEXT NOT NULL DEFAULT 'android',
+			created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+		);
+		CREATE INDEX IF NOT EXISTS fcm_tokens_user_idx ON public.fcm_device_tokens(user_id);
+
+		CREATE TABLE IF NOT EXISTS public.fcm_notifications_history (
+			id UUID PRIMARY KEY,
+			title TEXT NOT NULL,
+			body TEXT NOT NULL,
+			image_url TEXT,
+			target_type TEXT NOT NULL DEFAULT 'broadcast',
+			target_user_id UUID REFERENCES public.app_users(id) ON DELETE SET NULL,
+			sent_count INT NOT NULL DEFAULT 0,
+			failed_count INT NOT NULL DEFAULT 0,
+			status TEXT NOT NULL DEFAULT 'sent',
+			created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+		);
+		CREATE INDEX IF NOT EXISTS fcm_history_created_idx ON public.fcm_notifications_history(created_at DESC);
+
 	`)
 	return err
 }
