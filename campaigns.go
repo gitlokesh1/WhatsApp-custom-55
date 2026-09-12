@@ -486,6 +486,7 @@ func insertCampaignTasks(tx *sql.Tx, campaignID, source, channel, country string
 	return nil
 }
 
+// createCampaign stores a campaign and its task rows in one transaction.
 func createCampaign(advertiserID, name, channel, country, status string, unitPrice *float64, rows []campaignImportRow) (string, error) {
 	publicID, err := newCampaignPublicID()
 	if err != nil {
@@ -522,6 +523,7 @@ func createCampaign(advertiserID, name, channel, country, status string, unitPri
 	return publicID, nil
 }
 
+// filterSuppressedCampaignRows removes opted-out WhatsApp recipients from an import.
 func filterSuppressedCampaignRows(ctx context.Context, channel string, rows []campaignImportRow, reasons map[string]int) []campaignImportRow {
 	if channel != "whatsapp" || len(rows) == 0 {
 		return rows
@@ -543,6 +545,7 @@ func filterSuppressedCampaignRows(ctx context.Context, channel string, rows []ca
 	return filtered
 }
 
+// adminCampaignImportHandler validates and creates an active administrator campaign import.
 func adminCampaignImportHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		userFeaturesJSON(w, http.StatusMethodNotAllowed, map[string]any{"status": "error", "message": "POST required"})
@@ -583,6 +586,7 @@ func adminCampaignImportHandler(w http.ResponseWriter, r *http.Request) {
 	userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "campaign_id": publicID, "imported": len(rows), "skipped": sumReasonCounts(reasons), "skip_reasons": reasons})
 }
 
+// advertiserCampaignImportHandler validates and submits an advertiser campaign for review.
 func advertiserCampaignImportHandler(w http.ResponseWriter, r *http.Request) {
 	advertiserID, _, ok := advertiserIdentity(r)
 	if !ok {

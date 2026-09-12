@@ -181,6 +181,7 @@ func ResolveSpintax(input string) string {
 	return current
 }
 
+// userTaskClaimHandler claims and sends an eligible messaging task for the authenticated user.
 func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 	id, ok := userDBID(r)
 	if !ok {
