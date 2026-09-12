@@ -131,7 +131,25 @@
   const hydrateIcons = (root = document) => root.querySelectorAll('[data-u-icon]').forEach(node => { node.innerHTML = icon(node.dataset.uIcon); });
   const safeInternalURL = value => typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') ? value : '';
   const money = (amount, currency = 'INR') => { try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'INR', maximumFractionDigits: 2 }).format(Number(amount) || 0); } catch (_) { return `${currency || ''} ${(Number(amount) || 0).toFixed(2)}`; } };
-  const date = value => value ? new Date(value).toLocaleString() : '—';
+  const userTimezoneKey = '88task_user_timezone';
+  let currentUserTimezone = sessionStorage.getItem(userTimezoneKey) || '';
+  const date = (value, customTz) => {
+    if (!value) return '—';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value);
+    const tz = customTz || currentUserTimezone || sessionStorage.getItem(userTimezoneKey);
+    if (tz) {
+      try {
+        return new Intl.DateTimeFormat(undefined, {
+          year: 'numeric', month: 'short', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+          timeZone: tz,
+          timeZoneName: 'short'
+        }).format(d);
+      } catch (_) {}
+    }
+    return d.toLocaleString();
+  };
   const api = async (url, options = {}) => {
     const request = { ...options, headers: { ...(options.headers || {}) } };
     if (request.body && typeof request.body !== 'string' && !(request.body instanceof FormData)) { request.body = JSON.stringify(request.body); request.headers['Content-Type'] = 'application/json'; }
@@ -250,6 +268,10 @@
 
   async function profile(requireCountry = true) {
     let data = await api('/api/user/profile'); if (data.requires_country && requireCountry) { await chooseCountry(); data = await api('/api/user/profile'); }
+    if (data && data.timezone) {
+      currentUserTimezone = data.timezone;
+      try { sessionStorage.setItem(userTimezoneKey, data.timezone); } catch (_) {}
+    }
     saveProfileHeader(data); applyProfileHeader(data); window.userProfile = data;
     syncFcmToken().catch(() => {});
     return data;

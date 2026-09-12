@@ -638,22 +638,26 @@ func adminUserDetailHandler(w http.ResponseWriter, r *http.Request) {
 	var balance, total float64
 	var withdrawals, mustChange bool
 	var created time.Time
-	err := userDB.QueryRow(`SELECT u.id,u.user_id,u.display_name,u.status,COALESCE(u.country_code,''),COALESCE(c.name,''),COALESCE(c.currency_code,''),u.balance,u.total_earning,u.withdrawals_enabled,u.must_change_password,u.created_at FROM public.app_users u LEFT JOIN public.earning_countries c ON c.code=u.country_code WHERE u.id=$1::uuid`, uid).Scan(&id, &userID, &name, &status, &country, &countryName, &currency, &balance, &total, &withdrawals, &mustChange, &created)
+	var timezone string
+	err := userDB.QueryRow(`SELECT u.id,u.user_id,u.display_name,u.status,COALESCE(u.country_code,''),COALESCE(c.name,''),COALESCE(c.currency_code,''),COALESCE(c.timezone,'UTC'),u.balance,u.total_earning,u.withdrawals_enabled,u.must_change_password,u.created_at FROM public.app_users u LEFT JOIN public.earning_countries c ON c.code=u.country_code WHERE u.id=$1::uuid`, uid).Scan(&id, &userID, &name, &status, &country, &countryName, &currency, &timezone, &balance, &total, &withdrawals, &mustChange, &created)
 	if err != nil {
 		userFeaturesJSON(w, 404, map[string]any{"status": "error", "message": "User not found"})
 		return
 	}
-	out = map[string]any{"id": id, "user_id": userID, "name": name, "status": status, "country_code": country, "country_name": countryName, "currency_code": currency, "balance": balance, "total_earning": total, "withdrawals_enabled": withdrawals, "must_change_password": mustChange, "created_at": created}
+	if timezone == "" {
+		timezone = "UTC"
+	}
+	out = map[string]any{"id": id, "user_id": userID, "name": name, "status": status, "country_code": country, "country_name": countryName, "currency_code": currency, "timezone": timezone, "balance": balance, "total_earning": total, "withdrawals_enabled": withdrawals, "must_change_password": mustChange, "created_at": created}
 	var tasks, referrals, accounts, tickets, withdrawalCount, bonuses int
 	_ = userDB.QueryRow(`SELECT (SELECT count(*) FROM public.task_claims WHERE user_id=$1::uuid),(SELECT count(*) FROM public.app_users WHERE referred_by=$1::uuid),(SELECT count(*) FROM public.user_whatsapp_accounts WHERE user_id=$1::uuid AND status<>'removed'),(SELECT count(*) FROM public.customer_care_tickets WHERE user_id=$1::uuid),(SELECT count(*) FROM public.withdrawal_requests WHERE user_id=$1::uuid),(SELECT count(*) FROM public.wallet_transactions WHERE user_id=$1::uuid AND type IN ('bonus','bonus_reversal'))`, uid).Scan(&tasks, &referrals, &accounts, &tickets, &withdrawalCount, &bonuses)
 
 	var smsToday, smsTotal, waToday, waTotal int
 	_ = userDB.QueryRow(`SELECT 
-		COUNT(*) FILTER (WHERE channel='sms' AND status='sent' AND (COALESCE(sent_at, updated_at) AT TIME ZONE 'UTC')::date = (now() AT TIME ZONE 'UTC')::date),
+		COUNT(*) FILTER (WHERE channel='sms' AND status='sent' AND (COALESCE(sent_at, updated_at) AT TIME ZONE $2)::date = (now() AT TIME ZONE $2)::date),
 		COUNT(*) FILTER (WHERE channel='sms' AND status='sent'),
-		COUNT(*) FILTER (WHERE COALESCE(channel,'')<>'sms' AND status='sent' AND (COALESCE(sent_at, updated_at) AT TIME ZONE 'UTC')::date = (now() AT TIME ZONE 'UTC')::date),
+		COUNT(*) FILTER (WHERE COALESCE(channel,'')<>'sms' AND status='sent' AND (COALESCE(sent_at, updated_at) AT TIME ZONE $2)::date = (now() AT TIME ZONE $2)::date),
 		COUNT(*) FILTER (WHERE COALESCE(channel,'')<>'sms' AND status='sent')
-	FROM public.task_claims WHERE user_id=$1::uuid`, uid).Scan(&smsToday, &smsTotal, &waToday, &waTotal)
+	FROM public.task_claims WHERE user_id=$1::uuid`, uid, timezone).Scan(&smsToday, &smsTotal, &waToday, &waTotal)
 
 	out["related"] = map[string]any{
 		"tasks":                tasks,

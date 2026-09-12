@@ -122,10 +122,21 @@
     return data;
   };
   window.adminEscape = (value) => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
-  window.adminFormatDate = (value) => {
+  window.adminFormatDate = (value, timeZone) => {
     if (!value) return '—';
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+    if (Number.isNaN(date.getTime())) return String(value);
+    if (timeZone) {
+      try {
+        return new Intl.DateTimeFormat(undefined, {
+          year: 'numeric', month: 'short', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+          timeZone: timeZone,
+          timeZoneName: 'short'
+        }).format(date);
+      } catch (_) {}
+    }
+    return date.toLocaleString();
   };
   window.adminStatusBadge = (status) => {
     const value = String(status || 'unknown').toLowerCase();
