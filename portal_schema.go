@@ -29,6 +29,7 @@ func initPortalBaseSchema() error {
 		ALTER TABLE public.user_sessions_auth ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '30 days');
 		ALTER TABLE public.user_sessions_auth ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
 		CREATE INDEX IF NOT EXISTS user_sessions_auth_user_idx
+		_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_task_claims_user_sent ON public.task_claims (user_id, status, sent_at)`)
 		ON public.user_sessions_auth(user_id);
 		CREATE INDEX IF NOT EXISTS user_sessions_auth_expiry_idx
 		ON public.user_sessions_auth(expires_at);
