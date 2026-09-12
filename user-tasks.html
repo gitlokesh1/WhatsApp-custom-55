@@ -69,7 +69,7 @@
 <section class="u-card"><div class="u-card-head"><div><h2>Start a task</h2><p>Choose SMS to see tasks that can be sent from the Android app.</p></div></div><div id="taskFilters" class="u-actions" aria-label="Task type"><button class="u-btn" type="button" data-task-filter="all">All tasks</button><button class="u-btn" type="button" data-task-filter="sms"><span data-u-icon="phone"></span>SMS tasks</button><button class="u-btn" type="button" data-task-filter="whatsapp"><span data-u-icon="whatsapp"></span>WhatsApp tasks</button></div><p id="smsGuide" class="u-help" style="margin:14px 0 0" hidden></p></section>
 <section id="accountCard" class="u-card" style="margin-top:18px"><div class="u-card-head"><div><h2>Choose a WhatsApp sending account</h2><p>This account is used only for WhatsApp tasks.</p></div><a class="u-btn small" href="/whatsapp">Manage accounts</a></div><select id="account" class="u-select"><option>Loading connected accounts…</option></select></section>
 <section id="list" class="u-grid two" style="margin-top:18px"><article class="u-card"><div class="u-skeleton"></div></article></section>
-</main><script src="/user-i18n.js?v=20260910.2"></script><script src="/user-ui.js?v=20260910.1"></script><script>
+</main><script src="/user-i18n.js?v=20260910.2"></script><script src="/user-ui.js?v=20260912.2"></script><script>
 const requestedChannel = new URLSearchParams(location.search).get('channel');
 let taskData = [], activeAccounts = [], androidInstallation = null, smsBusy = false, smsClaimTimer = 0, activeSMSClaimID = '', appVersionData = null, taskFilter = ['sms','whatsapp'].includes(requestedChannel) ? requestedChannel : 'all';
 

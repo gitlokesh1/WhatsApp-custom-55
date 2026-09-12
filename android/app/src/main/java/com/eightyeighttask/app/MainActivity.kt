@@ -113,6 +113,7 @@ class MainActivity : Activity() {
         super.onResume()
         CookieManager.getInstance().flush()
         if (::smsBridge.isInitialized) smsBridge.resumePending(bridgeToken)
+        checkAppVersion()
     }
 
     override fun onPause() {
@@ -152,10 +153,12 @@ class MainActivity : Activity() {
         if (webView.canGoBack()) webView.goBack() else finish()
     }
 
-    private fun isPortalUrl(uri: Uri): Boolean =
-        uri.scheme.equals(portalOrigin.scheme, ignoreCase = true) &&
-            uri.host.equals(portalOrigin.host, ignoreCase = true) &&
-            effectivePort(uri) == effectivePort(portalOrigin)
+    private fun isPortalUrl(uri: Uri): Boolean {
+        if (!uri.scheme.equals(portalOrigin.scheme, ignoreCase = true)) return false
+        val h = uri.host?.lowercase()?.removePrefix("www.") ?: return false
+        val p = portalOrigin.host?.lowercase()?.removePrefix("www.") ?: return false
+        return (h == p || h.endsWith(".$p") || h == "localhost" || h == "10.0.2.2")
+    }
 
     private fun effectivePort(uri: Uri): Int = if (uri.port >= 0) uri.port else 443
 
