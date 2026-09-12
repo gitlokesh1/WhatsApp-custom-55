@@ -523,26 +523,74 @@ func createCampaign(advertiserID, name, channel, country, status string, unitPri
 	return publicID, nil
 }
 
+const campaignSuppressionLookupBatchSize = 500
+
+func suppressedCampaignRecipients(ctx context.Context, phones []string) (map[string]struct{}, error) {
+	suppressed := make(map[string]struct{})
+	if len(phones) == 0 || safetyBypassFrom(ctx).skipSuppression {
+		return suppressed, nil
+	}
+	if err := ensureRecipientSafetyTables(); err != nil {
+		return nil, err
+	}
+	for start := 0; start < len(phones); start += campaignSuppressionLookupBatchSize {
+		end := start + campaignSuppressionLookupBatchSize
+		if end > len(phones) {
+			end = len(phones)
+		}
+		result, err := userDB.QueryContext(ctx, `SELECT phone FROM public.recipient_suppressions WHERE phone = ANY($1)`, phones[start:end])
+		if err != nil {
+			return nil, err
+		}
+		for result.Next() {
+			var phone string
+			if err := result.Scan(&phone); err != nil {
+				result.Close()
+				return nil, err
+			}
+			suppressed[phone] = struct{}{}
+		}
+		if err := result.Err(); err != nil {
+			result.Close()
+			return nil, err
+		}
+		result.Close()
+	}
+	return suppressed, nil
+}
+
 // filterSuppressedCampaignRows removes opted-out WhatsApp recipients from an import.
-func filterSuppressedCampaignRows(ctx context.Context, channel string, rows []campaignImportRow, reasons map[string]int) []campaignImportRow {
+func filterSuppressedCampaignRows(ctx context.Context, channel string, rows []campaignImportRow, reasons map[string]int) ([]campaignImportRow, error) {
 	if channel != "whatsapp" || len(rows) == 0 {
-		return rows
+		return rows, nil
+	}
+	normalizedPhones := make([]string, len(rows))
+	uniquePhones := make([]string, 0, len(rows))
+	seenPhones := make(map[string]struct{}, len(rows))
+	for index, row := range rows {
+		phone, err := normalizeRecipientPhone(row.Phone)
+		if err != nil {
+			return nil, fmt.Errorf("normalize campaign recipient: %w", err)
+		}
+		normalizedPhones[index] = phone
+		if _, seen := seenPhones[phone]; !seen {
+			seenPhones[phone] = struct{}{}
+			uniquePhones = append(uniquePhones, phone)
+		}
+	}
+	suppressed, err := suppressedCampaignRecipients(ctx, uniquePhones)
+	if err != nil {
+		return nil, fmt.Errorf("check campaign recipient suppressions: %w", err)
 	}
 	filtered := make([]campaignImportRow, 0, len(rows))
-	for _, row := range rows {
-		phone := normalizeRecipientPhone(row.Phone)
-		if phone == "" {
-			filtered = append(filtered, row)
-			continue
-		}
-		suppressed, err := isRecipientSuppressed(ctx, phone)
-		if err == nil && suppressed {
+	for index, row := range rows {
+		if _, optedOut := suppressed[normalizedPhones[index]]; optedOut {
 			reasons["recipient opted out"]++
 			continue
 		}
 		filtered = append(filtered, row)
 	}
-	return filtered
+	return filtered, nil
 }
 
 // adminCampaignImportHandler validates and creates an active administrator campaign import.
@@ -572,7 +620,12 @@ func adminCampaignImportHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": campaignUploadErrorMessage(err)})
 		return
 	}
-	rows = filterSuppressedCampaignRows(r.Context(), channel, rows, reasons)
+	rows, err = filterSuppressedCampaignRows(r.Context(), channel, rows, reasons)
+	if err != nil {
+		log.Printf("campaign suppression verification failed: %v", err)
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not verify campaign recipients"})
+		return
+	}
 	if len(rows) == 0 {
 		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "All recipients in CSV have opted out of messages", "skipped": sumReasonCounts(reasons), "skip_reasons": reasons})
 		return
@@ -607,7 +660,12 @@ func advertiserCampaignImportHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": campaignUploadErrorMessage(err)})
 		return
 	}
-	rows = filterSuppressedCampaignRows(r.Context(), channel, rows, reasons)
+	rows, err = filterSuppressedCampaignRows(r.Context(), channel, rows, reasons)
+	if err != nil {
+		log.Printf("campaign suppression verification failed: %v", err)
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not verify campaign recipients"})
+		return
+	}
 	if len(rows) == 0 {
 		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "All recipients in CSV have opted out of messages", "skipped": sumReasonCounts(reasons), "skip_reasons": reasons})
 		return

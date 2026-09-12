@@ -51,6 +51,17 @@ func TestParseCampaignCSVRequiresConsent(t *testing.T) {
 	}
 }
 
+func TestFilterSuppressedCampaignRowsPropagatesNormalizationError(t *testing.T) {
+	rows := []campaignImportRow{{Phone: "invalid-phone", Message: "Hello"}}
+	filtered, err := filterSuppressedCampaignRows(t.Context(), "whatsapp", rows, map[string]int{})
+	if err == nil {
+		t.Fatal("expected invalid recipient phone to fail suppression verification")
+	}
+	if filtered != nil {
+		t.Fatalf("expected no filtered rows after verification failure, got %#v", filtered)
+	}
+}
+
 func TestValidAdvertiserLoginID(t *testing.T) {
 	for _, valid := range []string{"client-01", "agency.name", "Brand_2"} {
 		if !validAdvertiserLoginID(valid) {
