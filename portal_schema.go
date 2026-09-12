@@ -4,6 +4,8 @@ package main
 // feature-specific migrations extend. All statements are additive so an
 // existing Supabase deployment keeps its data and schema customizations.
 func initPortalBaseSchema() error {
+	// Prune accumulated expired auth sessions older than 7 days
+	_, _ = userDB.Exec(`DELETE FROM public.user_sessions_auth WHERE expires_at < now() - interval '7 days'`)
 	_, err := userDB.Exec(`
 		CREATE TABLE IF NOT EXISTS public.app_users (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
