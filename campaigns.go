@@ -397,8 +397,17 @@ func parseCampaignUpload(w http.ResponseWriter, r *http.Request, validateForm fu
 	name := strings.TrimSpace(r.FormValue("name"))
 	channel := strings.ToLower(strings.TrimSpace(r.FormValue("channel")))
 	country := normalizeCountryCode(r.FormValue("country_code"))
-	if len(name) < 3 || len(name) > 140 || (channel != "sms" && channel != "whatsapp") || !isUpperAlphaCode(country, 2) {
-		return "", "", "", nil, nil, fmt.Errorf("name, channel, and country are required")
+	if len(name) < 3 {
+		return "", "", "", nil, nil, fmt.Errorf("Campaign name must be at least 3 characters")
+	}
+	if len(name) > 140 {
+		return "", "", "", nil, nil, fmt.Errorf("Campaign name cannot exceed 140 characters")
+	}
+	if channel != "sms" && channel != "whatsapp" {
+		return "", "", "", nil, nil, fmt.Errorf("Please select a channel (SMS or WhatsApp)")
+	}
+	if !isUpperAlphaCode(country, 2) {
+		return "", "", "", nil, nil, fmt.Errorf("Please select a target country")
 	}
 	if _, err := loadCountry(country, false); err != nil {
 		return "", "", "", nil, nil, fmt.Errorf("country not found")
@@ -431,6 +440,10 @@ func campaignUploadErrorMessage(err error) string {
 	case message == "Advertiser is unavailable":
 		return message
 	case message == "name, channel, and country are required":
+		return message
+	case strings.HasPrefix(message, "Campaign name"):
+		return message
+	case strings.HasPrefix(message, "Please select"):
 		return message
 	case message == "country not found":
 		return message
