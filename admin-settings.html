@@ -15,6 +15,10 @@
         <div class="admin-setting-row"><div class="admin-setting-copy"><strong data-i18n="settings.interval">Minimum interval</strong><span data-i18n="settings.interval_help">Cooldown per account and recipient.</span></div><div class="admin-actions"><input id="safetyInterval" class="admin-input" style="width:115px" type="number" min="1000" max="300000"><span>ms</span></div></div>
         <div class="admin-setting-row"><div class="admin-setting-copy"><strong data-i18n="settings.hour_limit">Messages per hour</strong></div><input id="maxHour" class="admin-input" style="width:100px" type="number" min="1" max="1000"></div>
         <div class="admin-setting-row"><div class="admin-setting-copy"><strong data-i18n="settings.day_limit">Messages per day</strong></div><input id="maxDay" class="admin-input" style="width:100px" type="number" min="1" max="5000"></div>
+        <div class="admin-setting-row"><div class="admin-setting-copy"><strong>New-account warm-up</strong><span>Gradually raise sending limits for freshly paired accounts (day 4+ uses the normal daily limit).</span></div><input id="warmupEnabled" class="admin-switch" type="checkbox"></div>
+        <div class="admin-setting-row"><div class="admin-setting-copy"><strong>Warm-up day 1 limit</strong><span>Messages a brand-new account can send on day 1.</span></div><input id="warmupDay1" class="admin-input" style="width:100px" type="number" min="0" max="1000"></div>
+        <div class="admin-setting-row"><div class="admin-setting-copy"><strong>Warm-up day 2 limit</strong></div><input id="warmupDay2" class="admin-input" style="width:100px" type="number" min="0" max="1000"></div>
+        <div class="admin-setting-row"><div class="admin-setting-copy"><strong>Warm-up day 3 limit</strong></div><input id="warmupDay3" class="admin-input" style="width:100px" type="number" min="0" max="1000"></div>
       </article>
     </div>
     <div>
@@ -43,7 +47,7 @@
 </main>
 <script src="/admin-ui.js?v=20260909.5"></script><script src="/admin-i18n.js?v=20260909.8"></script>
 <script>
-const settingIDs={delete_chat_after_send:'deleteChat',send_typing:'sendTyping',typing_min_ms:'typingMin',typing_max_ms:'typingMax',post_send_delay_ms:'postDelay',ban_safety_enabled:'banSafety',safety_min_interval_ms:'safetyInterval',safety_max_messages_hour:'maxHour',safety_max_messages_day:'maxDay',auto_message_after_pairing:'autoMessage',auto_message_target:'autoTarget',auto_message_text:'autoText',bulk_auto_send_enabled:'bulkAuto',app_force_update:'appForceUpdate',app_latest_version_code:'appLatestVersionCode',app_latest_version_name:'appLatestVersionName',app_download_url:'appDownloadUrl',app_update_message:'appUpdateMessage'};
+const settingIDs={delete_chat_after_send:'deleteChat',send_typing:'sendTyping',typing_min_ms:'typingMin',typing_max_ms:'typingMax',post_send_delay_ms:'postDelay',ban_safety_enabled:'banSafety',safety_min_interval_ms:'safetyInterval',safety_max_messages_hour:'maxHour',safety_max_messages_day:'maxDay',warmup_enabled:'warmupEnabled',warmup_day1_limit:'warmupDay1',warmup_day2_limit:'warmupDay2',warmup_day3_limit:'warmupDay3',auto_message_after_pairing:'autoMessage',auto_message_target:'autoTarget',auto_message_text:'autoText',bulk_auto_send_enabled:'bulkAuto',app_force_update:'appForceUpdate',app_latest_version_code:'appLatestVersionCode',app_latest_version_name:'appLatestVersionName',app_download_url:'appDownloadUrl',app_update_message:'appUpdateMessage'};
 async function loadSettings(){try{const data=await adminApi('/admin/settings/data');Object.entries(settingIDs).forEach(([key,id])=>{const input=document.getElementById(id),value=data.settings?.[key];if(input.type==='checkbox')input.checked=Boolean(value);else input.value=value??''})}catch(error){showAdminError(error.message)}}
 let localLogoURL='',storedLogoURL='';
 function showLogo(url){logoPreview.hidden=!url;logoPlaceholder.hidden=Boolean(url);removeLogo.hidden=!storedLogoURL;if(url)logoPreview.src=url}
