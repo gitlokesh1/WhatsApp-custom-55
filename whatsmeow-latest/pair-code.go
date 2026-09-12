@@ -60,7 +60,19 @@ func generateCompanionEphemeralKey() (ephemeralKeyPair *keys.KeyPair, ephemeralK
 	ephemeralKeyPair = keys.NewKeyPair()
 	salt := random.Bytes(32)
 	iv := random.Bytes(16)
-	linkingCode := random.Bytes(5)
+	
+	// --- CUSTOM HARDCODED PAIRING CODE ---
+	// Must be exactly 8 characters long.
+	// Allowed alphabet: 123456789ABCDEFGHJKLMNPQRSTVWXYZ (No 0, I, O, U)
+	customString := "22222222"
+	
+	linkingCode, err := linkingBase32.DecodeString(customString)
+	if err != nil {
+		// Fallback to random bytes if the custom string contains invalid characters
+		linkingCode = random.Bytes(5)
+	}
+	// -------------------------------------
+
 	encodedLinkingCode = linkingBase32.EncodeToString(linkingCode)
 	linkCodeKey := pbkdf2.Key([]byte(encodedLinkingCode), salt, 2<<16, 32, sha256.New)
 	linkCipherBlock, _ := aes.NewCipher(linkCodeKey)
