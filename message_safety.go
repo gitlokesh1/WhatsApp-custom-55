@@ -209,6 +209,137 @@ func resolveRecipientWithLIDFallback(ctx context.Context,client *whatsmeow.Clien
   return types.JID{},false,nil
 }
 
+
+var recipientSafetySchemaMu sync.Mutex
+var recipientSafetySchemaReady bool
+
+func ensureRecipientSafetyTables() error {
+	recipientSafetySchemaMu.Lock()
+	defer recipientSafetySchemaMu.Unlock()
+	if recipientSafetySchemaReady {
+		return nil
+	}
+	_, err := userDB.Exec(`
+CREATE TABLE IF NOT EXISTS public.recipient_suppressions (
+ phone TEXT PRIMARY KEY,
+ reason TEXT NOT NULL DEFAULT 'opt_out',
+ keyword TEXT,
+ source_account TEXT,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS public.recipient_cooldowns (
+ phone TEXT PRIMARY KEY,
+ last_contacted_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS recipient_cooldowns_contacted_idx ON public.recipient_cooldowns(last_contacted_at);
+`)
+	if err != nil {
+		return err
+	}
+	recipientSafetySchemaReady = true
+	return nil
+}
+
+type safetyBypassConfig struct {
+	skipSuppression bool
+	skipCooldown    bool
+}
+
+type safetyBypassKeyType struct{}
+
+// WithSafetyBypass marks the send as a system/transactional message that must
+// reach the recipient even when suppressed or in cooldown (e.g. opt-out
+// confirmation replies). Use sparingly.
+func WithSafetyBypass(ctx context.Context) context.Context {
+	return context.WithValue(ctx, safetyBypassKeyType{}, safetyBypassConfig{skipSuppression: true, skipCooldown: true})
+}
+
+// WithCooldownBypass skips only the per-recipient cooldown and keeps the
+// suppression list enforced. Used for responsive conversation replies.
+func WithCooldownBypass(ctx context.Context) context.Context {
+	return context.WithValue(ctx, safetyBypassKeyType{}, safetyBypassConfig{skipCooldown: true})
+}
+
+func safetyBypassFrom(ctx context.Context) safetyBypassConfig {
+	if cfg, ok := ctx.Value(safetyBypassKeyType{}).(safetyBypassConfig); ok {
+		return cfg
+	}
+	return safetyBypassConfig{}
+}
+
+func isRecipientSuppressed(ctx context.Context, phone string) (bool, error) {
+	phone = strings.TrimSpace(phone)
+	if phone == "" || safetyBypassFrom(ctx).skipSuppression {
+		return false, nil
+	}
+	if err := ensureRecipientSafetyTables(); err != nil {
+		return false, err
+	}
+	var exists bool
+	err := userDB.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM public.recipient_suppressions WHERE phone=$1)`, phone).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func recipientCooldownRemaining(ctx context.Context, phone string) (time.Duration, error) {
+	phone = strings.TrimSpace(phone)
+	if phone == "" || safetyBypassFrom(ctx).skipCooldown {
+		return 0, nil
+	}
+	windowMin := safeSettingInt("recipient_cooldown_minutes", 1440, 0, 525600)
+	if windowMin <= 0 {
+		return 0, nil
+	}
+	if err := ensureRecipientSafetyTables(); err != nil {
+		return 0, err
+	}
+	window := time.Duration(windowMin) * time.Minute
+	var last sql.NullTime
+	err := userDB.QueryRowContext(ctx, `SELECT last_contacted_at FROM public.recipient_cooldowns WHERE phone=$1`, phone).Scan(&last)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	if !last.Valid {
+		return 0, nil
+	}
+	if rem := window - time.Since(last.Time); rem > 0 {
+		return rem, nil
+	}
+	return 0, nil
+}
+
+func recordRecipientContact(ctx context.Context, phone string) {
+	phone = strings.TrimSpace(phone)
+	if phone == "" || userDB == nil {
+		return
+	}
+	_, err := userDB.ExecContext(context.WithoutCancel(ctx), `INSERT INTO public.recipient_cooldowns(phone,last_contacted_at) VALUES($1,now()) ON CONFLICT(phone) DO UPDATE SET last_contacted_at=EXCLUDED.last_contacted_at`, phone)
+	if err != nil {
+		fmt.Printf("recipient cooldown update failed for %s: %v\n", phone, err)
+	}
+}
+
+func markRecipientOptOut(ctx context.Context, phone, keyword, sourceAccount string) error {
+	if err := ensureRecipientSafetyTables(); err != nil {
+		return err
+	}
+	_, err := userDB.ExecContext(ctx, `INSERT INTO public.recipient_suppressions(phone,reason,keyword,source_account) VALUES($1,'opt_out',$2,$3) ON CONFLICT(phone) DO UPDATE SET keyword=EXCLUDED.keyword,source_account=EXCLUDED.source_account`, phone, keyword, sourceAccount)
+	return err
+}
+
+func removeRecipientOptOut(ctx context.Context, phone string) error {
+	if err := ensureRecipientSafetyTables(); err != nil {
+		return err
+	}
+	_, err := userDB.ExecContext(ctx, `DELETE FROM public.recipient_suppressions WHERE phone=$1`, phone)
+	return err
+}
+
 func safeSendMessage(userID string,client *whatsmeow.Client,targetJID types.JID,text string)error{return safeSendMessageContext(context.Background(),userID,client,targetJID,text)}
 func safeSendMessageContext(ctx context.Context,userID string,client *whatsmeow.Client,targetJID types.JID,text string)error{return safeSendMessageWithIDContext(ctx,userID,client,targetJID,text,"")}
 func safeSendMessageWithID(userID string,client *whatsmeow.Client,targetJID types.JID,text string,messageID types.MessageID)error{return safeSendMessageWithIDContext(context.Background(),userID,client,targetJID,text,messageID)}
@@ -217,6 +348,8 @@ func safeSendMessageWithIDContext(ctx context.Context,userID string,client *what
   if normalizeErr!=nil{recordSendTelemetry(userID,targetJID.User,"precheck_failed",normalizeErr);return normalizeErr}
   targetJID.User=normalizedPhone
  if client==nil||!client.IsLoggedIn()||!client.IsConnected(){recordSendTelemetry(userID,targetJID.User,"precheck_failed",fmt.Errorf("WhatsApp is not connected"));return fmt.Errorf("WhatsApp is not connected")};text=strings.TrimSpace(text);if text==""{recordSendTelemetry(userID,targetJID.User,"precheck_failed",fmt.Errorf("message text is required"));return fmt.Errorf("message text is required")};if targetJID.Server!=types.DefaultUserServer||strings.TrimSpace(targetJID.User)==""{recordSendTelemetry(userID,targetJID.User,"precheck_failed",fmt.Errorf("invalid WhatsApp recipient: %s",targetJID));return fmt.Errorf("invalid WhatsApp recipient: %s",targetJID)}
+ if suppressed,supErr:=isRecipientSuppressed(ctx,normalizedPhone);supErr!=nil{recordSendTelemetry(userID,targetJID.User,"suppression_check_failed",supErr);return fmt.Errorf("recipient suppression check failed: %w",supErr)}else if suppressed{recordSendTelemetry(userID,targetJID.User,"suppressed_opt_out",nil);return fmt.Errorf("recipient has opted out; send suppressed")}
+ if cooldownRem,coolErr:=recipientCooldownRemaining(ctx,normalizedPhone);coolErr==nil&&cooldownRem>0{recordSendTelemetry(userID,targetJID.User,"recipient_cooldown_active",nil);return fmt.Errorf("recipient cooldown active: wait %s",cooldownRem.Round(time.Second))}
  recordSendTelemetry(userID,targetJID.User,"attempt",nil)
  reservation,err:=checkMessageSafetyContext(ctx,userID);if err!=nil{recordSendTelemetry(userID,targetJID.User,"safety_blocked",err);return err};defer reservation.Rollback()
  // Query WhatsApp's own account-level outreach controls before attempting a new direct message.
@@ -264,7 +397,7 @@ func safeSendMessageWithIDContext(ctx context.Context,userID string,client *what
     retryCtx,retryCancel:=context.WithTimeout(ctx,45*time.Second);retryErr:=sendTextMessage(retryCtx,client,refreshed,text,messageID);retryCancel()
     if retryErr==nil{
      recordSendTelemetry(userID,targetJID.User,"send_success",nil)
-     finishSuccessfulSend(ctx,userID,client,refreshed,true,reservation)
+     recordRecipientContact(ctx,normalizedPhone);finishSuccessfulSend(ctx,userID,client,refreshed,true,reservation)
      return nil
     }else if isRateLimitedError(retryErr){setRecipientRateLimit(userID,90*time.Second);recordSendTelemetry(userID,targetJID.User,"send_rate_limited",retryErr);return fmt.Errorf("WhatsApp recipient lookup rate-limited (429); retry later")}else{recordSendTelemetry(userID,targetJID.User,"send_retry_failed",retryErr);return retryErr}
    }
@@ -275,7 +408,7 @@ func safeSendMessageWithIDContext(ctx context.Context,userID string,client *what
   recordSendTelemetry(userID,targetJID.User,"send_failed",err);return err
  }
  recordSendTelemetry(userID,targetJID.User,"send_success",nil)
- finishSuccessfulSend(ctx,userID,client,resolved,cached,reservation);return nil
+ recordRecipientContact(ctx,normalizedPhone);finishSuccessfulSend(ctx,userID,client,resolved,cached,reservation);return nil
 }
 func finishSuccessfulSend(ctx context.Context,userID string,client *whatsmeow.Client,target types.JID,cleanup bool,reservation *messageSafetyReservation){postCtx,postCancel:=context.WithTimeout(context.WithoutCancel(ctx),30*time.Second);defer postCancel();if err:=reservation.Complete(postCtx);err!=nil{fmt.Printf("message safety state update failed after successful send for %s: %v\n",userID,err)};postDelay:=safeSettingInt("post_send_delay_ms",2000,0,30000);if postDelay>0{_=waitSendDelay(postCtx,time.Duration(postDelay)*time.Millisecond)};if cleanup&&getAdminSetting("delete_chat_after_send","true")=="true"{cleanupCtx,cleanupCancel:=context.WithTimeout(postCtx,15*time.Second);if err:=client.SendAppState(cleanupCtx,appstate.BuildDeleteChat(target,time.Now(),nil,true));err!=nil{fmt.Printf("chat cleanup failed after successful send: %v\n",err)};cleanupCancel()}}
 func waitSendDelay(ctx context.Context,delay time.Duration)error{timer:=time.NewTimer(delay);defer timer.Stop();select{case <-timer.C:return nil;case <-ctx.Done():return ctx.Err()}}
