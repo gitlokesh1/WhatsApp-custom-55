@@ -390,7 +390,7 @@
                   <input type="number" id="settMaxDay" class="input-text font-mono">
                 </div>
               </div>
-              <button id="saveSystemSettingsBtn" class="btn btn-primary" style="width: 100%;">Save Safety Settings</button>
+              <button id="saveAntiBanBtn" class="btn btn-primary" style="width: 100%;">Save Safety Settings</button>
             </div>
           </div>
         </section>
@@ -418,5 +418,17 @@
   </div>
 
   <script src="/admin2/admin2.js?v=20260912.2"></script>
+
+  <!-- User Detail Modal -->
+  <div id="userDetailModal" class="login-overlay hidden">
+    <div class="login-card" style="max-width: 600px; width: 90%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="margin: 0; font-size: 18px; font-weight: 800;">User Profile & Activity</h3>
+        <button onclick="document.getElementById('userDetailModal').classList.add('hidden')" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">✕</button>
+      </div>
+      <div id="userDetailContent"></div>
+    </div>
+  </div>
+
 </body>
 </html>
