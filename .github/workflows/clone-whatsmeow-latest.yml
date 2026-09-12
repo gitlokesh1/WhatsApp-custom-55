@@ -1,0 +1,31 @@
+name: Clone WhatsMeow Latest
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clone tulir/whatsmeow
+        run: |
+          rm -rf whatsmeow-latest
+          git clone --depth 1 https://github.com/tulir/whatsmeow.git /tmp/upstream
+          rm -rf /tmp/upstream/.git
+          cp -r /tmp/upstream whatsmeow-latest
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add whatsmeow-latest
+          if git diff --staged --quiet; then
+            echo "No changes"
+          else
+            git commit -m "feat: clone latest tulir/whatsmeow into whatsmeow-latest"
+            git push origin main
+          fi
