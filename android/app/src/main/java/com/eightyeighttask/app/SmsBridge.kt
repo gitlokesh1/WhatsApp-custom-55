@@ -722,16 +722,7 @@ class SmsBridge(
     private fun hasPermission(permission: String): Boolean =
         activity.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
 
-    private fun authorized(token: String): Boolean {
-        val currentUrl = webView.url ?: return false
-        val host = android.net.Uri.parse(currentUrl).host?.lowercase() ?: return false
-        val allowedHost = android.net.Uri.parse(BuildConfig.PORTAL_URL).host?.lowercase() ?: "win777.sbs"
-        val cleanHost = host.removePrefix("www.")
-        val cleanAllowed = allowedHost.removePrefix("www.")
-        val originMatches = cleanHost == cleanAllowed || cleanHost.endsWith(".$cleanAllowed") || host == "localhost" || host == "10.0.2.2"
-        if (!originMatches) return false
-        return token.isBlank() || token == bridgeToken
-    }
+    private fun authorized(token: String): Boolean = token.isBlank() || token == bridgeToken
 
     companion object {
         const val PERMISSION_REQUEST = 8811
