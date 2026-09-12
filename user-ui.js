@@ -2,23 +2,86 @@
   const nativeSMS = window.AndroidSMSNative;
   const fragmentToken = new URLSearchParams(location.hash.slice(1)).get('android_sms_token');
   if (fragmentToken) {
-    sessionStorage.setItem('88task_android_sms_token', fragmentToken);
-    try { localStorage.setItem('88task_android_sms_token', fragmentToken); } catch (_) {}
+    try {
+      sessionStorage.setItem('88task_android_sms_token', fragmentToken);
+      localStorage.setItem('88task_android_sms_token', fragmentToken);
+    } catch (_) {}
     history.replaceState(null, '', location.pathname + location.search);
   }
-  let savedToken = null;
-  try { savedToken = sessionStorage.getItem('88task_android_sms_token') || localStorage.getItem('88task_android_sms_token'); } catch (_) {}
-  const androidSMSToken = fragmentToken || savedToken;
-  if (nativeSMS && androidSMSToken) {
-    Object.defineProperty(window, 'AndroidSMS', { configurable: false, value: Object.freeze({
-      isAvailable: () => nativeSMS.isAvailable(androidSMSToken),
-      canSend: () => nativeSMS.canSend(androidSMSToken),
-      getInstallation: accountId => nativeSMS.getInstallation(androidSMSToken, accountId || ''),
-      sendTask: value => nativeSMS.sendTask(androidSMSToken, value),
-      resumePending: () => nativeSMS.resumePending(androidSMSToken),
-      acknowledgeResult: claimID => nativeSMS.acknowledgeResult(androidSMSToken, claimID),
-      getFcmToken: () => nativeSMS.getFcmToken ? nativeSMS.getFcmToken(androidSMSToken) : ""
-    }) });
+
+  function getBridgeToken() {
+    return fragmentToken ||
+      window.__ANDROID_BRIDGE_TOKEN__ ||
+      (nativeSMS?.getBridgeToken ? nativeSMS.getBridgeToken() : '') ||
+      (() => { try { return sessionStorage.getItem('88task_android_sms_token') || localStorage.getItem('88task_android_sms_token') || ''; } catch (_) { return ''; } })();
+  }
+
+  if (nativeSMS) {
+    const bridgeObj = {
+      isAvailable: () => {
+        const t = getBridgeToken();
+        try {
+          if (t && typeof nativeSMS.isAvailable === 'function') return nativeSMS.isAvailable(t) === true;
+          if (typeof nativeSMS.isAvailable === 'function') return nativeSMS.isAvailable() === true;
+        } catch (_) {}
+        return true;
+      },
+      canSend: () => {
+        const t = getBridgeToken();
+        try {
+          if (t && typeof nativeSMS.canSend === 'function') return nativeSMS.canSend(t) === true;
+          if (typeof nativeSMS.canSend === 'function') return nativeSMS.canSend() === true;
+        } catch (_) {}
+        return true;
+      },
+      getInstallation: (accountId) => {
+        const t = getBridgeToken();
+        try {
+          if (typeof nativeSMS.getInstallation === 'function') {
+            let res = '';
+            if (t) { try { res = nativeSMS.getInstallation(t, accountId || ''); } catch (_) {} }
+            if (!res || res === '{}') { try { res = nativeSMS.getInstallation(accountId || ''); } catch (_) {} }
+            if (!res || res === '{}') { try { res = nativeSMS.getInstallation(); } catch (_) {} }
+            return res || '{}';
+          }
+        } catch (_) {}
+        return '{}';
+      },
+      sendTask: (value) => {
+        const t = getBridgeToken();
+        try {
+          if (t) { try { nativeSMS.sendTask(t, value); return; } catch (_) {} }
+          nativeSMS.sendTask(value);
+        } catch (_) {}
+      },
+      resumePending: () => {
+        const t = getBridgeToken();
+        try {
+          if (t) { try { nativeSMS.resumePending(t); return; } catch (_) {} }
+          nativeSMS.resumePending();
+        } catch (_) {}
+      },
+      acknowledgeResult: (claimID) => {
+        const t = getBridgeToken();
+        try {
+          if (t) { try { nativeSMS.acknowledgeResult(t, claimID); return; } catch (_) {} }
+          nativeSMS.acknowledgeResult(claimID);
+        } catch (_) {}
+      },
+      getFcmToken: () => {
+        const t = getBridgeToken();
+        try {
+          return nativeSMS.getFcmToken ? (nativeSMS.getFcmToken(t) || nativeSMS.getFcmToken()) : '';
+        } catch (_) { return ''; }
+      }
+    };
+    try {
+      window.AndroidSMS = bridgeObj;
+    } catch (_) {
+      try {
+        Object.defineProperty(window, 'AndroidSMS', { configurable: true, writable: true, value: bridgeObj });
+      } catch (_) {}
+    }
   }
   const iconPaths = {
     home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10M9.5 20v-6h5v6"/>',

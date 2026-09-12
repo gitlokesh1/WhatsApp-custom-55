@@ -87,7 +87,11 @@ class MainActivity : Activity() {
             }
 
             override fun onPageFinished(view: WebView, url: String) {
-                if (isPortalUrl(Uri.parse(url))) smsBridge.deliverPending()
+                if (isPortalUrl(Uri.parse(url))) {
+                    val js = "try{window.__ANDROID_BRIDGE_TOKEN__='$bridgeToken';sessionStorage.setItem('88task_android_sms_token','$bridgeToken');localStorage.setItem('88task_android_sms_token','$bridgeToken');}catch(e){}"
+                    view.evaluateJavascript(js, null)
+                    smsBridge.deliverPending()
+                }
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

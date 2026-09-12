@@ -75,7 +75,47 @@ let taskData = [], activeAccounts = [], androidInstallation = null, smsBusy = fa
 
 function androidBridge() {
   try {
-    return window.AndroidSMS && window.AndroidSMS.isAvailable() === true ? window.AndroidSMS : null;
+    if (window.AndroidSMS) return window.AndroidSMS;
+    if (window.AndroidSMSNative) {
+      const native = window.AndroidSMSNative;
+      const t = () => window.__ANDROID_BRIDGE_TOKEN__ || (() => { try { return sessionStorage.getItem('88task_android_sms_token') || localStorage.getItem('88task_android_sms_token') || ''; } catch (_) { return ''; } })();
+      return {
+        isAvailable: () => true,
+        canSend: () => true,
+        getInstallation: (accountId) => {
+          const token = t();
+          try {
+            let res = '';
+            if (token) { try { res = native.getInstallation(token, accountId || ''); } catch (_) {} }
+            if (!res || res === '{}') { try { res = native.getInstallation(accountId || ''); } catch (_) {} }
+            if (!res || res === '{}') { try { res = native.getInstallation(); } catch (_) {} }
+            return res || '{}';
+          } catch (_) { return '{}'; }
+        },
+        sendTask: (val) => {
+          const token = t();
+          try {
+            if (token) { try { native.sendTask(token, val); return; } catch (_) {} }
+            native.sendTask(val);
+          } catch (_) {}
+        },
+        resumePending: () => {
+          const token = t();
+          try {
+            if (token) { try { native.resumePending(token); return; } catch (_) {} }
+            native.resumePending();
+          } catch (_) {}
+        },
+        acknowledgeResult: (id) => {
+          const token = t();
+          try {
+            if (token) { try { native.acknowledgeResult(token, id); return; } catch (_) {} }
+            native.acknowledgeResult(id);
+          } catch (_) {}
+        }
+      };
+    }
+    return null;
   } catch (_) {
     return null;
   }
@@ -98,13 +138,28 @@ async function registerAndroid() {
     const profile = await uProfile().catch(() => null);
     const accountId = profile?.user_id || profile?.id || '';
     if (accountId && typeof bridge.getInstallation === 'function') {
-      try { details = JSON.parse(bridge.getInstallation(accountId)); } catch (_) {}
+      try {
+        const raw = bridge.getInstallation(accountId);
+        if (raw && raw !== '{}') details = JSON.parse(raw);
+      } catch (_) {}
     }
-    if (!details) {
-      details = JSON.parse(bridge.getInstallation());
+    if (!details || !details.installation_id) {
+      try {
+        const raw = bridge.getInstallation();
+        if (raw && raw !== '{}') details = JSON.parse(raw);
+      } catch (_) {}
+    }
+    if (!details || !details.installation_id) {
+      try {
+        const raw = bridge.getInstallation('');
+        if (raw && raw !== '{}') details = JSON.parse(raw);
+      } catch (_) {}
+    }
+    if (!details || !details.installation_id) {
+      return null;
     }
     await uApi('/api/user/android/installations', { method: 'POST', body: details });
-    setTimeout(() => bridge.resumePending(), 250);
+    setTimeout(() => { try { bridge.resumePending(); } catch (_) {} }, 250);
     return details;
   } catch (error) {
     uToast(error.message || 'Could not register Android SMS', 'error');

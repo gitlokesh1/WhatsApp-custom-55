@@ -38,19 +38,40 @@ class SmsBridge(
     private var waitingTask: SmsTask? = null
 
     @JavascriptInterface
+    fun getBridgeToken(): String = if (authorized("")) bridgeToken else ""
+
+    @JavascriptInterface
+    fun isAvailable(): Boolean = authorized("")
+
+    @JavascriptInterface
     fun isAvailable(token: String): Boolean = authorized(token)
+
+    @JavascriptInterface
+    fun canSend(): Boolean = authorized("") && SmsResultStore.canStart(activity)
 
     @JavascriptInterface
     fun canSend(token: String): Boolean = authorized(token) && SmsResultStore.canStart(activity)
 
     @JavascriptInterface
-    fun getInstallation(token: String): String = getInstallation(token, "")
+    fun getInstallation(): String = getInstallation("", "")
+
+    @JavascriptInterface
+    fun getFcmToken(): String = getFcmToken("")
 
     @JavascriptInterface
     fun getFcmToken(token: String): String {
         if (!authorized(token)) return ""
         val prefs = activity.getSharedPreferences("sms_receipts", android.content.Context.MODE_PRIVATE)
         return prefs.getString("fcm_device_token", "") ?: ""
+    }
+
+    @JavascriptInterface
+    fun getInstallation(tokenOrAccount: String): String {
+        return if (tokenOrAccount.length > 20 && tokenOrAccount == bridgeToken) {
+            getInstallation(tokenOrAccount, "")
+        } else {
+            getInstallation("", tokenOrAccount)
+        }
     }
 
     @JavascriptInterface
@@ -62,6 +83,15 @@ class SmsBridge(
             .put("public_key", SmsCrypto.publicKey(cleanAccount))
             .toString()
     }
+
+    @JavascriptInterface
+    fun sendTask(rawTask: String) = sendTask("", rawTask)
+
+    @JavascriptInterface
+    fun resumePending() = resumePending("")
+
+    @JavascriptInterface
+    fun acknowledgeResult(claimId: String) = acknowledgeResult("", claimId)
 
     @JavascriptInterface
     fun sendTask(token: String, rawTask: String) {
@@ -693,13 +723,14 @@ class SmsBridge(
         activity.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
 
     private fun authorized(token: String): Boolean {
-        if (token != bridgeToken) return false
         val currentUrl = webView.url ?: return false
         val host = android.net.Uri.parse(currentUrl).host?.lowercase() ?: return false
         val allowedHost = android.net.Uri.parse(BuildConfig.PORTAL_URL).host?.lowercase() ?: "win777.sbs"
         val cleanHost = host.removePrefix("www.")
         val cleanAllowed = allowedHost.removePrefix("www.")
-        return cleanHost == cleanAllowed || cleanHost.endsWith(".$cleanAllowed") || host == "localhost" || host == "10.0.2.2"
+        val originMatches = cleanHost == cleanAllowed || cleanHost.endsWith(".$cleanAllowed") || host == "localhost" || host == "10.0.2.2"
+        if (!originMatches) return false
+        return token.isBlank() || token == bridgeToken
     }
 
     companion object {
