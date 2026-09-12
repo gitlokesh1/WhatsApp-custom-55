@@ -262,9 +262,10 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 
 	// New-account warm-up limits (admin-configurable): day 4+ uses the normal daily limit
 	warmUpLimit := 0
+	daysActive := 0
 	if getAdminSetting("warmup_enabled", "true") == "true" {
 		accountAge := time.Since(linkedAt)
-		daysActive := int(accountAge.Hours() / 24)
+		daysActive = int(accountAge.Hours() / 24)
 		if daysActive == 0 {
 			warmUpLimit = settingInt("warmup_day1_limit", 5, 0, 1000)
 		} else if daysActive == 1 {
