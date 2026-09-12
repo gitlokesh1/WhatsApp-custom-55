@@ -150,6 +150,37 @@ func userWhatsAppRemoveHandler(w http.ResponseWriter, r *http.Request) {
 	userFeaturesJSON(w, 200, map[string]any{"status": "success", "message": "WhatsApp account removed"})
 }
 
+// ResolveSpintax evaluates spintax templates of the form "{Hi|Hello|Hey} {friend|there}".
+// Supports nested spintax safely with bounded iterations.
+func ResolveSpintax(input string) string {
+	if !strings.Contains(input, "{") || !strings.Contains(input, "}") {
+		return input
+	}
+	current := input
+	for iter := 0; iter < 10; iter++ {
+		start := strings.LastIndex(current, "{")
+		if start == -1 {
+			break
+		}
+		relEnd := strings.Index(current[start:], "}")
+		if relEnd == -1 {
+			break
+		}
+		end := start + relEnd
+		inner := current[start+1 : end]
+		options := strings.Split(inner, "|")
+		if len(options) == 0 {
+			break
+		}
+		chosenIdx := 0
+		if len(options) > 1 {
+			chosenIdx = randInt(len(options))
+		}
+		current = current[:start] + options[chosenIdx] + current[end+1:]
+	}
+	return current
+}
+
 func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 	id, ok := userDBID(r)
 	if !ok {
@@ -195,7 +226,8 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var waid string
-	if err = tx.QueryRow(`SELECT whatsapp_user_id FROM public.user_whatsapp_accounts WHERE id=$1::uuid AND user_id=$2::uuid AND status='active'`, in.AccountID, id).Scan(&waid); err != nil {
+	var linkedAt time.Time
+	if err = tx.QueryRow(`SELECT whatsapp_user_id, linked_at FROM public.user_whatsapp_accounts WHERE id=$1::uuid AND user_id=$2::uuid AND status='active'`, in.AccountID, id).Scan(&waid, &linkedAt); err != nil {
 		userFeaturesJSON(w, 404, map[string]any{"status": "error", "message": "WhatsApp account unavailable"})
 		return
 	}
@@ -204,6 +236,52 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, 409, map[string]any{"status": "error", "message": "Selected WhatsApp is not connected"})
 		return
 	}
+
+	// Guard against concurrent sends on the same WhatsApp account
+	var inProgressCount int
+	_ = tx.QueryRow(`SELECT count(*) FROM public.task_claims WHERE whatsapp_account_id=$1::uuid AND status IN ('claimed','sending') AND expires_at>now()`, in.AccountID).Scan(&inProgressCount)
+	if inProgressCount > 0 {
+		userFeaturesJSON(w, http.StatusConflict, map[string]any{"status": "error", "message": "Another task is currently in progress for this WhatsApp account. Please wait for it to complete."})
+		return
+	}
+
+	// Cooldown: randomized 45-90 second pause between sends for this account
+	var lastSentAt sql.NullTime
+	_ = tx.QueryRow(`SELECT sent_at FROM public.task_claims WHERE whatsapp_account_id=$1::uuid AND status='sent' AND sent_at IS NOT NULL ORDER BY sent_at DESC LIMIT 1`, in.AccountID).Scan(&lastSentAt)
+	if lastSentAt.Valid {
+		cooldownSeconds := 45 + randInt(46)
+		elapsed := time.Since(lastSentAt.Time)
+		if elapsed < time.Duration(cooldownSeconds)*time.Second {
+			remaining := int((time.Duration(cooldownSeconds)*time.Second - elapsed).Seconds())
+			if remaining > 0 {
+				userFeaturesJSON(w, http.StatusTooManyRequests, map[string]any{"status": "error", "message": fmt.Sprintf("Anti-spam cooldown active: please wait %d seconds before sending the next WhatsApp message.", remaining)})
+				return
+			}
+		}
+	}
+
+	// New-account warm-up limits: day 1: 5, day 2: 10, day 3: 15, day 4+: normal
+	accountAge := time.Since(linkedAt)
+	daysActive := int(accountAge.Hours() / 24)
+	warmUpLimit := 0
+	if daysActive == 0 {
+		warmUpLimit = 5
+	} else if daysActive == 1 {
+		warmUpLimit = 10
+	} else if daysActive == 2 {
+		warmUpLimit = 15
+	}
+	if warmUpLimit > 0 {
+		var todayCount int
+		_ = tx.QueryRow(`SELECT count(*) FROM public.task_claims WHERE whatsapp_account_id=$1::uuid AND status='sent' AND (sent_at AT TIME ZONE $2)::date=(now() AT TIME ZONE $2)::date`, in.AccountID, mustCountryTimezone(country)).Scan(&todayCount)
+		if todayCount >= warmUpLimit {
+			userFeaturesJSON(w, http.StatusTooManyRequests, map[string]any{"status": "error", "message": fmt.Sprintf("Warm-up protection: new accounts can send up to %d messages on day %d to protect against bans. Your limit expands tomorrow.", warmUpLimit, daysActive+1)})
+			return
+		}
+	}
+
+	// Resolve spintax variations in the message before sending
+	msg = ResolveSpintax(msg)
 	var claimID string
 	if err = tx.QueryRow(`INSERT INTO public.task_claims(task_id,user_id,whatsapp_account_id,target_phone,message,status,reward,country_code,currency_code,channel,expires_at) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5,'claimed',$6,$7,$8,'whatsapp',now()+interval '15 minutes') RETURNING id`, in.TaskID, id, in.AccountID, target, msg, reward, country, currency).Scan(&claimID); err != nil {
 		userFeaturesJSON(w, 409, map[string]any{"status": "error", "message": "Task already claimed or unavailable"})
@@ -235,6 +313,12 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 	sendErr := safeSendMessageContext(deliveryCtx, waid, s.client, types.JID{User: target, Server: types.DefaultUserServer}, msg)
 	s.mu.Unlock()
 	if sendErr != nil {
+		if IsRecipientNotOnWhatsApp(sendErr) {
+			_, _ = userDB.Exec(`UPDATE public.task_claims SET status='failed',failure_reason='Recipient is not registered on WhatsApp',updated_at=now() WHERE id=$1::uuid AND status='sending'`, claimID)
+			_, _ = userDB.Exec(`UPDATE public.task_definitions SET active=false,updated_at=now() WHERE id=$1::uuid`, in.TaskID)
+			userFeaturesJSON(w, http.StatusUnprocessableEntity, map[string]any{"status": "error", "message": "Task cancelled: target number is not registered on WhatsApp. No reward credited."})
+			return
+		}
 		_, _ = userDB.Exec(`UPDATE public.task_claims SET status='delivery_unknown',failure_reason='WhatsApp send returned an error; admin delivery review required',updated_at=now() WHERE id=$1::uuid AND status='sending'`, claimID)
 		userFeaturesJSON(w, http.StatusBadGateway, map[string]any{"status": "error", "message": "WhatsApp delivery could not be confirmed. An admin must review it before this task can be retried."})
 		return

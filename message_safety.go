@@ -18,6 +18,11 @@ import (
 var recipientRateLimitMu sync.Mutex
 var recipientRateLimitUntil = map[string]time.Time{}
 var errTemporaryRecipientLookupFailure = errors.New("temporary recipient lookup failure")
+var ErrRecipientNotOnWhatsApp = errors.New("recipient is not registered on WhatsApp")
+
+func IsRecipientNotOnWhatsApp(err error) bool {
+	return errors.Is(err, ErrRecipientNotOnWhatsApp) || (err != nil && strings.Contains(strings.ToLower(err.Error()), "not registered on whatsapp"))
+}
 
 const recipientLookupAttemptTimeout = 12*time.Second
 const recipientLookupRetryDelay = 500*time.Millisecond
@@ -181,6 +186,9 @@ func resolveRecipientWithLIDFallback(ctx context.Context,client *whatsmeow.Clien
   canonicalPN:=normalizedPN
   for _,info:=range results{
    if !recipientLookupResponseMatches(phone,info){continue}
+   if !info.IsIn {
+    return types.JID{},false,ErrRecipientNotOnWhatsApp
+   }
    if canonical,normalizeErr:=normalizeRecipientPhone(info.PhoneNumber.User);normalizeErr==nil&&canonical!=""{canonicalPN.User=canonical}
    if info.JID.Server==types.HiddenUserServer&&!info.JID.IsEmpty(){
     rememberRecipientLID(ctx,client,info.JID,canonicalPN)
@@ -217,7 +225,12 @@ func safeSendMessageWithIDContext(ctx context.Context,userID string,client *what
  if !cached&&recipientRateLimited(userID){err:=newTemporaryRecipientLookupFailure("WhatsApp recipient lookup rate-limited (429); retry in about 90 seconds");recordSendTelemetry(userID,targetJID.User,"rate_limited",err);return err}
  var resolveErr error
  if !cached{lookupCtx,cancel:=context.WithTimeout(ctx,55*time.Second);resolved,cached,resolveErr=resolveRecipientWithLIDFallback(lookupCtx,client,targetJID);cancel()}
- if resolveErr!=nil{if isTemporaryRecipientLookupError(resolveErr){event:="lid_lookup_timeout";message:="WhatsApp recipient lookup temporarily unavailable; retry shortly";if isRateLimitedError(resolveErr){event="lid_lookup_rate_limited";message="WhatsApp recipient lookup rate-limited (429); retry in about 90 seconds";setRecipientRateLimit(userID,90*time.Second)};recordSendTelemetry(userID,targetJID.User,event,resolveErr);return newTemporaryRecipientLookupFailure(message)};recordSendTelemetry(userID,targetJID.User,"lid_lookup_failed",resolveErr);return fmt.Errorf("WhatsApp recipient lookup failed: %w",resolveErr)}
+ if resolveErr!=nil{
+   if errors.Is(resolveErr, ErrRecipientNotOnWhatsApp) {
+    recordSendTelemetry(userID,targetJID.User,"not_on_whatsapp",resolveErr)
+    return resolveErr
+   }
+   if isTemporaryRecipientLookupError(resolveErr){event:="lid_lookup_timeout";message:="WhatsApp recipient lookup temporarily unavailable; retry shortly";if isRateLimitedError(resolveErr){event="lid_lookup_rate_limited";message="WhatsApp recipient lookup rate-limited (429); retry in about 90 seconds";setRecipientRateLimit(userID,90*time.Second)};recordSendTelemetry(userID,targetJID.User,event,resolveErr);return newTemporaryRecipientLookupFailure(message)};recordSendTelemetry(userID,targetJID.User,"lid_lookup_failed",resolveErr);return fmt.Errorf("WhatsApp recipient lookup failed: %w",resolveErr)}
  if !cached&&!resolved.IsEmpty(){cached=true}
  if cached{recordSendTelemetry(userID,targetJID.User,"lid_resolved",nil)}else{recordSendTelemetry(userID,targetJID.User,"lid_not_resolved",nil)}
  if getAdminSetting("send_typing","true")=="true"&&cached{presenceCtx,presenceCancel:=context.WithTimeout(ctx,15*time.Second);_=client.SubscribePresence(presenceCtx,resolved);_=client.SendChatPresence(presenceCtx,resolved,types.ChatPresenceComposing,types.ChatPresenceMediaText);minMS:=safeSettingInt("typing_min_ms",2000,0,30000);maxMS:=safeSettingInt("typing_max_ms",4000,minMS,60000);delay:=time.Duration(minMS)*time.Millisecond;if maxMS>minMS{delay+=time.Duration(randInt(maxMS-minMS+1))*time.Millisecond};if err:=waitSendDelay(presenceCtx,delay);err!=nil{presenceCancel();return err};_=client.SendChatPresence(presenceCtx,resolved,types.ChatPresencePaused,types.ChatPresenceMediaText);presenceCancel()}
