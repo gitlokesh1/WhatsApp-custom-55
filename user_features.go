@@ -330,6 +330,16 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		errStr := sendErr.Error()
 		if strings.Contains(strings.ToLower(errStr), "timelock") || strings.Contains(strings.ToLower(errStr), "cap") || is463Error(sendErr) {
+			setAccountHealth(accountHealthState{
+				UserID:         waid,
+				Status:         "timelocked",
+				TimelockActive: true,
+				TimelockType:   "RESTRICT_ALL_COMPANIONS",
+				TimelockUntil:  time.Now().Add(15 * time.Minute),
+				LastError:      errStr,
+				LastCheckedAt:  time.Now(),
+				UpdatedAt:      time.Now(),
+			})
 			_, _ = userDB.Exec(`UPDATE public.task_claims SET status='failed',failure_reason=$2,updated_at=now() WHERE id=$1::uuid AND status='sending'`, claimID, errStr)
 			userFeaturesJSON(w, http.StatusTooManyRequests, map[string]any{"status": "error", "message": fmt.Sprintf("WhatsApp outreach restricted: %s", errStr)})
 			return
