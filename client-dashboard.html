@@ -638,6 +638,32 @@
     // Submit campaign form
     campaignForm.onsubmit = async event => {
       event.preventDefault();
+      const campaignName = (document.getElementById('name').value || '').trim();
+      const channelVal = document.getElementById('channel').value;
+      const countryVal = document.getElementById('country').value;
+      const fileVal = document.getElementById('file');
+
+      if (campaignName.length < 3) {
+        uploadMessage.innerHTML = '<div class="client-alert error">Campaign name must be at least 3 characters long.</div>';
+        document.getElementById('name').focus();
+        return;
+      }
+      if (!channelVal || (channelVal !== 'sms' && channelVal !== 'whatsapp')) {
+        uploadMessage.innerHTML = '<div class="client-alert error">Please select a channel (SMS or WhatsApp).</div>';
+        document.getElementById('channel').focus();
+        return;
+      }
+      if (!countryVal) {
+        uploadMessage.innerHTML = '<div class="client-alert error">Please select a target country from the dropdown.</div>';
+        document.getElementById('country').focus();
+        return;
+      }
+      if (!fileVal.files || !fileVal.files[0]) {
+        uploadMessage.innerHTML = '<div class="client-alert error">Please select a CSV file.</div>';
+        fileVal.focus();
+        return;
+      }
+
       submitButton.disabled = true;
       uploadMessage.innerHTML = '<div class="client-alert">Uploading and validating campaign data…</div>';
       try {
