@@ -140,7 +140,7 @@ func publicCountriesHandler(w http.ResponseWriter, r *http.Request) {
 	countries := []countryConfig{}
 	for rows.Next() {
 		var c countryConfig
-		if rows.Scan(&c.Code, &c.Name, &c.CurrencyCode, &c.Timezone, &c.Reward, &c.SMSReward, &c.DailyGoal, &c.Active, &c.DisplayOrder, &c.WithdrawalsEnabled) == nil {
+		if err := rows.Scan(&c.Code, &c.Name, &c.CurrencyCode, &c.Timezone, &c.Reward, &c.SMSReward, &c.DailyGoal, &c.Active, &c.DisplayOrder, &c.WithdrawalsEnabled, &c.TelegramGroup, &c.WhatsAppGroup); err == nil {
 			countries = append(countries, c)
 		}
 	}
