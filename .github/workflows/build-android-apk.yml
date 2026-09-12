@@ -225,7 +225,7 @@ jobs:
             echo "- **Portal**: \`${PORTAL_URL}\`"
             echo "- **Universal APK**: [88Task-v${VERSION_NAME}-universal.apk](https://github.com/${{ github.repository }}/releases/download/${TAG}/88Task-v${VERSION_NAME}-universal.apk)"
             echo ""
-            echo "### What"s New"
+            echo "### What's New"
             if [ -f ../../release_notes.txt ]; then cat ../../release_notes.txt; else echo "- Bug fixes and improvements"; fi
           } > release_body.md
 
