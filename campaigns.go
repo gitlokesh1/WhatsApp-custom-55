@@ -1106,6 +1106,58 @@ func adminTaskReconcileHandler(w http.ResponseWriter, r *http.Request) {
 	userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success"})
 }
 
+func adminCampaignDetailHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		userFeaturesJSON(w, http.StatusMethodNotAllowed, map[string]any{"status": "error"})
+		return
+	}
+	campaignID := strings.TrimSpace(r.URL.Query().Get("id"))
+	if campaignID == "" || uuid.Validate(campaignID) != nil {
+		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "Valid campaign ID is required"})
+		return
+	}
+	rows, err := userDB.Query(campaignSummarySelect+` WHERE c.id=$1::uuid`, campaignID)
+	if err != nil {
+		log.Printf("admin campaign detail query failed: %v", err)
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not load campaign"})
+		return
+	}
+	campaigns, err := campaignSummaryRows(rows)
+	rows.Close()
+	if err != nil || len(campaigns) == 0 {
+		userFeaturesJSON(w, http.StatusNotFound, map[string]any{"status": "error", "message": "Campaign not found"})
+		return
+	}
+	campaign := campaigns[0]
+	delete(campaign, "advertiser_id")
+	const taskQuery = `SELECT t.id::text, t.title, t.channel, COALESCE(t.country_code, ''), t.target_phone, t.message, t.active, 
+		COALESCE((SELECT tc.status FROM public.task_claims tc WHERE tc.task_id=t.id ORDER BY tc.created_at DESC LIMIT 1), 'available') AS claim_status, 
+		(SELECT tc.sent_at FROM public.task_claims tc WHERE tc.task_id=t.id AND tc.status='sent' ORDER BY tc.created_at DESC LIMIT 1) AS sent_at, 
+		t.created_at 
+		FROM public.task_definitions t 
+		WHERE t.campaign_id=$1::uuid 
+		ORDER BY t.created_at ASC 
+		LIMIT 500`
+	taskRows, err := userDB.Query(taskQuery, campaignID)
+	if err != nil {
+		log.Printf("admin campaign detail tasks failed: %v", err)
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "message": "Could not load campaign tasks"})
+		return
+	}
+	defer taskRows.Close()
+	tasks := []map[string]any{}
+	for taskRows.Next() {
+		var id, title, channel, countryCode, targetPhone, msg, claimStatus string
+		var active bool
+		var sentAt sql.NullTime
+		var createdAt time.Time
+		if err := taskRows.Scan(&id, &title, &channel, &countryCode, &targetPhone, &msg, &active, &claimStatus, &sentAt, &createdAt); err == nil {
+			tasks = append(tasks, map[string]any{"id": id, "title": title, "channel": channel, "country_code": countryCode, "target_phone": targetPhone, "message": msg, "active": active, "claim_status": claimStatus, "sent_at": sentAt, "created_at": createdAt})
+		}
+	}
+	userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "campaign": campaign, "tasks": tasks})
+}
+
 func adminAdvertisersHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		rows, err := userDB.Query(`SELECT a.id::text,a.login_id,a.name,a.contact_name,a.contact_email,a.status,a.created_at,count(c.id) FROM public.advertisers a LEFT JOIN public.advertiser_campaigns c ON c.advertiser_id=a.id GROUP BY a.id ORDER BY a.created_at DESC`)
@@ -1237,5 +1289,6 @@ func init() {
 	http.HandleFunc("/admin/campaigns/import", adminHandler(adminCampaignImportHandler))
 	http.HandleFunc("/admin/campaigns/action", adminHandler(adminCampaignActionHandler))
 	http.HandleFunc("/admin/campaigns/task-action", adminHandler(adminTaskReconcileHandler))
+	http.HandleFunc("/admin/campaigns/detail", adminHandler(adminCampaignDetailHandler))
 	http.HandleFunc("/admin/advertisers/data", adminHandler(adminAdvertisersHandler))
 }
