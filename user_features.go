@@ -260,16 +260,18 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// New-account warm-up limits: day 1: 5, day 2: 10, day 3: 15, day 4+: normal
-	accountAge := time.Since(linkedAt)
-	daysActive := int(accountAge.Hours() / 24)
+	// New-account warm-up limits (admin-configurable): day 4+ uses the normal daily limit
 	warmUpLimit := 0
-	if daysActive == 0 {
-		warmUpLimit = 5
-	} else if daysActive == 1 {
-		warmUpLimit = 10
-	} else if daysActive == 2 {
-		warmUpLimit = 15
+	if getAdminSetting("warmup_enabled", "true") == "true" {
+		accountAge := time.Since(linkedAt)
+		daysActive := int(accountAge.Hours() / 24)
+		if daysActive == 0 {
+			warmUpLimit = settingInt("warmup_day1_limit", 5, 0, 1000)
+		} else if daysActive == 1 {
+			warmUpLimit = settingInt("warmup_day2_limit", 10, 0, 1000)
+		} else if daysActive == 2 {
+			warmUpLimit = settingInt("warmup_day3_limit", 15, 0, 1000)
+		}
 	}
 	if warmUpLimit > 0 {
 		var todayCount int
