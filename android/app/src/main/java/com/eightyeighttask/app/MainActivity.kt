@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.Dialog
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -76,8 +77,9 @@ class MainActivity : Activity() {
         webView.webChromeClient = WebChromeClient()
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                if (!isPortalUrl(request.url)) return true
-                return false
+                val url = request.url
+                if (isPortalUrl(url)) return false
+                return openExternalUrl(url, view)
             }
 
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
@@ -207,6 +209,23 @@ class MainActivity : Activity() {
 
     private fun canOpenUrl(url: String): Boolean =
         Intent(Intent.ACTION_VIEW, Uri.parse(url)).resolveActivity(packageManager) != null
+
+    private fun openExternalUrl(uri: Uri, view: WebView): Boolean {
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW, uri).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+            startActivity(intent)
+            true
+        } catch (_: ActivityNotFoundException) {
+            if (uri.scheme.equals("https", true) || uri.scheme.equals("http", true)) {
+                view.loadUrl(uri.toString())
+                false
+            } else {
+                true
+            }
+        } catch (_: Exception) {
+            true
+        }
+    }
 
     private fun showUpdatePopup(downloadUrl: String, forceUpdate: Boolean, message: String, versionName: String) {
         val dp = { v: Int -> (v * resources.displayMetrics.density).toInt() }
