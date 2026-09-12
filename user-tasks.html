@@ -122,10 +122,15 @@ async function fetchAppVersionInfo() {
   } catch (_) {}
 }
 
+function isNativeAndroidApp() {
+  return Boolean(window.AndroidSMSNative || window.AndroidSMS || (navigator.userAgent && /88TaskAndroid/i.test(navigator.userAgent)));
+}
+
 function updateAppDownloadUI() {
-  const hasAndroid = Boolean(androidInstallation && androidBridge());
+  const isApp = isNativeAndroidApp();
+  const hasAndroid = isApp || Boolean(androidInstallation && androidBridge());
   const banner = document.getElementById('appDownloadBanner');
-  if (hasAndroid) {
+  if (isApp || hasAndroid) {
     if (banner) banner.style.display = 'none';
     return;
   }
@@ -187,8 +192,9 @@ function setTaskFilter(value) {
 }
 
 function renderTasks() {
-  const hasAndroid = Boolean(androidInstallation && androidBridge()),
-        smsReady = hasAndroid && androidCanSend() && !smsBusy,
+  const isApp = isNativeAndroidApp();
+  const hasAndroid = isApp || Boolean(androidInstallation && androidBridge()),
+        smsReady = hasAndroid && (!isApp || androidCanSend()) && !smsBusy,
         visibleTasks = taskData.filter(x => taskFilter === 'all' || x.channel === taskFilter);
 
   taskFilters.querySelectorAll('[data-task-filter]').forEach(button => button.classList.toggle('primary', button.dataset.taskFilter === taskFilter));
