@@ -530,8 +530,8 @@ func filterSuppressedCampaignRows(ctx context.Context, channel string, rows []ca
 	}
 	filtered := make([]campaignImportRow, 0, len(rows))
 	for _, row := range rows {
-		phone := normalizeRecipientPhone(row.Phone)
-		if phone == "" {
+		phone, normErr := normalizeRecipientPhone(row.Phone)
+		if normErr != nil || phone == "" {
 			filtered = append(filtered, row)
 			continue
 		}
