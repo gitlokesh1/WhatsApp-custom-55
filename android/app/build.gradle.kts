@@ -27,8 +27,8 @@ android {
         applicationId = "com.eightyeighttask.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.287"
+        versionCode = providers.gradleProperty("versionCode").map { it.toInt() }.orElse(1).get()
+        versionName = providers.gradleProperty("versionName").orElse("1.0.287").get()
 
         buildConfigField("String", "PORTAL_URL", "\"${portalUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
     }
@@ -64,7 +64,7 @@ android {
             isEnable = true
             reset()
             include("armeabi-v7a", "arm64-v8a")
-            isUniversalApk = false
+            isUniversalApk = true
         }
     }
 
