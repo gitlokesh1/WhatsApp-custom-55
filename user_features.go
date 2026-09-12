@@ -237,6 +237,12 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Pre-check account health: prevent claiming if account has active reachout restriction or cap
+	if healthErr := checkAccountHealthForSend(waid, s.client); healthErr != nil {
+		userFeaturesJSON(w, http.StatusTooManyRequests, map[string]any{"status": "error", "message": healthErr.Error()})
+		return
+	}
+
 	// Guard against concurrent sends on the same WhatsApp account
 	var inProgressCount int
 	_ = tx.QueryRow(`SELECT count(*) FROM public.task_claims WHERE whatsapp_account_id=$1::uuid AND status IN ('claimed','sending') AND expires_at>now()`, in.AccountID).Scan(&inProgressCount)
@@ -322,8 +328,18 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 			userFeaturesJSON(w, http.StatusUnprocessableEntity, map[string]any{"status": "error", "message": "Task cancelled: target number is not registered on WhatsApp. No reward credited."})
 			return
 		}
-		_, _ = userDB.Exec(`UPDATE public.task_claims SET status='delivery_unknown',failure_reason='WhatsApp send returned an error; admin delivery review required',updated_at=now() WHERE id=$1::uuid AND status='sending'`, claimID)
-		userFeaturesJSON(w, http.StatusBadGateway, map[string]any{"status": "error", "message": "WhatsApp delivery could not be confirmed. An admin must review it before this task can be retried."})
+		errStr := sendErr.Error()
+		if strings.Contains(strings.ToLower(errStr), "timelock") || strings.Contains(strings.ToLower(errStr), "cap") || is463Error(sendErr) {
+			_, _ = userDB.Exec(`UPDATE public.task_claims SET status='failed',failure_reason=$2,updated_at=now() WHERE id=$1::uuid AND status='sending'`, claimID, errStr)
+			userFeaturesJSON(w, http.StatusTooManyRequests, map[string]any{"status": "error", "message": fmt.Sprintf("WhatsApp outreach restricted: %s", errStr)})
+			return
+		}
+		reason := fmt.Sprintf("WhatsApp send error: %s", errStr)
+		if len(reason) > 500 {
+			reason = reason[:500]
+		}
+		_, _ = userDB.Exec(`UPDATE public.task_claims SET status='delivery_unknown',failure_reason=$2,updated_at=now() WHERE id=$1::uuid AND status='sending'`, claimID, reason)
+		userFeaturesJSON(w, http.StatusBadGateway, map[string]any{"status": "error", "message": fmt.Sprintf("WhatsApp delivery could not be confirmed (%s). An admin must review it before retry.", errStr)})
 		return
 	}
 	if err = creditTaskRewardContext(deliveryCtx, id, in.AccountID, claimID, reward, country, currency, "whatsapp"); err != nil {
