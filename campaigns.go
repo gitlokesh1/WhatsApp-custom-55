@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/csv"
@@ -521,6 +522,27 @@ func createCampaign(advertiserID, name, channel, country, status string, unitPri
 	return publicID, nil
 }
 
+func filterSuppressedCampaignRows(ctx context.Context, channel string, rows []campaignImportRow, reasons map[string]int) []campaignImportRow {
+	if channel != "whatsapp" || len(rows) == 0 {
+		return rows
+	}
+	filtered := make([]campaignImportRow, 0, len(rows))
+	for _, row := range rows {
+		phone := normalizeRecipientPhone(row.Phone)
+		if phone == "" {
+			filtered = append(filtered, row)
+			continue
+		}
+		suppressed, err := isRecipientSuppressed(ctx, phone)
+		if err == nil && suppressed {
+			reasons["recipient opted out"]++
+			continue
+		}
+		filtered = append(filtered, row)
+	}
+	return filtered
+}
+
 func adminCampaignImportHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		userFeaturesJSON(w, http.StatusMethodNotAllowed, map[string]any{"status": "error", "message": "POST required"})
@@ -545,6 +567,11 @@ func adminCampaignImportHandler(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": campaignUploadErrorMessage(err)})
+		return
+	}
+	rows = filterSuppressedCampaignRows(r.Context(), channel, rows, reasons)
+	if len(rows) == 0 {
+		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "All recipients in CSV have opted out of messages", "skipped": sumReasonCounts(reasons), "skip_reasons": reasons})
 		return
 	}
 	publicID, err := createCampaign(advertiserID, name, channel, country, "active", &price, rows)
@@ -574,6 +601,11 @@ func advertiserCampaignImportHandler(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": campaignUploadErrorMessage(err)})
+		return
+	}
+	rows = filterSuppressedCampaignRows(r.Context(), channel, rows, reasons)
+	if len(rows) == 0 {
+		userFeaturesJSON(w, http.StatusBadRequest, map[string]any{"status": "error", "message": "All recipients in CSV have opted out of messages", "skipped": sumReasonCounts(reasons), "skip_reasons": reasons})
 		return
 	}
 	publicID, err := createCampaign(advertiserID, name, channel, country, "pending_review", nil, rows)

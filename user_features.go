@@ -329,6 +329,17 @@ func userTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		errStr := sendErr.Error()
+		if strings.Contains(strings.ToLower(errStr), "opted out") || strings.Contains(strings.ToLower(errStr), "suppressed") {
+			_, _ = userDB.Exec(`UPDATE public.task_claims SET status='failed',failure_reason='recipient_opted_out',updated_at=now() WHERE id=$1::uuid AND status='sending'`, claimID)
+			_, _ = userDB.Exec(`UPDATE public.task_definitions SET active=false,updated_at=now() WHERE id=$1::uuid`, in.TaskID)
+			userFeaturesJSON(w, http.StatusUnprocessableEntity, map[string]any{"status": "error", "message": "Task cancelled: recipient has opted out of messages. No reward credited."})
+			return
+		}
+		if strings.Contains(strings.ToLower(errStr), "cooldown active") {
+			_, _ = userDB.Exec(`UPDATE public.task_claims SET status='cancelled',failure_reason='recipient_cooldown_active',updated_at=now() WHERE id=$1::uuid AND status='sending'`, claimID)
+			userFeaturesJSON(w, http.StatusConflict, map[string]any{"status": "error", "message": fmt.Sprintf("Recipient is in cooldown: %s. Please try again later.", errStr)})
+			return
+		}
 		if strings.Contains(strings.ToLower(errStr), "timelock") || strings.Contains(strings.ToLower(errStr), "cap") || is463Error(sendErr) {
 			setAccountHealth(accountHealthState{
 				UserID:         waid,
