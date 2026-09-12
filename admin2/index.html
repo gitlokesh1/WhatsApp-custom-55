@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin 2.0 • 88Task Mission Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin2/admin2.css?v=20260912.1">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex font-sans antialiased selection:bg-emerald-500/20 selection:text-emerald-300">
+  
+  <!-- Sidebar Navigation -->
+  <aside id="sidebar" class="w-64 bg-slate-900/90 border-r border-slate-800/80 flex flex-col justify-between shrink-0 transition-all duration-300 backdrop-blur-xl z-30 fixed lg:static inset-y-0 -left-64 lg:left-0 shadow-2xl lg:shadow-none">
+    <div>
+      <!-- Brand Header -->
+      <div class="h-16 flex items-center justify-between px-5 border-b border-slate-800/80">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center font-extrabold text-white shadow-lg shadow-emerald-500/20 text-lg">
+            88
+          </div>
+          <div>
+            <span class="font-bold tracking-tight text-white flex items-center gap-1.5 text-sm">
+              88Task <span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">PRO 2.0</span>
+            </span>
+            <p class="text-[11px] text-slate-400 leading-none mt-0.5">Mission Control</p>
+          </div>
+        </div>
+        <button id="closeSidebarBtn" class="lg:hidden text-slate-400 hover:text-white p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="p-3 space-y-1 text-sm font-medium">
+        <a href="#overview" data-tab="overview" class="nav-item active flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all">
+          <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+          <span>Mission Control</span>
+        </a>
+        <a href="#users" data-tab="users" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all">
+          <svg class="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          <span>Users & Operations</span>
+        </a>
+        <a href="#campaigns" data-tab="campaigns" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all">
+          <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          <span>Campaigns & Tasks</span>
+        </a>
+        <a href="#whatsapp" data-tab="whatsapp" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all">
+          <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          <span>WhatsApp Engine</span>
+        </a>
+        <a href="#withdrawals" data-tab="withdrawals" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all">
+          <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span>Withdrawals & Payouts</span>
+        </a>
+        <a href="#broadcasts" data-tab="broadcasts" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all">
+          <svg class="w-5 h-5 text-fuchsia-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <span>Push Notifications</span>
+        </a>
+        <a href="#apprelease" data-tab="apprelease" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all">
+          <svg class="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          <span>Android App Release</span>
+        </a>
+        <a href="#settings" data-tab="settings" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all">
+          <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span>System Settings</span>
+        </a>
+      </nav>
+    </div>
+
+    <!-- Bottom Account & Quick Switch -->
+    <div class="p-3 border-t border-slate-800/80 space-y-2">
+      <div class="px-3 py-2 bg-slate-950/60 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
+        <div>
+          <p class="text-slate-400 font-medium">Original Admin</p>
+          <a href="/admin" class="text-emerald-400 hover:underline flex items-center gap-1 font-semibold mt-0.5">
+            Switch to /admin
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          </a>
+        </div>
+        <button id="logoutBtn" title="Logout" class="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-slate-800 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Workspace -->
+  <div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+    
+    <!-- Topbar -->
+    <header class="h-16 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-xl px-4 lg:px-8 flex items-center justify-between shrink-0 z-20">
+      <div class="flex items-center gap-3">
+        <button id="openSidebarBtn" class="lg:hidden text-slate-400 hover:text-white p-1.5 rounded-lg border border-slate-800 hover:bg-slate-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="relative max-w-md hidden sm:block">
+          <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" id="globalSearchInput" placeholder="Quick search users, tasks, phone..." class="w-72 bg-slate-950/80 border border-slate-800 text-xs rounded-xl pl-9 pr-3 py-2 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:w-80 transition-all font-mono">
+        </div>
+      </div>
+
+      <!-- Live status tags -->
+      <div class="flex items-center gap-3 text-xs">
+        <div id="waStatusBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/60 border border-slate-700/60 text-slate-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>WA: <strong id="waCountVal" class="text-white font-mono">--</strong></span>
+        </div>
+        <div id="fcmStatusBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/60 border border-slate-700/60 text-slate-300">
+          <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+          <span>FCM: <strong id="fcmCountVal" class="text-white font-mono">--</strong></span>
+        </div>
+        <button id="refreshAllBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-medium transition-colors">
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          <span class="hidden sm:inline">Sync</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Scrollable Content Area -->
+    <main id="contentArea" class="flex-1 overflow-y-auto p-4 lg:p-8 space-y-8">
+      
+      <!-- TAB 1: MISSION CONTROL (OVERVIEW) -->
+      <section id="tab-overview" class="tab-pane active space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">Mission Control</h1>
+            <p class="text-sm text-slate-400 mt-0.5">Real-time telemetry and network operations overview</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              ● System Online
+            </span>
+          </div>
+        </div>
+
+        <!-- Metric Cards Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="card p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md relative overflow-hidden">
+            <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+              <span>ACTIVE USERS</span>
+              <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            </div>
+            <div class="mt-3 flex items-baseline gap-2">
+              <span id="metricUsers" class="text-3xl font-extrabold text-white font-mono">--</span>
+              <span class="text-xs text-emerald-400 font-semibold">Registered</span>
+            </div>
+          </div>
+
+          <div class="card p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md relative overflow-hidden">
+            <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+              <span>WHATSAPP SESSIONS</span>
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            </div>
+            <div class="mt-3 flex items-baseline gap-2">
+              <span id="metricWA" class="text-3xl font-extrabold text-white font-mono">--</span>
+              <span class="text-xs text-slate-400">Companions Ready</span>
+            </div>
+          </div>
+
+          <div class="card p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md relative overflow-hidden">
+            <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+              <span>TODAY'S SMS TASKS</span>
+              <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+            </div>
+            <div class="mt-3 flex items-baseline gap-2">
+              <span id="metricSMS" class="text-3xl font-extrabold text-white font-mono">--</span>
+              <span class="text-xs text-indigo-400 font-semibold">Sent</span>
+            </div>
+          </div>
+
+          <div class="card p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md relative overflow-hidden">
+            <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+              <span>PENDING PAYOUTS</span>
+              <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div class="mt-3 flex items-baseline gap-2">
+              <span id="metricPayouts" class="text-3xl font-extrabold text-amber-400 font-mono">--</span>
+              <span class="text-xs text-slate-400">Requests</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Launch Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 space-y-4">
+            <h3 class="font-bold text-white text-base flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+              WhatsApp Fast Pair
+            </h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Create single-use phone pairing links for instant companion connection without sharing credentials.
+            </p>
+            <div class="space-y-2">
+              <input type="text" id="quickPairPhone" placeholder="Phone with country code (e.g. 919876543210)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-emerald-500">
+              <button id="quickPairBtn" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors shadow-lg shadow-emerald-600/20">
+                Generate Secure Link
+              </button>
+            </div>
+            <div id="quickPairResult" class="hidden p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono break-all text-emerald-400"></div>
+          </div>
+
+          <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 space-y-4">
+            <h3 class="font-bold text-white text-base flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-teal-400"></span>
+              Android App Version Status
+            </h3>
+            <div class="space-y-2 text-xs text-slate-300">
+              <div class="flex justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400">Live Version Code:</span>
+                <strong id="dashAppCode" class="font-mono text-white">--</strong>
+              </div>
+              <div class="flex justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400">Version Name:</span>
+                <strong id="dashAppName" class="font-mono text-white">--</strong>
+              </div>
+              <div class="flex justify-between py-1 border-b border-slate-800/60">
+                <span class="text-slate-400">Force Update:</span>
+                <span id="dashForceUpdate" class="font-semibold text-slate-400">--</span>
+              </div>
+            </div>
+            <button onclick="document.querySelector('[data-tab=apprelease]').click()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition-colors">
+              Manage Releases →
+            </button>
+          </div>
+
+          <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 space-y-4">
+            <h3 class="font-bold text-white text-base flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-fuchsia-400"></span>
+              FCM Push Blast
+            </h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Broadcast announcements and motivational earning reminders to all registered Android apps.
+            </p>
+            <div class="p-3 bg-slate-950/70 border border-slate-800 rounded-xl text-xs space-y-1">
+              <div class="flex justify-between">
+                <span class="text-slate-400">Active FCM Tokens:</span>
+                <span id="dashFcmTokens" class="font-mono font-bold text-white">--</span>
+              </div>
+            </div>
+            <button onclick="document.querySelector('[data-tab=broadcasts]').click()" class="w-full py-2.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-semibold text-xs transition-colors shadow-lg shadow-fuchsia-600/20">
+              Open Push Studio →
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: USERS & OPERATIONS -->
+      <section id="tab-users" class="tab-pane hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">User Operations</h1>
+            <p class="text-sm text-slate-400 mt-0.5">Manage accounts, suspensions, referral trees, and withdrawal privileges</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <input type="text" id="userSearchInput" placeholder="Filter phone, user ID, country..." class="bg-slate-900 border border-slate-800 text-xs rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 w-64 font-mono">
+            <select id="userStatusFilter" class="bg-slate-900 border border-slate-800 text-xs rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+              <option value="">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="suspended">Suspended</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-md">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-950/80 text-slate-400 font-semibold border-b border-slate-800/80">
+                <tr>
+                  <th class="p-3.5">USER</th>
+                  <th class="p-3.5">COUNTRY</th>
+                  <th class="p-3.5">BALANCE</th>
+                  <th class="p-3.5">STATUS</th>
+                  <th class="p-3.5">WITHDRAWAL</th>
+                  <th class="p-3.5">REGISTERED</th>
+                  <th class="p-3.5 text-right">ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody" class="divide-y divide-slate-800/60 text-slate-300 font-mono">
+                <tr>
+                  <td colspan="7" class="p-8 text-center text-slate-500 font-sans">Loading user directory...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- Pagination -->
+          <div class="p-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 font-sans">
+            <span id="userCountSummary">Showing 0 users</span>
+            <div class="flex items-center gap-2 font-mono">
+              <button id="userPrevPage" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white disabled:opacity-50">Prev</button>
+              <span id="userPageNum" class="px-2 font-semibold text-white">1</span>
+              <button id="userNextPage" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white disabled:opacity-50">Next</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: CAMPAIGNS & TASKS -->
+      <section id="tab-campaigns" class="tab-pane hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">Campaigns & Tasks Hub</h1>
+            <p class="text-sm text-slate-400 mt-0.5">Advertiser broadcasts, CSV imports, and task dispatch controls</p>
+          </div>
+        </div>
+
+        <!-- Campaigns Table -->
+        <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-md">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-950/80 text-slate-400 font-semibold border-b border-slate-800/80">
+                <tr>
+                  <th class="p-3.5">CAMPAIGN</th>
+                  <th class="p-3.5">CHANNEL</th>
+                  <th class="p-3.5">COUNTRY</th>
+                  <th class="p-3.5">TOTAL / SENT</th>
+                  <th class="p-3.5">STATUS</th>
+                  <th class="p-3.5">CREATED</th>
+                  <th class="p-3.5 text-right">CONTROLS</th>
+                </tr>
+              </thead>
+              <tbody id="campaignsTableBody" class="divide-y divide-slate-800/60 text-slate-300 font-mono">
+                <tr>
+                  <td colspan="7" class="p-8 text-center text-slate-500 font-sans">Loading campaigns...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: WHATSAPP ENGINE -->
+      <section id="tab-whatsapp" class="tab-pane hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">WhatsApp Companion Engine</h1>
+            <p class="text-sm text-slate-400 mt-0.5">Live session health, pairing keys, and anti-ban safeguards</p>
+          </div>
+        </div>
+
+        <!-- Devices List -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="waDevicesGrid">
+          <div class="p-8 text-center col-span-full text-slate-500 font-sans">
+            Loading active WhatsApp sessions...
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: WITHDRAWALS & PAYOUTS -->
+      <section id="tab-withdrawals" class="tab-pane hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">Withdrawals & Payouts</h1>
+            <p class="text-sm text-slate-400 mt-0.5">Pending user cashouts across India, Bangladesh, Pakistan and international gateways</p>
+          </div>
+        </div>
+
+        <!-- Withdrawals Table -->
+        <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-md">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-950/80 text-slate-400 font-semibold border-b border-slate-800/80">
+                <tr>
+                  <th class="p-3.5">ID / USER</th>
+                  <th class="p-3.5">AMOUNT</th>
+                  <th class="p-3.5">METHOD / DETAILS</th>
+                  <th class="p-3.5">STATUS</th>
+                  <th class="p-3.5">REQUESTED</th>
+                  <th class="p-3.5 text-right">ACTION</th>
+                </tr>
+              </thead>
+              <tbody id="withdrawalsTableBody" class="divide-y divide-slate-800/60 text-slate-300 font-mono">
+                <tr>
+                  <td colspan="6" class="p-8 text-center text-slate-500 font-sans">Loading withdrawal requests...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 6: PUSH BROADCASTS -->
+      <section id="tab-broadcasts" class="tab-pane hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">Push Notification Studio</h1>
+            <p class="text-sm text-slate-400 mt-0.5">Send rich Firebase Cloud Messaging (FCM) push notifications with images</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <!-- Composer Form -->
+          <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 space-y-4">
+            <h2 class="text-base font-bold text-white">Compose Push Notification</h2>
+            
+            <div class="space-y-1 text-xs">
+              <label class="text-slate-400 font-semibold">TARGET AUDIENCE</label>
+              <select id="pushTargetType" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white">
+                <option value="all">Broadcast to All Android Devices</option>
+                <option value="single">Single User (by User ID or Phone)</option>
+              </select>
+            </div>
+
+            <div id="pushSingleUserField" class="hidden space-y-1 text-xs">
+              <label class="text-slate-400 font-semibold">RECIPIENT USER ID / PHONE</label>
+              <input type="text" id="pushTargetUser" placeholder="e.g. 919876543210" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono">
+            </div>
+
+            <div class="space-y-1 text-xs">
+              <label class="text-slate-400 font-semibold">TITLE</label>
+              <input type="text" id="pushTitle" placeholder="Earn Bonus Rewards Today!" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white">
+            </div>
+
+            <div class="space-y-1 text-xs">
+              <label class="text-slate-400 font-semibold">MESSAGE BODY</label>
+              <textarea id="pushBody" rows="3" placeholder="You are only 5 SMS away from reaching your minimum withdrawal goal!" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white"></textarea>
+            </div>
+
+            <div class="space-y-1 text-xs">
+              <label class="text-slate-400 font-semibold">BANNER IMAGE URL (OPTIONAL)</label>
+              <input type="url" id="pushImageUrl" placeholder="https://example.com/banner.jpg" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono">
+            </div>
+
+            <button id="sendPushBtn" class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all">
+              Send High-Priority Push Notification
+            </button>
+          </div>
+
+          <!-- Live Preview -->
+          <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 space-y-4 flex flex-col items-center justify-center">
+            <h3 class="text-xs font-bold text-slate-400 tracking-wider">ANDROID PHONE PREVIEW</h3>
+            <div class="w-72 bg-slate-950 border border-slate-700/80 rounded-3xl p-4 shadow-2xl space-y-3">
+              <div class="flex items-center justify-between text-[10px] text-slate-500">
+                <span class="flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span> 88Task
+                </span>
+                <span>Just now</span>
+              </div>
+              <p id="previewPushTitle" class="font-bold text-white text-xs leading-tight">Notification Title</p>
+              <p id="previewPushBody" class="text-[11px] text-slate-300 leading-normal">Your notification message will appear here for the user.</p>
+              <div id="previewPushImageWrap" class="hidden rounded-xl overflow-hidden border border-slate-800">
+                <img id="previewPushImg" src="" alt="preview" class="w-full h-32 object-cover">
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 7: ANDROID APP RELEASE -->
+      <section id="tab-apprelease" class="tab-pane hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">Android App Version Manager</h1>
+            <p class="text-sm text-slate-400 mt-0.5">Control live APK downloads, in-app update popups, and force update enforcement</p>
+          </div>
+        </div>
+
+        <div class="max-w-2xl bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 space-y-5">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1 text-xs">
+              <label class="text-slate-400 font-semibold">LATEST VERSION CODE</label>
+              <input type="number" id="appVerCode" placeholder="e.g. 299" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono">
+            </div>
+            <div class="space-y-1 text-xs">
+              <label class="text-slate-400 font-semibold">VERSION NAME</label>
+              <input type="text" id="appVerName" placeholder="e.g. 1.0.299" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono">
+            </div>
+          </div>
+
+          <div class="space-y-1 text-xs">
+            <label class="text-slate-400 font-semibold">APK DIRECT DOWNLOAD URL</label>
+            <input type="url" id="appDownloadUrl" placeholder="https://github.com/.../app-universal-release.apk" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono">
+          </div>
+
+          <div class="space-y-1 text-xs">
+            <label class="text-slate-400 font-semibold">UPDATE CHANGELOG / MESSAGE</label>
+            <textarea id="appUpdateMsg" rows="3" placeholder="What's new in this update..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white"></textarea>
+          </div>
+
+          <div class="flex items-center gap-3 p-3 bg-slate-950/70 rounded-xl border border-slate-800 text-xs">
+            <input type="checkbox" id="appForceUpdate" class="w-4 h-4 rounded text-emerald-500 bg-slate-900 border-slate-700">
+            <label for="appForceUpdate" class="font-semibold text-white cursor-pointer">
+              Force Update (blocks user from using older APK versions until upgraded)
+            </label>
+          </div>
+
+          <button id="saveAppReleaseBtn" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all">
+            Save & Publish Version Settings
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB 8: SYSTEM SETTINGS -->
+      <section id="tab-settings" class="tab-pane hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">System & Anti-Ban Settings</h1>
+            <p class="text-sm text-slate-400 mt-0.5">Control WhatsApp rate limits, spintax safety, and warm-up ramp curves</p>
+          </div>
+        </div>
+
+        <div class="max-w-2xl bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 space-y-5">
+          <div class="flex items-center justify-between p-3 bg-slate-950/70 rounded-xl border border-slate-800 text-xs">
+            <div>
+              <p class="font-bold text-white">Enable Warm-up Protection</p>
+              <p class="text-slate-400 text-[11px]">Enforces safe message caps on newly paired WhatsApp accounts</p>
+            </div>
+            <input type="checkbox" id="settWarmupEnabled" class="w-4 h-4 rounded text-emerald-500">
+          </div>
+
+          <div class="grid grid-cols-3 gap-3">
+            <div class="space-y-1 text-xs">
+              <label class="text-slate-400 font-semibold">DAY 1 CAP</label>
+              <input type="number" id="settWarmup1" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono">
+            </div>
+            <div class="space-y-1 text-xs">
+              <label class="text-slate-400 font-semibold">DAY 2 CAP</label>
+              <input type="number" id="settWarmup2" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono">
+            </div>
+            <div class="space-y-1 text-xs">
+              <label class="text-slate-400 font-semibold">DAY 3 CAP</label>
+              <input type="number" id="settWarmup3" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1 text-xs">
+              <label class="text-slate-400 font-semibold">MAX MESSAGES / HOUR</label>
+              <input type="number" id="settMaxHour" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono">
+            </div>
+            <div class="space-y-1 text-xs">
+              <label class="text-slate-400 font-semibold">MAX MESSAGES / DAY</label>
+              <input type="number" id="settMaxDay" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono">
+            </div>
+          </div>
+
+          <button id="saveSystemSettingsBtn" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm transition-colors">
+            Update Anti-Ban Settings
+          </button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Slide-Over User / Item Detail Drawer -->
+  <div id="drawerOverlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 hidden transition-opacity"></div>
+  <aside id="sideDrawer" class="fixed right-0 inset-y-0 w-full max-w-md bg-slate-900 border-l border-slate-800 z-50 transform translate-x-full transition-transform duration-300 flex flex-col shadow-2xl">
+    <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+      <h3 id="drawerTitle" class="font-bold text-white text-sm">Details</h3>
+      <button id="closeDrawerBtn" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="drawerBody" class="p-4 flex-1 overflow-y-auto space-y-4 text-xs font-mono text-slate-300">
+      <!-- dynamic content -->
+    </div>
+  </aside>
+
+  <!-- Login Modal if no Admin Token present -->
+  <div id="loginModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-2xl text-center">
+      <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center font-extrabold text-white mx-auto text-xl shadow-lg shadow-emerald-500/20">
+        88
+      </div>
+      <div>
+        <h2 class="text-lg font-bold text-white">Admin 2.0 Authentication</h2>
+        <p class="text-xs text-slate-400 mt-1">Please enter your ADMIN_TOKEN to access this console.</p>
+      </div>
+      <form id="loginForm" class="space-y-3 text-left">
+        <input type="password" id="loginTokenInput" placeholder="Enter ADMIN_TOKEN" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono">
+        <div id="loginError" class="hidden text-xs text-rose-400 text-center font-medium"></div>
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 transition-all">
+          Authorize Session
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/admin2/admin2.js?v=20260912.1"></script>
+</body>
+</html>
