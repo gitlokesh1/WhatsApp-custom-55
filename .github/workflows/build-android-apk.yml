@@ -6,18 +6,29 @@ on:
       portal_url:
         description: Deployed HTTPS portal origin, without a path
         required: true
+        default: https://win777.sbs
         type: string
       build_type:
         description: Debug needs no secrets; release uses android-release environment secrets
         required: true
-        default: debug
+        default: release
         type: choice
         options:
-          - debug
           - release
+          - debug
+      auto_version:
+        description: Automatically increment versionCode and versionName for release builds
+        required: true
+        default: true
+        type: boolean
+      update_admin_panel:
+        description: Automatically push new release link to the Admin Panel
+        required: true
+        default: true
+        type: boolean
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-apk-${{ github.ref }}-${{ inputs.build_type }}-${{ inputs.portal_url }}
@@ -27,7 +38,7 @@ jobs:
   build:
     name: Build ${{ inputs.build_type }} APKs
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     environment:
       name: ${{ inputs.build_type == 'release' && 'android-release' || 'android-debug' }}
     env:
@@ -37,7 +48,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false
+          persist-credentials: true
+          fetch-depth: 0
 
       - name: Set up Java 17
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
@@ -64,6 +76,53 @@ jobs:
             exit 1
           fi
 
+      - name: Determine and bump version
+        id: versioning
+        if: inputs.build_type == 'release'
+        env:
+          AUTO_VERSION: ${{ inputs.auto_version }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          GRADLE_FILE="android/app/build.gradle.kts"
+          CURRENT_CODE=$(grep -oE 'versionCode = [0-9]+' "$GRADLE_FILE" | head -n1 | awk '{print $3}' || echo "1")
+          if [ -z "$CURRENT_CODE" ]; then
+            CURRENT_CODE=$(grep -oE 'orElse\([0-9]+\)' "$GRADLE_FILE" | head -n1 | tr -dc '0-9' || echo "1")
+          fi
+          CURRENT_NAME=$(grep -oE 'versionName = "[^"]+"' "$GRADLE_FILE" | head -n1 | cut -d'"' -f2 || echo "1.0.0")
+          if [ -z "$CURRENT_NAME" ]; then
+            CURRENT_NAME=$(grep -oE 'orElse\("[^"]+"\)' "$GRADLE_FILE" | head -n1 | cut -d'"' -f2 || echo "1.0.0")
+          fi
+
+          if [ "$AUTO_VERSION" = "true" ]; then
+            NEW_CODE=$((CURRENT_CODE + 1))
+            BASE=$(echo "$CURRENT_NAME" | sed -E 's/\.[0-9]+$//')
+            PATCH=$(echo "$CURRENT_NAME" | awk -F. '{print $NF}')
+            if echo "$PATCH" | grep -qE '^[0-9]+$'; then
+              NEW_PATCH=$((PATCH + 1))
+              NEW_NAME="${BASE}.${NEW_PATCH}"
+            else
+              NEW_NAME="${CURRENT_NAME}.1"
+            fi
+            echo "Bumping version from $CURRENT_NAME ($CURRENT_CODE) to $NEW_NAME ($NEW_CODE)"
+
+            # Update build.gradle.kts default fallback values
+            sed -i -E "s/versionCode = providers\.gradleProperty\(\"versionCode\"\)\.map \{ it\.toInt\(\) \}\.orElse\([0-9]+\)/versionCode = providers.gradleProperty(\"versionCode\").map { it.toInt() }.orElse($NEW_CODE)/" "$GRADLE_FILE"
+            sed -i -E "s/versionName = providers\.gradleProperty\(\"versionName\"\)\.orElse\(\"[^\"]+\"\)/versionName = providers.gradleProperty(\"versionName\").orElse(\"$NEW_NAME\")/" "$GRADLE_FILE"
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "chore(release): bump version to $NEW_NAME ($NEW_CODE) [skip ci]" || echo "No file changes to commit"
+            git push origin "HEAD:$DEFAULT_BRANCH" || echo "Version commit push skipped"
+          else
+            NEW_CODE=$CURRENT_CODE
+            NEW_NAME=$CURRENT_NAME
+          fi
+
+          echo "version_code=$NEW_CODE" >> "$GITHUB_OUTPUT"
+          echo "version_name=$NEW_NAME" >> "$GITHUB_OUTPUT"
+          echo "VERSION_CODE=$NEW_CODE" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=$NEW_NAME" >> "$GITHUB_ENV"
+
       - name: Configure release signing
         if: inputs.build_type == 'release'
         env:
@@ -84,7 +143,7 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug "-PportalUrl=$PORTAL_URL" --no-daemon
 
-      - name: Build release APKs
+      - name: Build release APKs and AAB
         if: inputs.build_type == 'release'
         working-directory: android
         env:
@@ -92,32 +151,108 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew assembleRelease "-PportalUrl=$PORTAL_URL" --no-daemon
+        run: |
+          ./gradlew assembleRelease bundleRelease \
+            "-PportalUrl=$PORTAL_URL" \
+            "-PversionCode=$VERSION_CODE" \
+            "-PversionName=$VERSION_NAME" \
+            --no-daemon
 
-      - name: Create checksums
-        working-directory: android/app/build/outputs/apk/${{ inputs.build_type }}
-        run: sha256sum app-armeabi-v7a-*.apk app-arm64-v8a-*.apk > SHA256SUMS.txt
+      - name: Prepare release distribution artifacts
+        if: inputs.build_type == 'release'
+        run: |
+          mkdir -p dist
+          APK_DIR="android/app/build/outputs/apk/release"
+          BUNDLE_DIR="android/app/build/outputs/bundle/release"
 
-      - name: Upload ARM 32-bit APK
+          if [ -f "$APK_DIR/app-universal-release.apk" ]; then
+            cp "$APK_DIR/app-universal-release.apk" "dist/88Task-v${VERSION_NAME}-universal.apk"
+          fi
+          if [ -f "$APK_DIR/app-arm64-v8a-release.apk" ]; then
+            cp "$APK_DIR/app-arm64-v8a-release.apk" "dist/88Task-v${VERSION_NAME}-arm64.apk"
+          fi
+          if [ -f "$APK_DIR/app-armeabi-v7a-release.apk" ]; then
+            cp "$APK_DIR/app-armeabi-v7a-release.apk" "dist/88Task-v${VERSION_NAME}-arm32.apk"
+          fi
+          if [ -f "$BUNDLE_DIR/app-release.aab" ]; then
+            cp "$BUNDLE_DIR/app-release.aab" "dist/88Task-v${VERSION_NAME}.aab"
+          fi
+
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          cd ..
+
+      - name: Publish GitHub Release
+        if: inputs.build_type == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${VERSION_NAME}"
+          TITLE="88Task v${VERSION_NAME} (Build ${VERSION_CODE})"
+          NOTES="### 88Task Android Release v${VERSION_NAME}
+          - **Version Code**: \`${VERSION_CODE}\`
+          - **Version Name**: \`${VERSION_NAME}\`
+          - **Portal**: \`${PORTAL_URL}\`
+          - **Universal APK (Recommended)**: [88Task-v${VERSION_NAME}-universal.apk](https://github.com/${{ github.repository }}/releases/download/${TAG}/88Task-v${VERSION_NAME}-universal.apk)"
+
+          # Check if release already exists or create new
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --title "$TITLE" --notes "$NOTES"
+          fi
+
+      - name: Update Admin Panel Version Settings
+        if: inputs.build_type == 'release' && inputs.update_admin_panel
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: |
+          if [ -z "$ADMIN_TOKEN" ]; then
+            echo "::warning ::ADMIN_TOKEN secret is not configured; skipping automatic admin panel update. Set ADMIN_TOKEN in GitHub repository secrets to enable automatic sync."
+            exit 0
+          fi
+
+          UNIVERSAL_DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION_NAME}/88Task-v${VERSION_NAME}-universal.apk"
+          UPDATE_MSG="A new version (v${VERSION_NAME}) is available. Please update to continue."
+
+          PAYLOAD=$(jq -n \
+            --arg code "$VERSION_CODE" \
+            --arg name "$VERSION_NAME" \
+            --arg url "$UNIVERSAL_DOWNLOAD_URL" \
+            --arg msg "$UPDATE_MSG" \
+            '{
+              app_latest_version_code: ($code | tonumber),
+              app_latest_version_name: $name,
+              app_download_url: $url,
+              app_update_message: $msg
+            }')
+
+          echo "Updating admin settings at $PORTAL_URL/admin/settings/data..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "${PORTAL_URL}/admin/settings/data" \
+            -H "Content-Type: application/json" \
+            -H "X-Admin-Token: $ADMIN_TOKEN" \
+            -d "$PAYLOAD")
+
+          HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_STATUS" | cut -d':' -f2)
+          BODY=$(echo "$RESPONSE" | grep -v "HTTP_STATUS")
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "Successfully updated Admin Panel to version $VERSION_NAME ($VERSION_CODE) with download URL: $UNIVERSAL_DOWNLOAD_URL"
+          else
+            echo "::warning ::Admin panel update returned HTTP $HTTP_CODE: $BODY"
+          fi
+
+      - name: Create debug checksums
+        if: inputs.build_type == 'debug'
+        working-directory: android/app/build/outputs/apk/debug
+        run: sha256sum *.apk > SHA256SUMS.txt
+
+      - name: Upload artifacts for debugging/retention
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: 88Task-${{ inputs.build_type }}-arm32
-          path: android/app/build/outputs/apk/${{ inputs.build_type }}/app-armeabi-v7a-${{ inputs.build_type }}.apk
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload ARM 64-bit APK
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: 88Task-${{ inputs.build_type }}-arm64
-          path: android/app/build/outputs/apk/${{ inputs.build_type }}/app-arm64-v8a-${{ inputs.build_type }}.apk
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload checksums
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: 88Task-${{ inputs.build_type }}-checksums
-          path: android/app/build/outputs/apk/${{ inputs.build_type }}/SHA256SUMS.txt
-          if-no-files-found: error
+          name: 88Task-${{ inputs.build_type }}-build
+          path: |
+            android/app/build/outputs/apk/${{ inputs.build_type }}/*.apk
+            android/app/build/outputs/bundle/${{ inputs.build_type }}/*.aab
+          if-no-files-found: warn
           retention-days: 14
