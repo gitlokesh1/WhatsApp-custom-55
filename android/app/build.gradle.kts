@@ -8,6 +8,7 @@ plugins {
 }
 
 val portalUrl = providers.gradleProperty("portalUrl").orElse("").get().trim().trimEnd('/')
+val enableSplits = providers.gradleProperty("enableSplits").map { it.toBoolean() }.orElse(true).get()
 val releaseStorePath = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
 val releaseStorePassword = providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").orNull
 val releaseKeyAlias = providers.environmentVariable("ANDROID_KEY_ALIAS").orNull
@@ -61,7 +62,7 @@ android {
 
     splits {
         abi {
-            isEnable = true
+            isEnable = enableSplits
             reset()
             include("armeabi-v7a", "arm64-v8a")
             isUniversalApk = true
