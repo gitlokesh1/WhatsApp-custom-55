@@ -136,6 +136,11 @@ func userSMSTaskClaimHandler(w http.ResponseWriter, r *http.Request) {
 		userFeaturesJSON(w, http.StatusForbidden, map[string]any{"status": "error", "message": "Register this Android installation first"})
 		return
 	}
+	// Advisory transaction lock per installation to eliminate concurrent task claim races
+	if _, err = tx.Exec(`SELECT pg_advisory_xact_lock(hashtext('sms_claim_' || $1::text))`, in.InstallationID); err != nil {
+		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error"})
+		return
+	}
 	if _, err = tx.Exec(`UPDATE public.task_claims SET status='expired',updated_at=now() WHERE android_installation_id=$1::uuid AND channel='sms' AND status='sending' AND expires_at<=now()`, in.InstallationID); err != nil {
 		userFeaturesJSON(w, http.StatusInternalServerError, map[string]any{"status": "error"})
 		return
