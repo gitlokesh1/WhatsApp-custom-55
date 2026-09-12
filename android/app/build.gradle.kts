@@ -28,8 +28,8 @@ android {
         applicationId = "com.eightyeighttask.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = providers.gradleProperty("versionCode").map { it.toInt() }.orElse(5).get()
-        versionName = providers.gradleProperty("versionName").orElse("1.0.291").get()
+        versionCode = providers.gradleProperty("versionCode").map { it.toInt() }.orElse(6).get()
+        versionName = providers.gradleProperty("versionName").orElse("1.0.292").get()
 
         buildConfigField("String", "PORTAL_URL", "\"${portalUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
     }
