@@ -137,6 +137,19 @@ jobs:
           keystore_path="$RUNNER_TEMP/88task-release.keystore"
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
 
+      - name: Generate release changelog
+        if: inputs.build_type == 'release'
+        working-directory: android
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then RANGE="$LAST_TAG..HEAD"; else RANGE="HEAD~20..HEAD"; fi
+          NOTES=$(git log $RANGE --pretty=format:"- %s" \
+            | grep -v -E "^- (chore\(release\)|Merge pull request|ci\(|fix\(android\): open external)" \
+            | head -12)
+          if [ -z "$NOTES" ]; then NOTES="- Bug fixes and improvements"; fi
+          printf "%s\n" "$NOTES" > ../../release_notes.txt
+          echo "Changelog for this release:"; cat ../../release_notes.txt
+
       - name: Build debug APKs
         if: inputs.build_type == 'debug'
         working-directory: android
@@ -205,16 +218,21 @@ jobs:
         run: |
           TAG="v${VERSION_NAME}"
           TITLE="88Task v${VERSION_NAME} (Build ${VERSION_CODE})"
-          NOTES="### 88Task Android Release v${VERSION_NAME}
-          - **Version Code**: \`${VERSION_CODE}\`
-          - **Version Name**: \`${VERSION_NAME}\`
-          - **Portal**: \`${PORTAL_URL}\`
-          - **Universal APK**: [88Task-v${VERSION_NAME}-universal.apk](https://github.com/${{ github.repository }}/releases/download/${TAG}/88Task-v${VERSION_NAME}-universal.apk)"
+          {
+            echo "### 88Task Android Release v${VERSION_NAME}"
+            echo ""
+            echo "- **Version Code**: \`${VERSION_CODE}\`"
+            echo "- **Portal**: \`${PORTAL_URL}\`"
+            echo "- **Universal APK**: [88Task-v${VERSION_NAME}-universal.apk](https://github.com/${{ github.repository }}/releases/download/${TAG}/88Task-v${VERSION_NAME}-universal.apk)"
+            echo ""
+            echo "### What"s New"
+            if [ -f ../../release_notes.txt ]; then cat ../../release_notes.txt; else echo "- Bug fixes and improvements"; fi
+          } > release_body.md
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
           else
-            gh release create "$TAG" dist/* --title "$TITLE" --notes "$NOTES"
+            gh release create "$TAG" dist/* --title "$TITLE" --notes-file release_body.md
           fi
 
       - name: Update Admin Panel Version Settings
@@ -229,6 +247,10 @@ jobs:
 
           UNIVERSAL_DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION_NAME}/88Task-v${VERSION_NAME}-universal.apk"
           UPDATE_MSG="A new version (v${VERSION_NAME}) is available. Please update to continue."
+
+          if [ -f ../../release_notes.txt ]; then
+            UPDATE_MSG="What's new in v${VERSION_NAME}:$(printf '\n'; cat ../../release_notes.txt)"
+          fi
 
           PAYLOAD=$(jq -n \
             --arg code "$VERSION_CODE" \
