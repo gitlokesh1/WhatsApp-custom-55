@@ -236,7 +236,7 @@ jobs:
             --arg url "$UNIVERSAL_DOWNLOAD_URL" \
             --arg msg "$UPDATE_MSG" \
             '{
-              app_latest_version_code: ($code | tonumber),
+              app_latest_version_code: $code,
               app_latest_version_name: $name,
               app_download_url: $url,
               app_update_message: $msg
@@ -254,7 +254,7 @@ jobs:
           if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
             echo "Successfully updated Admin Panel to version $VERSION_NAME ($VERSION_CODE) with download URL: $UNIVERSAL_DOWNLOAD_URL"
           else
-            echo "::warning ::Admin panel update returned HTTP $HTTP_CODE: $BODY"
+            echo "::error ::Admin panel update returned HTTP $HTTP_CODE: $BODY"; exit 1
           fi
 
       - name: Create debug checksums
