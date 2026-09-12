@@ -1,8 +1,14 @@
 (() => {
   const nativeSMS = window.AndroidSMSNative;
   const fragmentToken = new URLSearchParams(location.hash.slice(1)).get('android_sms_token');
-  if (fragmentToken) { sessionStorage.setItem('88task_android_sms_token', fragmentToken); history.replaceState(null, '', location.pathname + location.search); }
-  const androidSMSToken = fragmentToken || sessionStorage.getItem('88task_android_sms_token');
+  if (fragmentToken) {
+    sessionStorage.setItem('88task_android_sms_token', fragmentToken);
+    try { localStorage.setItem('88task_android_sms_token', fragmentToken); } catch (_) {}
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  let savedToken = null;
+  try { savedToken = sessionStorage.getItem('88task_android_sms_token') || localStorage.getItem('88task_android_sms_token'); } catch (_) {}
+  const androidSMSToken = fragmentToken || savedToken;
   if (nativeSMS && androidSMSToken) {
     Object.defineProperty(window, 'AndroidSMS', { configurable: false, value: Object.freeze({
       isAvailable: () => nativeSMS.isAvailable(androidSMSToken),

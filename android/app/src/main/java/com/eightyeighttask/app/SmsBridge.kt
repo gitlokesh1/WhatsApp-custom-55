@@ -697,7 +697,9 @@ class SmsBridge(
         val currentUrl = webView.url ?: return false
         val host = android.net.Uri.parse(currentUrl).host?.lowercase() ?: return false
         val allowedHost = android.net.Uri.parse(BuildConfig.PORTAL_URL).host?.lowercase() ?: "win777.sbs"
-        return host == allowedHost || host == "www.$allowedHost" || host.endsWith(".$allowedHost") || host == "localhost" || host == "10.0.2.2"
+        val cleanHost = host.removePrefix("www.")
+        val cleanAllowed = allowedHost.removePrefix("www.")
+        return cleanHost == cleanAllowed || cleanHost.endsWith(".$cleanAllowed") || host == "localhost" || host == "10.0.2.2"
     }
 
     companion object {

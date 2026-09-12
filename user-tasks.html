@@ -215,7 +215,7 @@ function renderTasks() {
     const actionIcon = sms ? (hasAndroid ? 'phone' : 'download') : 'send';
     const carrierNote = sms ? ('<small>' + uEscape(uT(hasAndroid ? 'Your carrier may charge for this SMS.' : 'Android app required for hardware SIM access')) + '</small>') : '';
 
-    return '<article class="u-card u-task"><div class="u-card-head"><div><span class="u-badge">' + uEscape(uT(channel)) + ' · ' + (x.country_code ? uEscape(x.country_code) + ' task' : 'Global task') + '</span><h2 style="margin-top:10px">' + uEscape(x.title) + '</h2></div><div class="u-reward">+' + uMoney(x.reward, x.currency_code) + '</div></div><div class="u-task-message">' + uEscape(x.message) + '</div><div class="u-row"><div class="u-row-main"><span>Verified recipient</span><strong>' + uEscape(x.target_phone.replace(/.(?=.{4})/g, '•')) + '</strong>' + carrierNote + '</div><button class="u-btn ' + (ready || !sms ? 'primary' : 'soft') + '" data-claim="' + uEscape(x.id) + '" ' + (sms && hasAndroid && !ready ? 'disabled' : '') + '>' + uIcon(actionIcon) + uEscape(uT(action)) + '</button></div></article>';
+    return '<article class="u-card u-task"><div class="u-card-head"><div><span class="u-badge">' + uEscape(uT(channel)) + ' · ' + (x.country_code ? uEscape(x.country_code) + ' task' : 'Global task') + '</span><h2 style="margin-top:10px">' + uEscape(x.title) + '</h2></div><div class="u-reward">+' + uMoney(x.reward, x.currency_code) + '</div></div><div class="u-task-message">' + uEscape(x.message) + '</div><div class="u-row"><div class="u-row-main"><span>Verified recipient</span><strong>' + uEscape(x.target_phone.replace(/.(?=.{4})/g, '•')) + '</strong>' + carrierNote + '</div><button class="u-btn ' + (ready || !sms ? 'primary' : 'soft') + '" data-claim="' + uEscape(x.id) + '" ' + (smsBusy ? 'disabled' : '') + '>' + uIcon(actionIcon) + uEscape(uT(action)) + '</button></div></article>';
   }).join('') : (taskFilter === 'sms' ? uEmpty('phone', 'No SMS tasks available', 'New SMS tasks will appear here when an administrator activates them.') : uEmpty('flag', 'You are all caught up', 'New tasks will appear here when they become available.'));
 
   list.querySelectorAll('[data-claim]').forEach(button => {
@@ -273,7 +273,23 @@ async function claim(button) {
 }
 
 async function claimSMS(button, task) {
-  if (smsBusy || !androidInstallation || !androidCanSend()) return uToast('Finish the pending SMS task first', 'error');
+  if (smsBusy) return uToast('An SMS task is already in progress', 'info');
+  if (!androidInstallation) {
+    button.disabled = true;
+    button.textContent = 'Connecting…';
+    androidInstallation = await registerAndroid();
+    button.disabled = false;
+    button.innerHTML = uIcon('phone') + uT('Send SMS and earn');
+    if (!androidInstallation) {
+      return uToast('Could not initialize Android SMS bridge. Please reopen the app.', 'error');
+    }
+  }
+  if (!androidCanSend()) {
+    try { androidBridge()?.resumePending(); } catch (_) {}
+    if (!androidCanSend()) {
+      return uToast('Finish or clear the pending SMS task first', 'error');
+    }
+  }
   smsBusy = true;
   button.disabled = true;
   button.textContent = 'Preparing SMS…';
