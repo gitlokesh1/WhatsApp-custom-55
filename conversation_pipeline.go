@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -105,6 +106,24 @@ func conversationCommand(body string) string {
 	return strings.ToUpper(strings.Trim(strings.TrimSpace(body), ".,!?"))
 }
 
+const optOutConfirmationReply = "You’re unsubscribed from automated messages. Reply START if you want to resume."
+
+func isOptOutCommand(command string) bool {
+	switch command {
+	case "STOP", "UNSUBSCRIBE", "OPT OUT", "OPTOUT", "OPT-OUT", "SAIR", "PARAR", "CANCELAR", "BASTA", "BAJA", "ARRET":
+		return true
+	}
+	return false
+}
+
+func isResumeCommand(command string) bool {
+	return command == "START" || command == "SUBSCRIBE"
+}
+
+func isOptOutConfirmationReply(body string) bool {
+	return conversationCommand(body) == conversationCommand(optOutConfirmationReply)
+}
+
 func recordInboundConversation(accountKey string, target types.JID, messageID, body string) (string, bool, error) {
 	if err := ensureConversationPipelineTables(); err != nil {
 		return "", false, err
@@ -137,10 +156,10 @@ func recordInboundConversation(accountKey string, target types.JID, messageID, b
 	command := conversationCommand(body)
 	reply := ""
 	switch command {
-	case "STOP", "UNSUBSCRIBE", "OPT OUT", "OPTOUT":
+	case "STOP", "UNSUBSCRIBE", "OPT OUT", "OPTOUT", "OPT-OUT", "SAIR", "PARAR", "CANCELAR", "BASTA", "BAJA", "ARRET":
 		consent = "opted_out"
 		handoff = false
-		reply = "You’re unsubscribed from automated messages. Reply START if you want to resume."
+		reply = optOutConfirmationReply
 	case "START", "SUBSCRIBE":
 		consent = "active"
 		handoff = false
@@ -167,6 +186,15 @@ func recordInboundConversation(accountKey string, target types.JID, messageID, b
 	}
 	if err = tx.Commit(); err != nil {
 		return "", false, err
+	}
+	if phone, phoneErr := normalizeRecipientPhone(target.User); phoneErr == nil && phone != "" {
+		if isOptOutCommand(command) {
+			if optErr := markRecipientOptOut(context.Background(), phone, command, accountKey); optErr != nil {
+				fmt.Printf("global opt-out record failed for %s: %v\n", phone, optErr)
+			}
+		} else if isResumeCommand(command) {
+			_ = removeRecipientOptOut(context.Background(), phone)
+		}
 	}
 	return reply, false, nil
 }
@@ -284,12 +312,27 @@ func processConversationQueue() {
 			_, _ = userDB.Exec(`UPDATE public.conversation_messages SET status='failed',error=$1 WHERE id=$2`, err.Error(), item.id)
 			continue
 		}
+		chatPhone, chatPhoneErr := normalizeRecipientPhone(target.User)
+		if chatPhoneErr != nil || chatPhone == "" {
+			_, _ = userDB.Exec(`UPDATE public.conversation_messages SET status='failed',error=$1 WHERE id=$2`, "invalid recipient phone", item.id)
+			continue
+		}
+		sendCtx := context.Background()
+		if isOptOutConfirmationReply(item.body) {
+			sendCtx = WithSafetyBypass(sendCtx)
+		} else {
+			sendCtx = WithCooldownBypass(sendCtx)
+			if suppressed, supErr := isRecipientSuppressed(sendCtx, chatPhone); supErr == nil && suppressed {
+				_, _ = userDB.Exec(`UPDATE public.conversation_messages SET status='failed',error=$1 WHERE id=$2`, "recipient has opted out; send suppressed", item.id)
+				continue
+			}
+		}
 		if item.providerID == "" {
 			item.providerID = string(session.client.GenerateMessageID())
 			_, _ = userDB.Exec(`UPDATE public.conversation_messages SET provider_message_id=$1 WHERE id=$2`, item.providerID, item.id)
 		}
 		session.mu.Lock()
-		sendErr := safeSendMessageWithID(item.accountKey, session.client, target, item.body, types.MessageID(item.providerID))
+		sendErr := safeSendMessageWithIDContext(sendCtx, item.accountKey, session.client, target, item.body, types.MessageID(item.providerID))
 		session.mu.Unlock()
 		if sendErr != nil {
 			if conversationTemporaryError(sendErr) {
