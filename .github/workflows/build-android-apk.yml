@@ -84,13 +84,13 @@ jobs:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           GRADLE_FILE="android/app/build.gradle.kts"
-          CURRENT_CODE=$(grep -oE 'versionCode = [0-9]+' "$GRADLE_FILE" | head -n1 | awk '{print $3}' || echo "1")
+          CURRENT_CODE=$(grep -oE 'orElse\([0-9]+\)' "$GRADLE_FILE" | head -n1 | tr -dc '0-9')
           if [ -z "$CURRENT_CODE" ]; then
-            CURRENT_CODE=$(grep -oE 'orElse\([0-9]+\)' "$GRADLE_FILE" | head -n1 | tr -dc '0-9' || echo "1")
+            CURRENT_CODE=$(grep -oE 'versionCode = [0-9]+' "$GRADLE_FILE" | head -n1 | awk '{print $3}' || echo "1")
           fi
-          CURRENT_NAME=$(grep -oE 'versionName = "[^"]+"' "$GRADLE_FILE" | head -n1 | cut -d'"' -f2 || echo "1.0.0")
+          CURRENT_NAME=$(grep -oE 'orElse\("[^"]+"\)' "$GRADLE_FILE" | head -n1 | cut -d'"' -f2)
           if [ -z "$CURRENT_NAME" ]; then
-            CURRENT_NAME=$(grep -oE 'orElse\("[^"]+"\)' "$GRADLE_FILE" | head -n1 | cut -d'"' -f2 || echo "1.0.0")
+            CURRENT_NAME=$(grep -oE 'versionName = "[^"]+"' "$GRADLE_FILE" | head -n1 | cut -d'"' -f2 || echo "1.0.0")
           fi
 
           if [ "$AUTO_VERSION" = "true" ]; then
@@ -105,9 +105,8 @@ jobs:
             fi
             echo "Bumping version from $CURRENT_NAME ($CURRENT_CODE) to $NEW_NAME ($NEW_CODE)"
 
-            # Update build.gradle.kts default fallback values
-            sed -i -E "s/versionCode = providers\.gradleProperty\(\"versionCode\"\)\.map \{ it\.toInt\(\) \}\.orElse\([0-9]+\)/versionCode = providers.gradleProperty(\"versionCode\").map { it.toInt() }.orElse($NEW_CODE)/" "$GRADLE_FILE"
-            sed -i -E "s/versionName = providers\.gradleProperty\(\"versionName\"\)\.orElse\(\"[^\"]+\"\)/versionName = providers.gradleProperty(\"versionName\").orElse(\"$NEW_NAME\")/" "$GRADLE_FILE"
+            sed -i -E "s/orElse\([0-9]+\)/orElse($NEW_CODE)/" "$GRADLE_FILE"
+            sed -i -E "s/orElse\(\"[^\"]+\"\)/orElse(\"$NEW_NAME\")/" "$GRADLE_FILE"
 
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -143,7 +142,7 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug "-PportalUrl=$PORTAL_URL" --no-daemon
 
-      - name: Build release APKs and AAB
+      - name: Build release APKs
         if: inputs.build_type == 'release'
         working-directory: android
         env:
@@ -152,10 +151,27 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          ./gradlew assembleRelease bundleRelease \
+          ./gradlew assembleRelease \
             "-PportalUrl=$PORTAL_URL" \
             "-PversionCode=$VERSION_CODE" \
             "-PversionName=$VERSION_NAME" \
+            -PenableSplits=true \
+            --no-daemon
+
+      - name: Build release AAB bundle
+        if: inputs.build_type == 'release'
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/88task-release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          ./gradlew bundleRelease \
+            "-PportalUrl=$PORTAL_URL" \
+            "-PversionCode=$VERSION_CODE" \
+            "-PversionName=$VERSION_NAME" \
+            -PenableSplits=false \
             --no-daemon
 
       - name: Prepare release distribution artifacts
@@ -193,9 +209,8 @@ jobs:
           - **Version Code**: \`${VERSION_CODE}\`
           - **Version Name**: \`${VERSION_NAME}\`
           - **Portal**: \`${PORTAL_URL}\`
-          - **Universal APK (Recommended)**: [88Task-v${VERSION_NAME}-universal.apk](https://github.com/${{ github.repository }}/releases/download/${TAG}/88Task-v${VERSION_NAME}-universal.apk)"
+          - **Universal APK**: [88Task-v${VERSION_NAME}-universal.apk](https://github.com/${{ github.repository }}/releases/download/${TAG}/88Task-v${VERSION_NAME}-universal.apk)"
 
-          # Check if release already exists or create new
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
           else
