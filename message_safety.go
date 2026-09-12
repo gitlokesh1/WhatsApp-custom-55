@@ -233,7 +233,22 @@ func safeSendMessageWithIDContext(ctx context.Context,userID string,client *what
    if isTemporaryRecipientLookupError(resolveErr){event:="lid_lookup_timeout";message:="WhatsApp recipient lookup temporarily unavailable; retry shortly";if isRateLimitedError(resolveErr){event="lid_lookup_rate_limited";message="WhatsApp recipient lookup rate-limited (429); retry in about 90 seconds";setRecipientRateLimit(userID,90*time.Second)};recordSendTelemetry(userID,targetJID.User,event,resolveErr);return newTemporaryRecipientLookupFailure(message)};recordSendTelemetry(userID,targetJID.User,"lid_lookup_failed",resolveErr);return fmt.Errorf("WhatsApp recipient lookup failed: %w",resolveErr)}
  if !cached&&!resolved.IsEmpty(){cached=true}
  if cached{recordSendTelemetry(userID,targetJID.User,"lid_resolved",nil)}else{recordSendTelemetry(userID,targetJID.User,"lid_not_resolved",nil)}
- if getAdminSetting("send_typing","true")=="true"&&cached{presenceCtx,presenceCancel:=context.WithTimeout(ctx,15*time.Second);_=client.SubscribePresence(presenceCtx,resolved);_=client.SendChatPresence(presenceCtx,resolved,types.ChatPresenceComposing,types.ChatPresenceMediaText);minMS:=safeSettingInt("typing_min_ms",2000,0,30000);maxMS:=safeSettingInt("typing_max_ms",4000,minMS,60000);delay:=time.Duration(minMS)*time.Millisecond;if maxMS>minMS{delay+=time.Duration(randInt(maxMS-minMS+1))*time.Millisecond};if err:=waitSendDelay(presenceCtx,delay);err!=nil{presenceCancel();return err};_=client.SendChatPresence(presenceCtx,resolved,types.ChatPresencePaused,types.ChatPresenceMediaText);presenceCancel()}
+ if getAdminSetting("send_typing","true")=="true"&&cached{
+		presenceCtx,presenceCancel:=context.WithTimeout(ctx,25*time.Second)
+		_=client.SubscribePresence(presenceCtx,resolved)
+		_=client.SendChatPresence(presenceCtx,resolved,types.ChatPresenceComposing,types.ChatPresenceMediaText)
+		minMS:=safeSettingInt("typing_min_ms",2000,0,30000)
+		maxMS:=safeSettingInt("typing_max_ms",6000,minMS,60000)
+		// Proportional human typing: ~30-50ms per character + baseline pause
+		charCount:=len([]rune(text))
+		dynamicMS:=minMS + (charCount * (30 + randInt(25)))
+		if dynamicMS > maxMS { dynamicMS = maxMS }
+		if dynamicMS < minMS { dynamicMS = minMS }
+		delay:=time.Duration(dynamicMS)*time.Millisecond
+		if err:=waitSendDelay(presenceCtx,delay);err!=nil{presenceCancel();return err}
+		_=client.SendChatPresence(presenceCtx,resolved,types.ChatPresencePaused,types.ChatPresenceMediaText)
+		presenceCancel()
+	}
  sendTo:=targetJID;if cached{sendTo=resolved}
  sendCtx,sendCancel:=context.WithTimeout(ctx,45*time.Second)
  err=sendTextMessage(sendCtx,client,sendTo,text,messageID);sendCancel()

@@ -106,10 +106,10 @@ var BaseClientPayload = &waWa6.ClientPayload{
 		AppVersion:     waVersion.ProtoAppVersion(),
 		Mcc:            proto.String("000"),
 		Mnc:            proto.String("000"),
-		OsVersion:      proto.String("0.1"),
+		OsVersion:      proto.String("10.0.19045"),
 		Manufacturer:   proto.String(""),
 		Device:         proto.String("Desktop"),
-		OsBuildNumber:  proto.String("0.1"),
+		OsBuildNumber:  proto.String("10.0.19045"),
 
 		LocaleLanguageIso6391:       proto.String("en"),
 		LocaleCountryIso31661Alpha2: proto.String("US"),
@@ -122,11 +122,11 @@ var BaseClientPayload = &waWa6.ClientPayload{
 }
 
 var DeviceProps = &waCompanionReg.DeviceProps{
-	Os: proto.String("88Task"),
+	Os: proto.String("Windows"),
 	Version: &waCompanionReg.DeviceProps_AppVersion{
-		Primary:   proto.Uint32(0),
-		Secondary: proto.Uint32(1),
-		Tertiary:  proto.Uint32(0),
+		Primary:   proto.Uint32(10),
+		Secondary: proto.Uint32(0),
+		Tertiary:  proto.Uint32(19045),
 	},
 	HistorySyncConfig: &waCompanionReg.DeviceProps_HistorySyncConfig{
 		FullSyncDaysLimit:                        nil,
@@ -152,7 +152,7 @@ var DeviceProps = &waCompanionReg.DeviceProps{
 		SupportManusHistory:                      proto.Bool(true),
 		SupportHatchHistory:                      proto.Bool(true),
 	},
-	PlatformType:    waCompanionReg.DeviceProps_UNKNOWN.Enum(),
+	PlatformType:    waCompanionReg.DeviceProps_CHROME.Enum(),
 	RequireFullSync: proto.Bool(false),
 }
 

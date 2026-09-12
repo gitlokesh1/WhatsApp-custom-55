@@ -439,7 +439,7 @@ func pairHandler(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(APIResponse{Status: "error", Message: "Pairing already in progress"})
 		return
 	}
-	code, err := client.PairPhone(context.Background(), phone, true, whatsmeow.PairClientChrome, "Chrome (Linux)")
+	code, err := client.PairPhone(context.Background(), phone, true, whatsmeow.PairClientChrome, "Chrome (Windows)")
 	if err != nil {
 		removeSession(uid)
 		client.Disconnect()
