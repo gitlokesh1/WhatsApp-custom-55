@@ -1152,7 +1152,11 @@ func adminCampaignDetailHandler(w http.ResponseWriter, r *http.Request) {
 		var sentAt sql.NullTime
 		var createdAt time.Time
 		if err := taskRows.Scan(&id, &title, &channel, &countryCode, &targetPhone, &msg, &active, &claimStatus, &sentAt, &createdAt); err == nil {
-			tasks = append(tasks, map[string]any{"id": id, "title": title, "channel": channel, "country_code": countryCode, "target_phone": targetPhone, "message": msg, "active": active, "claim_status": claimStatus, "sent_at": sentAt, "created_at": createdAt})
+			var sentAtVal any
+			if sentAt.Valid {
+				sentAtVal = sentAt.Time.Format(time.RFC3339)
+			}
+			tasks = append(tasks, map[string]any{"id": id, "title": title, "channel": channel, "country_code": countryCode, "target_phone": targetPhone, "message": msg, "active": active, "claim_status": claimStatus, "sent_at": sentAtVal, "created_at": createdAt.Format(time.RFC3339)})
 		}
 	}
 	userFeaturesJSON(w, http.StatusOK, map[string]any{"status": "success", "campaign": campaign, "tasks": tasks})
